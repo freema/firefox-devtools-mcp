@@ -1,99 +1,101 @@
 /**
- * Firefox Remote Debugging Protocol (RDP) types
+ * WebDriver BiDi types for Firefox
  */
 
-export type ActorId = string;
+export type BrowsingContextId = string;
 
-export interface RdpPacket {
-  from?: ActorId;
-  to?: ActorId;
-  type?: string;
-  [key: string]: unknown;
-}
-
-export interface Tab {
-  actor: ActorId;
-  title: string;
+/**
+ * BiDi browsing context (tab/window)
+ */
+export interface BrowsingContext {
+  context: BrowsingContextId;
   url: string;
-  consoleActor?: ActorId;
-  threadActor?: ActorId;
-  browsingContextID?: number;
+  title?: string;
+  children?: BrowsingContext[];
+  parent?: BrowsingContextId;
 }
 
-export interface AttachResult {
-  consoleActor: ActorId;
-  threadActor: ActorId;
+/**
+ * BiDi console log entry
+ */
+export interface ConsoleMessage {
+  level: 'debug' | 'info' | 'warn' | 'error';
+  text: string;
+  timestamp: number;
+  source?: string;
+  args?: unknown[];
 }
 
-export interface EvaluateResult {
-  result?: unknown;
-  exception?: unknown;
-  exceptionMessage?: string;
-}
-
-export interface NavigateOptions {
+/**
+ * BiDi network request
+ */
+export interface NetworkRequest {
+  requestId: string;
   url: string;
-  waitUntil?: 'load' | 'domcontentloaded' | 'networkidle';
+  method: string;
+  headers?: Record<string, string>;
+  timestamp: number;
+  isBlocked?: boolean;
 }
 
-export interface RootActorInfo {
-  actor: ActorId;
-  applicationType: string;
-  traits?: Record<string, unknown>;
+/**
+ * BiDi network response
+ */
+export interface NetworkResponse {
+  requestId: string;
+  url: string;
+  status: number;
+  statusText: string;
+  headers?: Record<string, string>;
+  timestamp: number;
 }
 
-export interface ListTabsResponse {
-  tabs: Tab[];
-  selected?: number;
-}
-
-export class RdpError extends Error {
-  constructor(
-    message: string,
-    public code: string,
-    public reason?: string,
-    public actor?: ActorId,
-    public payload?: unknown
-  ) {
-    super(message);
-    this.name = 'RdpError';
-  }
-}
-
+/**
+ * Firefox launch options
+ */
 export interface FirefoxLaunchOptions {
   firefoxPath?: string | undefined;
   headless: boolean;
-  rdpHost: string;
-  rdpPort: number;
   profilePath?: string | undefined;
   viewport?: { width: number; height: number } | undefined;
   args?: string[] | undefined;
   startUrl?: string | undefined;
 }
 
-export interface ConsoleMessage {
-  level: 'log' | 'warn' | 'error' | 'info' | 'debug' | 'trace';
-  text: string;
-  timestamp?: number;
-  source?: string;
-  arguments?: unknown[];
-}
-
-export interface NetworkRequest {
-  url: string;
+/**
+ * BiDi command structure
+ */
+export interface BiDiCommand {
+  id: number;
   method: string;
-  status?: number;
-  statusText?: string;
-  requestHeaders?: Record<string, string>;
-  responseHeaders?: Record<string, string>;
-  requestBody?: string;
-  responseBody?: string;
-  timestamp?: number;
-  resourceType?: string;
-  cause?: string;
-  isXHR?: boolean;
+  params: Record<string, unknown>;
 }
 
-export interface NetworkMonitorActor {
-  actor: ActorId;
+/**
+ * BiDi response structure
+ */
+export interface BiDiResponse {
+  id?: number;
+  result?: Record<string, unknown>;
+  error?: {
+    error: string;
+    message: string;
+    stacktrace?: string;
+  };
+  method?: string;
+  params?: Record<string, unknown>;
+}
+
+/**
+ * BiDi error
+ */
+export class BiDiError extends Error {
+  constructor(
+    message: string,
+    public code: string,
+    public details?: unknown
+  ) {
+    super(message);
+    this.name = 'BiDiError';
+  }
 }

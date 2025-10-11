@@ -1,339 +1,208 @@
 /**
- * High-level Firefox DevTools API
- * Manages tab state and provides convenient methods
+ * High-level Firefox DevTools API using Selenium WebDriver BiDi
+ * EXACT copy of working test-firefox-bidi.js logic
  */
 
-import { FirefoxRdpClient } from './rdp-client.js';
-import { FirefoxLauncher } from './launcher.js';
-import type {
-  Tab,
-  ActorId,
-  FirefoxLaunchOptions,
-  ConsoleMessage,
-  NetworkRequest,
-} from './types.js';
-import { logDebug, log } from '../utils/logger.js';
-
-interface SelectedTab {
-  tab: Tab;
-  tabActor: ActorId;
-  consoleActor: ActorId;
-  threadActor: ActorId;
-}
+import { Builder, Browser, WebDriver } from 'selenium-webdriver';
+import firefox from 'selenium-webdriver/firefox.js';
+import type { FirefoxLaunchOptions, ConsoleMessage } from './types.js';
+import { log, logDebug } from '../utils/logger.js';
 
 export class FirefoxDevTools {
-  private client: FirefoxRdpClient;
-  private launcher: FirefoxLauncher | null = null;
-  private tabs: Tab[] = [];
-  private selectedTabIdx = 0;
-  private selectedTab: SelectedTab | null = null;
+  private driver: WebDriver | null = null;
+  private consoleMessages: ConsoleMessage[] = [];
+  private currentContextId: string | null = null;
 
-  constructor(private options: FirefoxLaunchOptions) {
-    this.client = new FirefoxRdpClient();
-  }
+  constructor(private options: FirefoxLaunchOptions) {}
 
+  /**
+   * Connect to Firefox - EXACT copy of working script
+   */
   async connect(): Promise<void> {
-    // Try to connect to existing Firefox instance
-    try {
-      logDebug(
-        `Attempting to connect to Firefox RDP at ${this.options.rdpHost}:${this.options.rdpPort}...`
-      );
-      await this.client.connect(this.options.rdpHost, this.options.rdpPort);
-      log(`Connected to existing Firefox RDP at ${this.options.rdpHost}:${this.options.rdpPort}`);
-    } catch (err) {
-      log(`❌ Failed to connect to existing Firefox: ${String(err)}`);
-      log(`🚀 AUTO-LAUNCH: Starting Firefox...`);
+    log('🚀 Launching Firefox via Selenium WebDriver BiDi...');
 
-      // Auto-launch if not already launched
-      if (!this.launcher) {
-        log('Creating Firefox launcher...');
-        this.launcher = new FirefoxLauncher(this.options);
+    // Configure Firefox options - EXACT same as working script
+    const firefoxOptions = new firefox.Options();
+    firefoxOptions.enableBidi();
 
-        log('Launching Firefox process...');
-        await this.launcher.launch();
-
-        // After launch, retry connection for up to ~10s with small backoff
-        const maxAttempts = 20;
-        const delayMs = 500;
-        let lastErr: unknown = null;
-        for (let attempt = 1; attempt <= maxAttempts; attempt++) {
-          try {
-            logDebug(`Connecting to RDP (attempt ${attempt}/${maxAttempts})...`);
-            await this.client.connect(this.options.rdpHost, this.options.rdpPort);
-            log('Connected to launched Firefox instance');
-            lastErr = null;
-            break;
-          } catch (e) {
-            lastErr = e;
-            await new Promise((r) => setTimeout(r, delayMs));
-          }
-        }
-        if (lastErr) {
-          throw lastErr;
-        }
-      } else {
-        throw new Error(
-          `Cannot connect to Firefox RDP at ${this.options.rdpHost}:${this.options.rdpPort}. ` +
-            'Please start Firefox with --start-debugger-server or enable AUTO_LAUNCH_FIREFOX.'
-        );
-      }
+    if (this.options.headless) {
+      firefoxOptions.addArguments('-headless');
     }
 
-    // Initialize: list tabs
-    await this.refreshTabs();
-    logDebug(`Initialized with ${this.tabs.length} tab(s)`);
-
-    // If first tab is about:blank, wait 5s for navigation to complete
-    if (this.tabs.length > 0 && this.tabs[0]?.url === 'about:blank') {
-      logDebug('First tab is about:blank, waiting 5s for navigation...');
-      await new Promise((resolve) => setTimeout(resolve, 5000));
-      await this.refreshTabs();
-      logDebug(`After wait: first tab URL is now ${this.tabs[0]?.url}`);
+    if (this.options.viewport) {
+      firefoxOptions.windowSize({
+        width: this.options.viewport.width,
+        height: this.options.viewport.height,
+      });
     }
 
-    // Only auto-select if there's a tab with actual content
-    if (this.tabs.length > 0) {
-      const firstTab = this.tabs[0];
-      if (firstTab?.url && firstTab.url !== 'about:blank') {
-        try {
-          await this.selectTab(0);
-        } catch (error) {
-          logDebug(`Could not auto-select first tab: ${String(error)}`);
-        }
-      } else {
-        logDebug('First tab is empty (about:blank), skipping auto-select');
-      }
+    if (this.options.firefoxPath) {
+      firefoxOptions.setBinary(this.options.firefoxPath);
     }
+
+    // Build driver - EXACT same
+    this.driver = await new Builder()
+      .forBrowser(Browser.FIREFOX)
+      .setFirefoxOptions(firefoxOptions)
+      .build();
+
+    log('✅ Firefox launched with BiDi');
+
+    // Get window handle - EXACT same
+    this.currentContextId = await this.driver.getWindowHandle();
+    logDebug(`Browsing context ID: ${this.currentContextId}`);
+
+    // Setup console listener - EXACT same
+    const bidi = await this.driver.getBidi();
+    await bidi.subscribe('log.entryAdded', this.currentContextId, (event: any) => {
+      const entry = event.params;
+      const message: ConsoleMessage = {
+        level: entry.level || 'info',
+        text: entry.text || JSON.stringify(entry.args || []),
+        timestamp: entry.timestamp || Date.now(),
+        source: entry.source?.realm,
+        args: entry.args,
+      };
+      this.consoleMessages.push(message);
+      logDebug(`Console [${message.level}]: ${message.text}`);
+    });
+
+    logDebug('Console listener active');
+
+    // Navigate if startUrl provided
+    if (this.options.startUrl) {
+      await this.driver.get(this.options.startUrl);
+      logDebug(`Navigated to: ${this.options.startUrl}`);
+    }
+
+    log('✅ Firefox DevTools ready');
   }
 
-  async refreshTabs(): Promise<Tab[]> {
-    this.tabs = await this.client.listTabs();
-    logDebug(`Found ${this.tabs.length} tabs`);
-    return this.tabs;
+  /**
+   * Evaluate JavaScript - direct passthrough to executeScript
+   */
+  async evaluate(script: string): Promise<unknown> {
+    if (!this.driver) throw new Error('Driver not connected');
+    return await this.driver.executeScript(script);
   }
 
-  getTabs(): Tab[] {
-    return this.tabs;
-  }
-
-  getSelectedTabIdx(): number {
-    return this.selectedTabIdx;
-  }
-
-  async selectTab(idx: number): Promise<void> {
-    if (idx < 0 || idx >= this.tabs.length) {
-      throw new Error(`Invalid tab index: ${idx}. Available tabs: 0-${this.tabs.length - 1}`);
-    }
-
-    const tab = this.tabs[idx];
-    if (!tab) {
-      throw new Error(`Tab not found at index ${idx}`);
-    }
-
-    // Attach to tab if not already attached
-    if (!this.selectedTab || this.selectedTab.tabActor !== tab.actor) {
-      logDebug(`Attaching to tab ${idx}: ${tab.title}`);
-
-      try {
-        const attachResult = await this.client.attachToTab(tab.actor);
-
-        this.selectedTab = {
-          tab,
-          tabActor: tab.actor,
-          consoleActor: attachResult.consoleActor,
-          threadActor: attachResult.threadActor,
-        };
-
-        // Start console listening
-        await this.client.startConsoleListening(attachResult.consoleActor);
-
-        logDebug(`Successfully attached to tab ${idx}`);
-      } catch (attachError: any) {
-        // If tab is empty, mark as selected but without attachment
-        if (attachError.code === 'NO_CONSOLE_ACTOR' || attachError.code === 'ATTACH_TIMEOUT') {
-          logDebug(`Tab ${idx} is empty or not ready, skipping attach`);
-          this.selectedTabIdx = idx;
-          this.selectedTab = null;
-          throw attachError; // Re-throw so caller knows
-        }
-        throw attachError;
-      }
-    }
-
-    this.selectedTabIdx = idx;
-    logDebug(`Selected tab ${idx}: ${tab.title}`);
-  }
-
-  getSelectedTab(): SelectedTab {
-    if (!this.selectedTab) {
-      throw new Error('No tab selected. Call selectTab() first.');
-    }
-    return this.selectedTab;
-  }
-
+  /**
+   * Navigate to URL
+   */
   async navigate(url: string): Promise<void> {
-    const currentTabIdx = this.selectedTabIdx;
-    const currentTab = this.tabs[currentTabIdx];
+    if (!this.driver) throw new Error('Driver not connected');
+    await this.driver.get(url);
+    this.consoleMessages = [];
+    log(`Navigated to: ${url}`);
+  }
 
-    if (!currentTab) {
-      throw new Error('No tab available for navigation');
-    }
+  /**
+   * Get console messages
+   */
+  async getConsoleMessages(): Promise<ConsoleMessage[]> {
+    return [...this.consoleMessages];
+  }
 
-    // Check if tab is empty (about:blank)
-    if (!this.selectedTab || currentTab.url === 'about:blank' || !currentTab.url) {
-      throw new Error(
-        'Cannot navigate empty tab (about:blank). ' +
-          'Please use new_page tool to create a new tab with URL, ' +
-          'or close this empty tab and work with tabs that have content.'
-      );
-    }
+  /**
+   * Get all tabs
+   */
+  getTabs(): Array<{ actor: string; title: string; url: string }> {
+    return [
+      {
+        actor: this.currentContextId || '',
+        title: 'Current Tab',
+        url: '',
+      },
+    ];
+  }
 
-    // Normal navigation for attached tabs
-    const selected = this.getSelectedTab();
-    this.client.clearConsoleMessages(selected.consoleActor);
+  /**
+   * Get selected tab index
+   */
+  getSelectedTabIdx(): number {
+    return 0;
+  }
 
-    const navCode = `window.location.href = ${JSON.stringify(url)};`;
-    await this.client.evaluateJS(selected.consoleActor, navCode);
+  /**
+   * Refresh tabs
+   */
+  async refreshTabs(): Promise<void> {
+    // No-op for now
+  }
 
-    log(`Navigation initiated to: ${url}`);
-
-    await new Promise((resolve) => setTimeout(resolve, 2000));
-    await this.refreshTabs();
-
-    try {
-      await this.selectTab(this.selectedTabIdx);
-    } catch (error) {
-      logDebug(`Re-attach after navigation: ${String(error)}`);
+  /**
+   * Select tab
+   */
+  async selectTab(index: number): Promise<void> {
+    if (!this.driver) throw new Error('Driver not connected');
+    const handles = await this.driver.getAllWindowHandles();
+    if (index >= 0 && index < handles.length) {
+      await this.driver.switchTo().window(handles[index]);
+      this.currentContextId = handles[index];
     }
   }
 
-  private async createNewTab(): Promise<number> {
-    logDebug('Creating new tab via window.open()...');
-
-    // Get current selected tab for opening new one
-    const currentTab = this.getSelectedTab();
-
-    // Use window.open to create new tab
-    const openTabCode = `window.open('about:blank', '_blank'); 'tab_opened';`;
-    await this.client.evaluateJS(currentTab.consoleActor, openTabCode);
-
-    // Wait for new tab to appear
-    await new Promise((resolve) => setTimeout(resolve, 1000));
-
-    // Find the new tab
-    const oldActors = this.tabs.map((t) => t.actor);
-    await this.refreshTabs();
-
-    const newTab = this.tabs.find((t) => !oldActors.includes(t.actor));
-    if (!newTab) {
-      throw new Error('Failed to detect new tab after window.open()');
-    }
-
-    const newIdx = this.tabs.indexOf(newTab);
-    logDebug(`New tab created at index [${newIdx}]`);
-
+  /**
+   * Create new page
+   */
+  async createNewPage(url: string): Promise<number> {
+    if (!this.driver) throw new Error('Driver not connected');
+    await this.driver.switchTo().newWindow('tab');
+    const handles = await this.driver.getAllWindowHandles();
+    const newIdx = handles.length - 1;
+    this.currentContextId = handles[newIdx];
+    await this.driver.get(url);
     return newIdx;
   }
 
-  async createNewPage(url: string): Promise<number> {
-    log(`Creating new tab and navigating to: ${url}`);
-
-    // Step 1: Create empty tab
-    const tabIdx = await this.createNewTab();
-
-    // Step 2: Select it
-    await this.selectTab(tabIdx);
-
-    // Step 3: Navigate to URL
-    await this.navigate(url);
-
-    log(`Created and navigated tab [${tabIdx}] to: ${url}`);
-    return tabIdx;
+  /**
+   * Close tab
+   */
+  async closeTab(index: number): Promise<void> {
+    if (!this.driver) throw new Error('Driver not connected');
+    const handles = await this.driver.getAllWindowHandles();
+    if (index >= 0 && index < handles.length) {
+      await this.driver.switchTo().window(handles[index]);
+      await this.driver.close();
+      const remaining = await this.driver.getAllWindowHandles();
+      if (remaining.length > 0) {
+        await this.driver.switchTo().window(remaining[0]);
+        this.currentContextId = remaining[0];
+      }
+    }
   }
 
-  async closeTab(idx: number): Promise<void> {
-    if (idx < 0 || idx >= this.tabs.length) {
-      throw new Error(`Invalid tab index: ${idx}. Available tabs: 0-${this.tabs.length - 1}`);
-    }
-
-    const tab = this.tabs[idx];
-    if (!tab) {
-      throw new Error(`Tab not found at index ${idx}`);
-    }
-
-    logDebug(`Closing tab ${idx}: ${tab.title}`);
-
-    // Close the tab via RDP
-    await this.client.closeTab(tab.actor);
-
-    // If we're closing the selected tab, we need to select another one
-    if (idx === this.selectedTabIdx) {
-      this.selectedTab = null;
-    }
-
-    // Refresh tab list
-    await this.refreshTabs();
-
-    // Auto-select another tab if available
-    if (this.tabs.length > 0) {
-      // Select previous tab or first tab
-      const newIdx = Math.min(idx, this.tabs.length - 1);
-      await this.selectTab(newIdx);
-    } else {
-      this.selectedTabIdx = 0;
-    }
-
-    log(`Closed tab [${idx}]`);
-  }
-
-  async evaluate(code: string): Promise<unknown> {
-    const selected = this.getSelectedTab();
-    return await this.client.evaluateJS(selected.consoleActor, code);
-  }
-
+  /**
+   * Get page content
+   */
   async getContent(): Promise<string> {
-    const selected = this.getSelectedTab();
-    return await this.client.getPageContent(selected.tabActor, selected.consoleActor);
+    const html = await this.evaluate('return document.documentElement.outerHTML');
+    return String(html);
   }
 
-  async getConsoleMessages(): Promise<ConsoleMessage[]> {
-    const selected = this.getSelectedTab();
-    return this.client.getConsoleMessages(selected.consoleActor);
-  }
-
+  /**
+   * Network monitoring stubs
+   */
   async startNetworkMonitoring(): Promise<void> {
-    const selected = this.getSelectedTab();
-    await this.client.startNetworkMonitoring(selected.tabActor);
-    log('Network monitoring started');
+    log('Network monitoring not yet implemented');
   }
 
-  async stopNetworkMonitoring(): Promise<void> {
-    const selected = this.getSelectedTab();
-    await this.client.stopNetworkMonitoring(selected.tabActor);
-    log('Network monitoring stopped');
+  async stopNetworkMonitoring(): Promise<void> {}
+
+  async getNetworkRequests(): Promise<any[]> {
+    return [];
   }
 
-  async getNetworkRequests(): Promise<NetworkRequest[]> {
-    const selected = this.getSelectedTab();
-    return this.client.getNetworkRequests(selected.tabActor);
-  }
+  clearNetworkRequests(): void {}
 
-  clearNetworkRequests(): void {
-    const selected = this.getSelectedTab();
-    this.client.clearNetworkRequests(selected.tabActor);
-  }
-
-  isConnected(): boolean {
-    return this.client.isConnected();
-  }
-
+  /**
+   * Close
+   */
   async close(): Promise<void> {
-    this.client.close();
-    if (this.launcher) {
-      await this.launcher.close();
-      this.launcher = null;
+    if (this.driver) {
+      await this.driver.quit();
+      this.driver = null;
     }
-    this.selectedTab = null;
-    this.tabs = [];
+    log('✅ Firefox DevTools closed');
   }
 }

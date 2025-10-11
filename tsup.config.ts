@@ -12,6 +12,9 @@ export default defineConfig({
   dts: false,
   platform: 'node',
   splitting: false,
+  external: [
+    'selenium-webdriver'
+  ],
   noExternal: [
     '@modelcontextprotocol/sdk',
     'zod',

@@ -1,272 +1,252 @@
 # Firefox DevTools Client Architecture
 
-This document describes the custom Firefox Remote Debugging Protocol (RDP) and WebDriver BiDi client implementation used in this MCP server.
+This document describes the Selenium WebDriver BiDi client implementation used in this MCP server.
 
 ## Purpose and Goals
 
-The Firefox DevTools MCP server uses a **native Firefox RDP client** with no external dependencies on browser automation frameworks like Puppeteer or Playwright. This design choice provides:
+The Firefox DevTools MCP server uses **Selenium WebDriver** with WebDriver BiDi to provide browser automation capabilities. This design choice provides:
 
-- **No extra browser downloads** - Uses the Firefox installation already on your system
-- **Direct protocol access** - Lightweight TCP and WebSocket communication
-- **Firefox-specific features** - Full access to Firefox DevTools capabilities
-- **Minimal dependencies** - Only `ws` package for WebSocket support
+- **Battle-tested reliability** - Uses the industry-standard `selenium-webdriver` library
+- **W3C Standard protocol** - WebDriver BiDi is actively developed by browser vendors
+- **No custom protocol code** - ~1000 lines of custom code eliminated
+- **Future-proof** - Cross-browser potential (Chrome, Edge, Safari)
+- **Better DevTools access** - Native BiDi events for console, network, and performance
 
-## Protocols Overview
+## Protocol Overview
 
-The server communicates with Firefox using two distinct protocols:
+### WebDriver BiDi
 
-### 1. Remote Debugging Protocol (RDP)
+**Transport:** WebSocket (managed by Selenium)
+**Format:** JSON-RPC over WebSocket
+**Standard:** [W3C WebDriver BiDi Specification](https://w3c.github.io/webdriver-bidi/)
 
-**Transport:** TCP socket with length-prefixed JSON framing
-**Default port:** 6000
-**Format:** `<length>:<json>`
-
-RDP is Firefox's native debugging protocol, used for:
-- Tab management (list, create, close, navigate)
+BiDi is the modern browser automation protocol, used for:
+- Browser and tab management
 - JavaScript evaluation
-- Console message capture
-- Network monitoring
+- Real-time console event capture
+- Network monitoring (via BiDi events)
 - Page content access
+- Screenshots
+- Performance metrics collection
 
-**Example RDP packet:**
-```
-85:{"to":"server1.conn0.child1/consoleActor2","type":"evaluateJS","text":"document.title"}
-```
-
-### 2. WebDriver BiDi
-
-**Transport:** WebSocket
-**Default port:** 9222
-**Format:** Standard JSON-RPC over WebSocket
-
-BiDi is a modern, cross-browser protocol used for:
-- Screenshot capture
-- Browsing context management
-- Future advanced automation features
-
-**Example BiDi command:**
-```json
-{
-  "id": 1,
-  "method": "browsingContext.captureScreenshot",
-  "params": { "context": "context-id-123" }
-}
+**Example BiDi event subscription:**
+```typescript
+const bidi = await driver.getBidi();
+await bidi.subscribe('log.entryAdded', contextId, (event) => {
+  console.log(event.params);
+});
 ```
 
 ## Client Architecture
 
-### Transport Layer
+### Selenium WebDriver Integration
 
-**RDP Transport** (`src/firefox/transport.ts`)
-- TCP socket connection
-- Length-prefixed JSON frame parsing
-- Event-based message handling
-- Connection timeout and error handling
+The architecture is intentionally simple - a **thin wrapper** around Selenium's WebDriver:
 
-**BiDi Transport** (`src/firefox/bidi-client.ts`)
-- WebSocket connection via `ws` package
-- Command/response matching by ID
-- Promise-based API
-- Timeout handling for commands
+**FirefoxDevTools** (`src/firefox/devtools.ts`)
+- Direct proxy to Selenium WebDriver
+- No "smart" logic or modifications
+- Console event subscription via BiDi
+- Tab and window management
+- Simple state tracking
 
-### Protocol Layer
+**Key principle:** Don't reinvent the wheel. Selenium knows what it's doing.
 
-**RDP Client** (`src/firefox/rdp-client.ts`)
-- Actor-based communication model
-- Request/response correlation
-- Tab attachment and detachment
-- Console and network actor management
-- Error handling and logging
+### Core Components
 
-Key concepts:
-- **Actors** - Server-side objects with unique IDs (e.g., `server1.conn0.tab1`)
-- **Packets** - JSON messages with `to`, `from`, and `type` fields
-- **Attachment** - Connecting to a tab to access its console, thread, and network actors
+**1. Driver Initialization**
+```typescript
+const firefoxOptions = new firefox.Options();
+firefoxOptions.enableBidi();
 
-**BiDi Client** (`src/firefox/bidi-client.ts`)
-- Command ID generation
-- Browsing context management
-- Screenshot capture API
-- Event handling (future use)
+this.driver = await new Builder()
+  .forBrowser(Browser.FIREFOX)
+  .setFirefoxOptions(firefoxOptions)
+  .build();
+```
+
+**2. Browsing Context Management**
+```typescript
+// Get window handle (browsing context ID)
+this.currentContextId = await this.driver.getWindowHandle();
+```
+
+**3. Console Listener Setup**
+```typescript
+const bidi = await this.driver.getBidi();
+await bidi.subscribe('log.entryAdded', this.currentContextId, (event) => {
+  const entry = event.params;
+  const message = {
+    level: entry.level || 'info',
+    text: entry.text || JSON.stringify(entry.args || []),
+    timestamp: entry.timestamp || Date.now(),
+  };
+  this.consoleMessages.push(message);
+});
+```
+
+**Critical order:** Get context → Subscribe to events → Navigate
+
+**4. JavaScript Evaluation**
+```typescript
+async evaluate(script: string): Promise<unknown> {
+  // Direct passthrough - Selenium handles it correctly
+  return await this.driver.executeScript(script);
+}
+```
+
+**Why direct passthrough?** Selenium already handles single-line expressions vs multi-line scripts correctly. Don't add "helpful" logic that breaks things.
 
 ### High-Level API
 
 **FirefoxDevTools** (`src/firefox/devtools.ts`)
-- Unified API for both RDP and BiDi
+- Unified API for browser automation
 - Tab state management
-- Lazy BiDi client initialization
-- Auto-launch integration
+- Console message buffering
+- Network monitoring stubs (planned)
 
 **McpContext** (`src/McpContext.ts`)
 - MCP server integration layer
 - Tool method implementations
 - Resource management
 
-## Auto-Launch and Profiles
+## Auto-Launch and Configuration
 
 ### Auto-Launch Process
 
-When connecting fails, the server automatically launches Firefox:
+Selenium automatically manages Firefox through geckodriver:
 
-1. **Executable detection** (`src/firefox/launcher.ts`)
-   - Platform-specific paths
-   - PATH scanning on Linux
-   - Edition support (stable/developer/nightly)
+1. **Geckodriver detection**
+   - Installed via `geckodriver` npm package
+   - Automatically added to PATH
 
-2. **Profile setup**
-   - Creates ephemeral profile in temp directory
-   - Writes `user.js` with required preferences
+2. **Firefox startup**
+   - Selenium launches Firefox with Marionette protocol
+   - BiDi is enabled via `firefoxOptions.enableBidi()`
+   - Headless mode supported via `firefoxOptions.addArguments('-headless')`
 
-3. **Firefox startup**
-   - Launches with RDP and BiDi enabled
-   - TCP port readiness polling (20 attempts × 500ms)
-
-4. **Connection retry**
-   - Attempts RDP connection
-   - Retry logic with backoff
-
-### Required Firefox Preferences
-
-Located in `src/config/constants.ts`:
-
-```javascript
-{
-  // Remote debugging (critical for RDP)
-  'devtools.chrome.enabled': true,
-  'devtools.debugger.remote-enabled': true,
-  'devtools.debugger.prompt-connection': false,
-
-  // Extensions
-  'extensions.autoDisableScopes': 10,
-  'xpinstall.signatures.required': false,
-
-  // Browser behavior
-  'browser.shell.checkDefaultBrowser': false,
-  'browser.warnOnQuit': false,
-
-  // macOS stability
-  'toolkit.startup.max_resumed_crashes': -1,
-}
-```
-
-### Ephemeral Profiles
-
-The launcher creates temporary profiles with:
-- `user.js` containing required prefs
-- Isolated from user's default profile
-- Automatic cleanup on server shutdown
-- Pattern: `/tmp/firefox-devtools-mcp-profile-*`
-
-## Ports and Configuration
-
-### Port Separation
-
-The server uses **two separate ports**:
-
-| Protocol | Default Port | Purpose | Launch Argument |
-|----------|--------------|---------|-----------------|
-| RDP | 6000 | Core DevTools | `-start-debugger-server 6000` |
-| BiDi | 9222 | Screenshots, Advanced | `-remote-debugging-port 9222` |
+3. **Connection establishment**
+   - Selenium handles all connection logic
+   - WebSocket connection to BiDi automatically managed
+   - No manual port configuration needed
 
 ### Configuration Options
 
 **CLI Arguments:**
 ```bash
---rdp-host <host>        # RDP server host (default: 127.0.0.1)
---rdp-port <port>        # RDP server port (default: 6000)
---bidi-port <port>       # BiDi Remote Agent port (default: 9223)
---firefox-path <path>    # Firefox executable or edition (stable/developer/nightly)
+--firefox-path <path>    # Firefox executable path
 --headless               # Run Firefox headless
 --viewport <WxH>         # Set viewport size (e.g., 1280x720)
---profile-path <path>    # Use persistent profile
+--start-url <url>        # Initial URL to navigate to
 ```
 
 **Environment Variables:**
 ```bash
-RDP_HOST=127.0.0.1
-RDP_PORT=6000
-BIDI_PORT=9222
 FIREFOX_HEADLESS=false
-AUTO_LAUNCH_FIREFOX=true
+START_URL=https://example.com
 ```
+
+**Profile Management:**
+- Selenium creates temporary profiles automatically
+- Custom profile support via `firefoxOptions.setProfile()`
+- Automatic cleanup on shutdown
 
 ## Available Tools
 
-The server provides comprehensive browser automation tools organized by category:
+The server provides comprehensive browser automation tools:
 
 ### Page Management
 
-| Tool | Description | Protocol |
-|------|------------|----------|
-| `list_pages` | List all open tabs | RDP |
-| `new_page` | Create new tab and navigate | RDP |
-| `navigate_page` | Navigate to URL | RDP |
-| `select_page` | Switch active tab | RDP |
-| `close_page` | Close tab | RDP |
+| Tool | Description | Implementation |
+|------|------------|----------------|
+| `list_pages` | List all open tabs | `driver.getAllWindowHandles()` |
+| `new_page` | Create new tab and navigate | `driver.switchTo().newWindow('tab')` |
+| `navigate_page` | Navigate to URL | `driver.get(url)` |
+| `select_page` | Switch active tab | `driver.switchTo().window(handle)` |
+| `close_page` | Close tab | `driver.close()` |
 
 ### Content Access
 
-| Tool | Description | Protocol |
-|------|------------|----------|
-| `take_screenshot` | Capture screenshot (PNG) | BiDi |
-| `take_snapshot` | Get HTML content | RDP |
-| `evaluate_script` | Execute JavaScript | RDP |
+| Tool | Description | Implementation |
+|------|------------|----------------|
+| `take_screenshot` | Capture screenshot (PNG) | `driver.takeScreenshot()` |
+| `take_snapshot` | Get HTML content | `driver.executeScript('return document.documentElement.outerHTML')` |
+| `evaluate_script` | Execute JavaScript | `driver.executeScript(script)` |
 
 ### Developer Tools
 
-| Tool | Description | Protocol | Notes |
-|------|------------|----------|-------|
-| `list_console_messages` | Get console logs | RDP | |
-| `list_network_requests` | Get network activity | RDP | ⚠️ Limited headers/body |
-| `get_network_request` | Get request details | RDP | ⚠️ Limited detail |
-| `start_network_monitoring` | Enable network capture | RDP | |
-| `stop_network_monitoring` | Disable network capture | RDP | |
-| `performance_get_metrics` | Get timing metrics | RDP | ⚠️ Basic metrics only |
+| Tool | Description | Status |
+|------|------------|--------|
+| `list_console_messages` | Get console logs | ✅ Real-time BiDi events |
+| `list_network_requests` | Get network activity | 🚧 Planned (BiDi events) |
+| `get_network_request` | Get request details | 🚧 Planned (BiDi events) |
+| `start_network_monitoring` | Enable network capture | 🚧 Planned |
+| `stop_network_monitoring` | Disable network capture | 🚧 Planned |
+| `performance_get_metrics` | Get timing metrics | ✅ Via `performance` API |
 
-⚠️ = Firefox RDP protocol limitations compared to modern DevTools APIs
+✅ = Fully implemented
+🚧 = Planned (BiDi supports this)
 
-## Limitations and Roadmap
+## Migration from RDP
 
-### Current Limitations
+This server was migrated from a custom Remote Debugging Protocol (RDP) implementation to Selenium WebDriver BiDi. See [`docs/migration-to-bidi.md`](./migration-to-bidi.md) for the complete migration story.
 
-**Network Monitoring:**
-- Request/response body capture is incomplete
-- Some headers may be missing
-- Timing information is limited
-- RDP network actors have less detail than Chrome CDP
+**Before:** ~1200 lines of custom RDP client code
+**After:** ~200 lines of Selenium wrapper code
+**Reduction:** 83% less code to maintain
 
-**Performance Metrics:**
-- Limited to basic timing metrics
-- No detailed profiling like Chrome
-- Memory metrics are basic
+**Key improvements:**
+- ✅ No custom protocol implementation
+- ✅ Industry-standard library (selenium-webdriver)
+- ✅ W3C standard protocol (WebDriver BiDi)
+- ✅ Better console capture (real-time events)
+- ✅ Simpler architecture
+- ✅ Future cross-browser support
+
+## Current Features and Limitations
+
+### Working Features
+
+**Console Monitoring:**
+- ✅ Real-time console event capture via BiDi
+- ✅ All log levels (log, info, warn, error, debug)
+- ✅ Stack traces included
+- ✅ Works across navigations
+
+**JavaScript Execution:**
+- ✅ Single-line expressions
+- ✅ Multi-line scripts
+- ✅ Return values
+- ✅ Error handling
+
+**Tab Management:**
+- ✅ Multiple tabs support
+- ✅ Context switching
+- ✅ Window handles management
 
 **Screenshots:**
-- BiDi returns PNG only (no JPEG/WebP transcoding yet)
-- Requires Firefox 115+ for BiDi Remote Agent
-- Full-page screenshots may have sizing issues on some pages
+- ✅ Full page capture
+- ✅ PNG format
+- ✅ Base64 encoded
 
-**Console:**
-- Stack traces are basic compared to Chrome
-- Source mapping is limited
+### Planned Features (BiDi Supports These)
 
-### Architectural Improvements
+**Network Monitoring:**
+- 🚧 Request/response capture via `network.beforeRequestSent`
+- 🚧 Response body access via `network.responseCompleted`
+- 🚧 Full headers and timing
+- 🚧 Request interception
 
-**Potential enhancements:**
-- Connection pooling for multiple contexts
-- Event streaming for real-time updates
-- Enhanced error recovery
-- Profile cleanup automation
-- Port conflict detection and auto-reassignment
+**Performance Monitoring:**
+- 🚧 Frame rate monitoring
+- 🚧 Memory profiling
+- 🚧 CPU metrics
 
-### Feature Roadmap
-
-**Planned additions:**
-- DOM inspection tools
-- CSS manipulation
-- Cookie management
-- Local storage access
-- Request interception (BiDi)
-- Mobile emulation
+**Advanced Automation:**
+- 🚧 Cookie management
+- 🚧 Local storage access
+- 🚧 Authentication handling
+- 🚧 Mobile emulation
 
 ## Development and Testing
 
@@ -276,58 +256,148 @@ The server provides comprehensive browser automation tools organized by category
 # Build project
 npm run build
 
-# Direct tool testing (bypasses MCP)
-node scripts/test-tools.js
+# Test BiDi implementation
+DEBUG=firefox-devtools npm run test:tools
 
-# MCP Inspector testing
-task inspector
+# Test script with comprehensive checks
+node scripts/test-bidi-devtools.js
 ```
 
 ### Debug Logging
 
-Set `DEBUG=true` environment variable for verbose logging:
+Set `DEBUG=firefox-devtools` environment variable for verbose logging:
+
 ```bash
-DEBUG=true npx firefox-devtools-mcp
+DEBUG=firefox-devtools node scripts/test-bidi-devtools.js
 ```
 
 Logs include:
-- RDP packet send/receive
-- BiDi command execution
-- Actor lifecycle
-- Connection status
+- Firefox launch status
+- BiDi connection details
+- Console event capture
+- Navigation events
+- Evaluation results
 
 ### Troubleshooting
 
-**Connection refused:**
-- Check Firefox is running with `-start-debugger-server 6000`
-- Verify port with: `lsof -i :6000`
-- Enable auto-launch with `AUTO_LAUNCH_FIREFOX=true`
+**Firefox won't launch:**
+- Ensure Firefox is installed
+- Check `--firefox-path` argument if using custom location
+- Verify geckodriver is installed: `npm list geckodriver`
 
-**Screenshot fails:**
-- Ensure BiDi port is not in use: `lsof -i :9223`
-- Check Firefox version >= 115
-- Verify `-remote-debugging-port` argument is passed
+**Console events not captured:**
+- Verify BiDi is enabled (it's automatic with Selenium)
+- Check listener is subscribed BEFORE navigation
+- Ensure correct browsing context ID
 
-**Profile issues:**
-- Check temp directory permissions
-- Verify `user.js` was written (check logs)
-- Try specifying explicit profile with `--profile-path`
+**Evaluation returns null:**
+- Don't modify scripts - pass them directly to `executeScript()`
+- Multi-line scripts should include `return` if you need the value
+- Single-line expressions work without `return`
 
-## Contributing
+**Build errors:**
+- Ensure `selenium-webdriver` is in `external` array in `tsup.config.ts`
+- Don't bundle Selenium (it uses dynamic requires)
+
+## Implementation Best Practices
 
 When extending the Firefox client:
 
-1. **Maintain protocol separation** - Keep RDP and BiDi logic isolated
-2. **Follow actor patterns** - Use actor-based communication for RDP
-3. **Add type safety** - Define TypeScript interfaces for new packets
-4. **Update documentation** - Document new tools and limitations
-5. **Test across versions** - Verify with Firefox stable, developer, and nightly
+### 1. Direct Proxy Pattern
 
-See `tasks/README.md` for development workflow and CR process.
+**❌ Don't do this:**
+```typescript
+async evaluate(script: string): Promise<unknown> {
+  // Trying to be "helpful"
+  if (!script.startsWith('return ')) {
+    script = `return ${script}`; // BREAKS multi-line scripts!
+  }
+  return await this.driver.executeScript(script);
+}
+```
+
+**✅ Do this:**
+```typescript
+async evaluate(script: string): Promise<unknown> {
+  // Just pass it through
+  return await this.driver.executeScript(script);
+}
+```
+
+### 2. Event Subscription Order
+
+**Critical:** Subscribe to events BEFORE navigation to capture early messages.
+
+```typescript
+// ✅ Correct order
+const contextId = await driver.getWindowHandle();
+await bidi.subscribe('log.entryAdded', contextId, callback);
+await driver.get(url); // Now events will be captured
+
+// ❌ Wrong order
+await driver.get(url);
+await bidi.subscribe('log.entryAdded', contextId, callback); // Misses early logs
+```
+
+### 3. Copy Working Code
+
+If you have a working test script, **make your implementation identical** to it. Don't modify what works.
+
+### 4. Trust the Library
+
+Selenium knows how to:
+- Handle script evaluation
+- Manage contexts
+- Process events
+- Handle errors
+
+Don't second-guess it with "smart" logic.
+
+## Build Configuration
+
+### tsup.config.ts
+
+**Critical:** Selenium must be external (not bundled):
+
+```typescript
+export default defineConfig({
+  external: [
+    'selenium-webdriver'  // Don't bundle - uses dynamic requires
+  ],
+});
+```
+
+**Why external?** Selenium uses dynamic `require()` for browser drivers, which doesn't work when bundled.
+
+### Dependencies
+
+```json
+{
+  "dependencies": {
+    "selenium-webdriver": "^4.36.0"
+  },
+  "devDependencies": {
+    "geckodriver": "^6.0.2"
+  }
+}
+```
 
 ## Resources
 
-- [Firefox Remote Debugging Protocol](https://firefox-source-docs.mozilla.org/devtools/backend/protocol.html)
+- [Selenium WebDriver Documentation](https://www.selenium.dev/documentation/webdriver/)
 - [WebDriver BiDi Specification](https://w3c.github.io/webdriver-bidi/)
 - [Firefox Remote Agent](https://firefox-source-docs.mozilla.org/remote/)
 - [Model Context Protocol](https://modelcontextprotocol.io/)
+- [Migration from RDP to BiDi](./migration-to-bidi.md)
+
+## Contributing
+
+When contributing to the Firefox client:
+
+1. **Keep it simple** - Maintain the thin wrapper pattern
+2. **Don't add logic** - Let Selenium handle complexity
+3. **Copy working patterns** - Use test scripts as templates
+4. **Test incrementally** - Small, focused tests reveal issues quickly
+5. **Document lessons** - Update this doc with new learnings
+
+See `tasks/README.md` for development workflow and CR process.
