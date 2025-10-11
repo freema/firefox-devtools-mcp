@@ -5,16 +5,14 @@
 
 import { FirefoxRdpClient } from './rdp-client.js';
 import { FirefoxLauncher } from './launcher.js';
-import { FirefoxBiDiClient } from './bidi-client.js';
 import type {
   Tab,
   ActorId,
   FirefoxLaunchOptions,
-  ScreenshotOptions,
   ConsoleMessage,
   NetworkRequest,
 } from './types.js';
-import { logDebug, log, logError } from '../utils/logger.js';
+import { logDebug, log } from '../utils/logger.js';
 
 interface SelectedTab {
   tab: Tab;
@@ -25,7 +23,6 @@ interface SelectedTab {
 
 export class FirefoxDevTools {
   private client: FirefoxRdpClient;
-  private bidiClient: FirefoxBiDiClient | null = null;
   private launcher: FirefoxLauncher | null = null;
   private tabs: Tab[] = [];
   private selectedTabIdx = 0;
@@ -38,7 +35,9 @@ export class FirefoxDevTools {
   async connect(): Promise<void> {
     // Try to connect to existing Firefox instance
     try {
-      logDebug(`Attempting to connect to Firefox RDP at ${this.options.rdpHost}:${this.options.rdpPort}...`);
+      logDebug(
+        `Attempting to connect to Firefox RDP at ${this.options.rdpHost}:${this.options.rdpPort}...`
+      );
       await this.client.connect(this.options.rdpHost, this.options.rdpPort);
       log(`Connected to existing Firefox RDP at ${this.options.rdpHost}:${this.options.rdpPort}`);
     } catch (err) {
@@ -80,10 +79,30 @@ export class FirefoxDevTools {
       }
     }
 
-    // Initialize: list tabs and select first one
+    // Initialize: list tabs
     await this.refreshTabs();
+    logDebug(`Initialized with ${this.tabs.length} tab(s)`);
+
+    // If first tab is about:blank, wait 5s for navigation to complete
+    if (this.tabs.length > 0 && this.tabs[0]?.url === 'about:blank') {
+      logDebug('First tab is about:blank, waiting 5s for navigation...');
+      await new Promise((resolve) => setTimeout(resolve, 5000));
+      await this.refreshTabs();
+      logDebug(`After wait: first tab URL is now ${this.tabs[0]?.url}`);
+    }
+
+    // Only auto-select if there's a tab with actual content
     if (this.tabs.length > 0) {
-      await this.selectTab(0);
+      const firstTab = this.tabs[0];
+      if (firstTab?.url && firstTab.url !== 'about:blank') {
+        try {
+          await this.selectTab(0);
+        } catch (error) {
+          logDebug(`Could not auto-select first tab: ${String(error)}`);
+        }
+      } else {
+        logDebug('First tab is empty (about:blank), skipping auto-select');
+      }
     }
   }
 
@@ -114,17 +133,31 @@ export class FirefoxDevTools {
     // Attach to tab if not already attached
     if (!this.selectedTab || this.selectedTab.tabActor !== tab.actor) {
       logDebug(`Attaching to tab ${idx}: ${tab.title}`);
-      const attachResult = await this.client.attachToTab(tab.actor);
 
-      this.selectedTab = {
-        tab,
-        tabActor: tab.actor,
-        consoleActor: attachResult.consoleActor,
-        threadActor: attachResult.threadActor,
-      };
+      try {
+        const attachResult = await this.client.attachToTab(tab.actor);
 
-      // Start console listening for new tab
-      await this.client.startConsoleListening(attachResult.consoleActor);
+        this.selectedTab = {
+          tab,
+          tabActor: tab.actor,
+          consoleActor: attachResult.consoleActor,
+          threadActor: attachResult.threadActor,
+        };
+
+        // Start console listening
+        await this.client.startConsoleListening(attachResult.consoleActor);
+
+        logDebug(`Successfully attached to tab ${idx}`);
+      } catch (attachError: any) {
+        // If tab is empty, mark as selected but without attachment
+        if (attachError.code === 'NO_CONSOLE_ACTOR' || attachError.code === 'ATTACH_TIMEOUT') {
+          logDebug(`Tab ${idx} is empty or not ready, skipping attach`);
+          this.selectedTabIdx = idx;
+          this.selectedTab = null;
+          throw attachError; // Re-throw so caller knows
+        }
+        throw attachError;
+      }
     }
 
     this.selectedTabIdx = idx;
@@ -139,33 +172,83 @@ export class FirefoxDevTools {
   }
 
   async navigate(url: string): Promise<void> {
-    const selected = this.getSelectedTab();
+    const currentTabIdx = this.selectedTabIdx;
+    const currentTab = this.tabs[currentTabIdx];
 
-    // Clear console messages before navigation
+    if (!currentTab) {
+      throw new Error('No tab available for navigation');
+    }
+
+    // Check if tab is empty (about:blank)
+    if (!this.selectedTab || currentTab.url === 'about:blank' || !currentTab.url) {
+      throw new Error(
+        'Cannot navigate empty tab (about:blank). ' +
+          'Please use new_page tool to create a new tab with URL, ' +
+          'or close this empty tab and work with tabs that have content.'
+      );
+    }
+
+    // Normal navigation for attached tabs
+    const selected = this.getSelectedTab();
     this.client.clearConsoleMessages(selected.consoleActor);
 
-    await this.client.navigateTo(selected.tabActor, url);
-    log(`Navigated to: ${url}`);
+    const navCode = `window.location.href = ${JSON.stringify(url)};`;
+    await this.client.evaluateJS(selected.consoleActor, navCode);
 
-    // Refresh tab info after navigation
+    log(`Navigation initiated to: ${url}`);
+
+    await new Promise((resolve) => setTimeout(resolve, 2000));
     await this.refreshTabs();
+
+    try {
+      await this.selectTab(this.selectedTabIdx);
+    } catch (error) {
+      logDebug(`Re-attach after navigation: ${String(error)}`);
+    }
   }
 
-  async createNewTab(url: string): Promise<number> {
-    // Create a new tab by opening URL
-    await this.client.openNewTab(url);
+  private async createNewTab(): Promise<number> {
+    logDebug('Creating new tab via window.open()...');
 
-    // Refresh tabs to get the new tab
+    // Get current selected tab for opening new one
+    const currentTab = this.getSelectedTab();
+
+    // Use window.open to create new tab
+    const openTabCode = `window.open('about:blank', '_blank'); 'tab_opened';`;
+    await this.client.evaluateJS(currentTab.consoleActor, openTabCode);
+
+    // Wait for new tab to appear
+    await new Promise((resolve) => setTimeout(resolve, 1000));
+
+    // Find the new tab
+    const oldActors = this.tabs.map((t) => t.actor);
     await this.refreshTabs();
 
-    // The new tab is typically the last one
-    const newTabIdx = this.tabs.length - 1;
+    const newTab = this.tabs.find((t) => !oldActors.includes(t.actor));
+    if (!newTab) {
+      throw new Error('Failed to detect new tab after window.open()');
+    }
 
-    // Select the new tab
-    await this.selectTab(newTabIdx);
+    const newIdx = this.tabs.indexOf(newTab);
+    logDebug(`New tab created at index [${newIdx}]`);
 
-    log(`Created new tab [${newTabIdx}] and navigated to: ${url}`);
-    return newTabIdx;
+    return newIdx;
+  }
+
+  async createNewPage(url: string): Promise<number> {
+    log(`Creating new tab and navigating to: ${url}`);
+
+    // Step 1: Create empty tab
+    const tabIdx = await this.createNewTab();
+
+    // Step 2: Select it
+    await this.selectTab(tabIdx);
+
+    // Step 3: Navigate to URL
+    await this.navigate(url);
+
+    log(`Created and navigated tab [${tabIdx}] to: ${url}`);
+    return tabIdx;
   }
 
   async closeTab(idx: number): Promise<void> {
@@ -240,112 +323,12 @@ export class FirefoxDevTools {
     this.client.clearNetworkRequests(selected.tabActor);
   }
 
-  async takeScreenshot(options: ScreenshotOptions = {}): Promise<Buffer> {
-    // Lazy-initialize BiDi client
-    if (!this.bidiClient) {
-      try {
-        logDebug('Initializing BiDi client for screenshot');
-        this.bidiClient = new FirefoxBiDiClient();
-        await this.bidiClient.connect(this.options.rdpHost, this.options.bidiPort);
-
-        // Select browsing context for current tab
-        const selectedTab = this.getSelectedTab();
-        const contextId =
-          (await this.bidiClient.selectContextByUrl(selectedTab.tab.url)) ||
-          (await this.bidiClient.selectFirstContext());
-
-        if (!contextId) {
-          throw new Error('No browsing context available');
-        }
-      } catch (error) {
-        logError('BiDi initialization failed', error);
-        throw new Error(`Screenshot not available: BiDi connection failed. ${String(error)}`);
-      }
-    }
-
-    const format = options.format || 'png';
-    const fullPage = options.fullPage || false;
-
-    // Handle fullPage: get content dimensions and set clip
-    let clip: { x: number; y: number; width: number; height: number } | undefined;
-
-    if (fullPage) {
-      try {
-        const selected = this.getSelectedTab();
-        const dimensionsCode = `
-          JSON.stringify({
-            scrollWidth: document.documentElement.scrollWidth,
-            scrollHeight: document.documentElement.scrollHeight,
-            devicePixelRatio: window.devicePixelRatio || 1
-          })
-        `;
-
-        const result = await this.client.evaluateJS(selected.consoleActor, dimensionsCode);
-        const dimensions = JSON.parse(result as string) as {
-          scrollWidth: number;
-          scrollHeight: number;
-          devicePixelRatio: number;
-        };
-
-        clip = {
-          x: 0,
-          y: 0,
-          width: dimensions.scrollWidth,
-          height: dimensions.scrollHeight,
-        };
-
-        logDebug(
-          `Full page screenshot: ${clip.width}x${clip.height} (device pixel ratio: ${dimensions.devicePixelRatio})`
-        );
-      } catch (error) {
-        logError('Failed to get page dimensions for fullPage screenshot', error);
-        // Continue without clip
-      }
-    } else if (options.clip) {
-      clip = options.clip;
-    }
-
-    // Capture screenshot via BiDi
-    try {
-      const screenshotOptions = clip
-        ? { clip, origin: (fullPage ? 'document' : 'viewport') as 'viewport' | 'document' }
-        : { origin: (fullPage ? 'document' : 'viewport') as 'viewport' | 'document' };
-
-      const screenshot = await this.bidiClient.captureScreenshot(
-        this.bidiClient.getSelectedContextId() || undefined,
-        screenshotOptions
-      );
-
-      // BiDi returns base64 PNG
-      const buffer = Buffer.from(screenshot.data, 'base64');
-
-      // TODO: Transcode to JPEG/WebP if requested
-      // For now, we only support PNG natively from BiDi
-      if (format !== 'png') {
-        logDebug(
-          `Format ${format} requested but BiDi only returns PNG. TODO: Add image transcoding.`
-        );
-        // We could add sharp or jimp here for transcoding, but for MVP keep PNG only
-      }
-
-      logDebug(`Screenshot captured: ${buffer.length} bytes`);
-      return buffer;
-    } catch (error) {
-      logError('BiDi screenshot failed', error);
-      throw new Error(`Screenshot capture failed: ${String(error)}`);
-    }
-  }
-
   isConnected(): boolean {
     return this.client.isConnected();
   }
 
   async close(): Promise<void> {
     this.client.close();
-    if (this.bidiClient) {
-      this.bidiClient.close();
-      this.bidiClient = null;
-    }
     if (this.launcher) {
       await this.launcher.close();
       this.launcher = null;

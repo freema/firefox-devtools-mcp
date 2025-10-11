@@ -36,7 +36,7 @@ RDP is Firefox's native debugging protocol, used for:
 ### 2. WebDriver BiDi
 
 **Transport:** WebSocket
-**Default port:** 9223
+**Default port:** 9222
 **Format:** Standard JSON-RPC over WebSocket
 
 BiDi is a modern, cross-browser protocol used for:
@@ -166,7 +166,7 @@ The server uses **two separate ports**:
 | Protocol | Default Port | Purpose | Launch Argument |
 |----------|--------------|---------|-----------------|
 | RDP | 6000 | Core DevTools | `-start-debugger-server 6000` |
-| BiDi | 9223 | Screenshots, Advanced | `-remote-debugging-port 9223` |
+| BiDi | 9222 | Screenshots, Advanced | `-remote-debugging-port 9222` |
 
 ### Configuration Options
 
@@ -185,7 +185,7 @@ The server uses **two separate ports**:
 ```bash
 RDP_HOST=127.0.0.1
 RDP_PORT=6000
-BIDI_PORT=9223
+BIDI_PORT=9222
 FIREFOX_HEADLESS=false
 AUTO_LAUNCH_FIREFOX=true
 ```

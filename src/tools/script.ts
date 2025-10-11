@@ -51,8 +51,8 @@ export async function handleEvaluateScript(args: unknown): Promise<McpToolRespon
       args?: Array<{ uid: string }>;
     };
 
-    const { getContext } = await import('../index.js');
-    const context = await getContext();
+    const { getFirefox } = await import('../index.js');
+    const firefox = await getFirefox();
 
     // Build evaluation code
     let evalCode = '';
@@ -90,12 +90,12 @@ export async function handleEvaluateScript(args: unknown): Promise<McpToolRespon
       `;
     }
 
-    const result = await context.evaluateScript<string>(evalCode);
+    const result = await firefox.evaluate(evalCode);
 
     // Parse the JSON result
     let parsedResult: unknown;
     try {
-      parsedResult = JSON.parse(result);
+      parsedResult = JSON.parse(result as string);
     } catch {
       // If not JSON, return as string
       parsedResult = result;

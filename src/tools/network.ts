@@ -76,10 +76,10 @@ export async function handleListNetworkRequests(args: unknown): Promise<McpToolR
   try {
     const { pageSize, pageIdx } = (args as { pageSize?: number; pageIdx?: number }) || {};
 
-    const { getContext } = await import('../index.js');
-    const context = await getContext();
+    const { getFirefox } = await import('../index.js');
+    const firefox = await getFirefox();
 
-    const requests = await context.getNetworkRequests();
+    const requests = await firefox.getNetworkRequests();
 
     // Apply pagination if requested
     let paginatedRequests = requests;
@@ -133,10 +133,10 @@ export async function handleGetNetworkRequest(args: unknown): Promise<McpToolRes
       throw new Error('url parameter is required and must be a string');
     }
 
-    const { getContext } = await import('../index.js');
-    const context = await getContext();
+    const { getFirefox } = await import('../index.js');
+    const firefox = await getFirefox();
 
-    const requests = await context.getNetworkRequests();
+    const requests = await firefox.getNetworkRequests();
     const request = requests.find((req) => req.url === url);
 
     if (!request) {
@@ -175,10 +175,10 @@ export async function handleGetNetworkRequest(args: unknown): Promise<McpToolRes
 
 export async function handleStartNetworkMonitoring(_args: unknown): Promise<McpToolResponse> {
   try {
-    const { getContext } = await import('../index.js');
-    const context = await getContext();
+    const { getFirefox } = await import('../index.js');
+    const firefox = await getFirefox();
 
-    await context.startNetworkMonitoring();
+    await firefox.startNetworkMonitoring();
     return successResponse(
       'Network monitoring started for the current page.\n\n' +
         'All network requests will now be recorded until monitoring is stopped or page is navigated.\n' +
@@ -194,11 +194,11 @@ export async function handleStartNetworkMonitoring(_args: unknown): Promise<McpT
 
 export async function handleStopNetworkMonitoring(_args: unknown): Promise<McpToolResponse> {
   try {
-    const { getContext } = await import('../index.js');
-    const context = await getContext();
+    const { getFirefox } = await import('../index.js');
+    const firefox = await getFirefox();
 
-    await context.stopNetworkMonitoring();
-    context.clearNetworkRequests();
+    await firefox.stopNetworkMonitoring();
+    firefox.clearNetworkRequests();
     return successResponse('Network monitoring stopped and all collected request data cleared.');
   } catch (error) {
     return errorResponse(

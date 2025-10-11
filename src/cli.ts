@@ -17,11 +17,6 @@ export const cliOptions = {
     description: 'Port where Firefox RDP server is listening',
     default: Number(process.env.RDP_PORT ?? 6000),
   },
-  bidiPort: {
-    type: 'number',
-    description: 'Port for WebDriver BiDi Remote Agent (used for screenshots)',
-    default: Number(process.env.BIDI_PORT ?? 9223),
-  },
   firefoxPath: {
     type: 'string',
     description: 'Path to Firefox executable (optional, uses system Firefox if not specified)',
@@ -69,6 +64,11 @@ export const cliOptions = {
     type: 'array',
     description:
       'Additional arguments for Firefox. Only applies when Firefox is launched by firefox-devtools-mcp.',
+  },
+  startUrl: {
+    type: 'string',
+    description: 'URL to open when Firefox starts (default: about:home)',
+    default: process.env.START_URL ?? 'about:home',
   },
 } satisfies Record<string, YargsOptions>;
 

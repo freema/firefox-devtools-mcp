@@ -17,6 +17,7 @@ async function main() {
     headless: false, // Visible browser for debugging
     rdpHost: '127.0.0.1', // Use explicit IPv4 to avoid IPv6 issues
     rdpPort: 6000,
+    bidiPort: 9222,
     profilePath: undefined,
     viewport: { width: 1280, height: 720 },
     args: [],

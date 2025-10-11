@@ -18,10 +18,10 @@ export const listConsoleMessagesTool = {
 
 export async function handleListConsoleMessages(_args: unknown): Promise<McpToolResponse> {
   try {
-    const { getContext } = await import('../index.js');
-    const context = await getContext();
+    const { getFirefox } = await import('../index.js');
+    const firefox = await getFirefox();
 
-    const messages = await context.getConsoleMessages();
+    const messages = await firefox.getConsoleMessages();
 
     if (messages.length === 0) {
       return successResponse('No console messages found for the currently selected page.');

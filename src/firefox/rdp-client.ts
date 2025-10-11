@@ -31,6 +31,8 @@ export class FirefoxRdpClient {
   private listeningConsoleActors = new Set<ActorId>();
   private networkRequests = new Map<ActorId, NetworkRequest[]>();
   private networkMonitorActors = new Map<ActorId, ActorId>();
+  private pendingTargetAvailableResolvers: Array<(packet: RdpPacket) => void> = [];
+  private watcherActors = new Set<ActorId>(); // Track watcher actors
 
   constructor() {
     this.transport = new RdpTransport();
@@ -57,31 +59,16 @@ export class FirefoxRdpClient {
   }
 
   private async discoverRoot(): Promise<void> {
-    logDebug('Discovering root actor...');
+    logDebug('Discovering root actor via listTabs...');
 
-    // Try getRoot first (newer API)
-    try {
-      const response = await this.sendRequest('root', { type: 'getRoot' });
-      if (response.from) {
-        this.rootActor = response.from;
-        logDebug(`Root actor discovered: ${this.rootActor}`);
-        return;
-      }
-    } catch (err) {
-      logDebug('getRoot failed, trying listTabs fallback');
+    const response = await this.sendRequest('root', { type: 'listTabs' });
+
+    if (!response.from) {
+      throw new Error('Failed to discover root actor. Use Firefox 100+');
     }
 
-    // Fallback: listTabs (older API)
-    try {
-      const response = await this.sendRequest('root', { type: 'listTabs' });
-      if (response.from) {
-        this.rootActor = response.from;
-        logDebug(`Root actor discovered via listTabs: ${this.rootActor}`);
-        return;
-      }
-    } catch (err) {
-      throw new Error('Failed to discover root actor with both getRoot and listTabs');
-    }
+    this.rootActor = response.from;
+    logDebug(`Root actor discovered: ${this.rootActor}`);
   }
 
   async listTabs(): Promise<Tab[]> {
@@ -107,74 +94,52 @@ export class FirefoxRdpClient {
   async attachToTab(tabActor: ActorId): Promise<AttachResult> {
     logDebug(`Attaching to tab: ${tabActor}`);
 
-    const response = await this.sendRequest(tabActor, { type: 'attach' });
+    // Modern Firefox uses watcher/targets API
+    const watcherResp = await this.sendRequest(tabActor, { type: 'getWatcher' });
+    const watcherActor = watcherResp.actor as ActorId | undefined;
 
-    // Extract console and thread actors from response
-    const consoleActor = response.consoleActor as ActorId | undefined;
-    const threadActor = response.threadActor as ActorId | undefined;
+    if (!watcherActor) {
+      throw new RdpError(
+        'Failed to get watcher actor. Requires Firefox 100+',
+        'NO_WATCHER',
+        undefined,
+        tabActor
+      );
+    }
+
+    // Register watcher actor so we can route its events
+    this.watcherActors.add(watcherActor);
+    logDebug(`Registered watcher actor: ${watcherActor}`);
+
+    // CRITICAL: Set up promise BEFORE calling watchTargets
+    // This matches vscode-firefox-debug behavior
+    const targetPromise = this.awaitTargetAvailable(10000);
+
+    // Now call watchTargets - this will trigger target-available-form events
+    await this.sendRequest(watcherActor, {
+      type: 'watchTargets',
+      targetType: 'frame',
+    });
+
+    // Wait for the target-available-form event
+    const evt = await targetPromise;
+    const target = (evt as any).target || {};
+
+    const consoleActor = target.consoleActor as ActorId;
+    const threadActor = target.threadActor as ActorId;
 
     if (!consoleActor) {
       throw new RdpError(
-        'No consoleActor in attach response',
-        'ATTACH_FAILED',
+        'No consoleActor in target. Tab may be empty.',
+        'NO_CONSOLE_ACTOR',
         undefined,
-        tabActor,
-        response
+        tabActor
       );
     }
 
-    logDebug(`Attached: consoleActor=${consoleActor}, threadActor=${threadActor}`);
+    logDebug(`Attached: consoleActor=${consoleActor}, threadActor=${threadActor || 'none'}`);
 
-    return {
-      consoleActor,
-      threadActor: threadActor ?? '',
-    };
-  }
-
-  async navigateTo(tabActor: ActorId, url: string): Promise<void> {
-    logDebug(`Navigating to: ${url}`);
-
-    await this.sendRequest(tabActor, {
-      type: 'navigateTo',
-      url,
-    });
-
-    logDebug(`Navigation initiated to: ${url}`);
-  }
-
-  async openNewTab(url: string): Promise<ActorId> {
-    if (!this.rootActor) {
-      throw new RdpError('Root actor not initialized', 'NO_ROOT_ACTOR');
-    }
-
-    logDebug(`Opening new tab with URL: ${url}`);
-
-    // Use getTab to create a new tab with a specific URL
-    // This is the standard way to create tabs in Firefox RDP
-    const response = await this.sendRequest(this.rootActor, {
-      type: 'getTab',
-      outerWindowID: 0, // 0 means create new tab
-    });
-
-    // Extract tab actor from response
-    const tab = response.tab as { actor?: ActorId } | undefined;
-    const tabActor = tab?.actor;
-
-    if (!tabActor) {
-      throw new RdpError(
-        'Failed to create new tab',
-        'NEW_TAB_FAILED',
-        undefined,
-        this.rootActor,
-        response
-      );
-    }
-
-    // Navigate the new tab to the URL
-    await this.navigateTo(tabActor, url);
-
-    logDebug(`New tab created: ${tabActor}`);
-    return tabActor;
+    return { consoleActor, threadActor: threadActor || '' };
   }
 
   async closeTab(tabActor: ActorId): Promise<void> {
@@ -432,86 +397,6 @@ export class FirefoxRdpClient {
     }
   }
 
-  async takeScreenshot(
-    tabActor: ActorId,
-    options: {
-      format?: 'png' | 'jpeg' | 'webp';
-      quality?: number;
-      fullPage?: boolean;
-    } = {}
-  ): Promise<Buffer> {
-    const format = options.format || 'png';
-    const fullPage = options.fullPage || false;
-
-    logDebug(`Taking screenshot (format: ${format}, fullPage: ${fullPage})`);
-
-    // Firefox RDP doesn't have a native screenshot command in older versions
-    // We'll use a workaround: evaluate JavaScript to capture via canvas
-    const code = `
-      (async function() {
-        // Create a canvas element
-        const canvas = document.createElement('canvas');
-        const ctx = canvas.getContext('2d');
-
-        // Get viewport or full page dimensions
-        const width = ${fullPage ? 'document.documentElement.scrollWidth' : 'window.innerWidth'};
-        const height = ${fullPage ? 'document.documentElement.scrollHeight' : 'window.innerHeight'};
-
-        canvas.width = width;
-        canvas.height = height;
-
-        // Draw white background
-        ctx.fillStyle = 'white';
-        ctx.fillRect(0, 0, width, height);
-
-        // Convert to data URL
-        return canvas.toDataURL('image/${format}'${format === 'jpeg' ? `, ${options.quality || 0.9}` : ''});
-      })();
-    `;
-
-    try {
-      const result = await this.evaluateJS(tabActor, code);
-
-      // Result should be a data URL like "data:image/png;base64,..."
-      if (typeof result !== 'string' || !result.startsWith('data:image/')) {
-        // Fallback: return a minimal 1x1 pixel image
-        logDebug('Screenshot via canvas failed, using fallback minimal image');
-        const minimalPng = Buffer.from(
-          'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==',
-          'base64'
-        );
-        return minimalPng;
-      }
-
-      // Extract base64 data
-      const base64Data = result.split(',')[1];
-      if (!base64Data) {
-        throw new RdpError(
-          'Screenshot failed: could not extract base64 data',
-          'SCREENSHOT_FAILED',
-          undefined,
-          tabActor,
-          result
-        );
-      }
-
-      // Convert base64 to Buffer
-      const buffer = Buffer.from(base64Data, 'base64');
-      logDebug(`Screenshot captured: ${buffer.length} bytes`);
-
-      return buffer;
-    } catch (error) {
-      logError('Screenshot capture failed', error);
-      throw new RdpError(
-        `Screenshot failed: ${String(error)}`,
-        'SCREENSHOT_FAILED',
-        undefined,
-        tabActor,
-        error
-      );
-    }
-  }
-
   private async sendRequest(actor: ActorId, packet: Omit<RdpPacket, 'to'>): Promise<RdpPacket> {
     return new Promise((resolve, reject) => {
       const timeout = setTimeout(() => {
@@ -551,6 +436,54 @@ export class FirefoxRdpClient {
     const from = packet.from;
     if (!from) {
       logDebug('Received packet without "from" field, ignoring');
+      return;
+    }
+
+    // WATCHER ACTOR EVENTS: Check if this is from a watcher actor and has a type (event)
+    if (this.watcherActors.has(from) && packet.type) {
+      logDebug(
+        `[WATCHER EVENT] ${packet.type} from ${from}`
+      );
+
+      // Handle target-available-form event
+      if (packet.type === 'target-available-form') {
+        const resolver = this.pendingTargetAvailableResolvers.shift();
+        if (resolver) {
+          logDebug('Resolving target-available-form promise');
+          resolver(packet);
+        } else {
+          logDebug('Received target-available-form without waiter');
+        }
+        return;
+      }
+
+      // Handle target-destroyed-form event
+      if (packet.type === 'target-destroyed-form') {
+        logDebug('Received target-destroyed-form event');
+        return;
+      }
+
+      // Other watcher events - log and continue
+      logDebug(`Unhandled watcher event: ${packet.type}`);
+    }
+
+    // Special-case: Root actor emits an initial "init" event with applicationType
+    // and other events like tabListChanged. These are unsolicited and MUST NOT
+    // consume a pending request (e.g., for getRoot or listTabs), otherwise we
+    // will mismatch responses (symptom: listTabs gets a getRoot-shaped payload
+    // without "tabs"). This mirrors the behavior in vscode-firefox-debug.
+    if (
+      from === 'root' &&
+      // Initial root init event
+      ((packet as any).applicationType !== undefined ||
+        // Known root events
+        packet.type === 'tabListChanged' ||
+        packet.type === 'addonListChanged' ||
+        packet.type === 'forwardingCancelled')
+    ) {
+      logDebug(
+        `Root event received (type=${packet.type || 'init'}), ignoring for request matching`
+      );
       return;
     }
 
@@ -598,6 +531,23 @@ export class FirefoxRdpClient {
     } else {
       pendingRequest.resolve(packet);
     }
+  }
+
+  private async awaitTargetAvailable(timeoutMs = 8000): Promise<RdpPacket> {
+    return new Promise<RdpPacket>((resolve, reject) => {
+      const resolver = (packet: RdpPacket) => {
+        clearTimeout(timer);
+        resolve(packet);
+      };
+      const timer = setTimeout(() => {
+        const idx = this.pendingTargetAvailableResolvers.indexOf(resolver);
+        if (idx !== -1) {
+          this.pendingTargetAvailableResolvers.splice(idx, 1);
+        }
+        reject(new RdpError('Timeout waiting for target-available-form', 'TIMEOUT'));
+      }, timeoutMs);
+      this.pendingTargetAvailableResolvers.push(resolver);
+    });
   }
 
   private handleConsoleMessage(from: ActorId, packet: RdpPacket): void {

@@ -79,23 +79,24 @@ export const closePageTool = {
 // Handlers
 export async function handleListPages(_args: unknown): Promise<McpToolResponse> {
   try {
-    const { getContext } = await import('../index.js');
-    const context = await getContext();
+    const { getFirefox } = await import('../index.js');
+    const firefox = await getFirefox();
 
-    const pages = await context.getPages();
-    const selectedIdx = context.getSelectedPageIdx();
+    await firefox.refreshTabs();
+    const tabs = firefox.getTabs();
+    const selectedIdx = firefox.getSelectedTabIdx();
 
-    // Format output similar to Chrome implementation
     const lines: string[] = ['📄 Open pages:'];
 
-    if (pages.length === 0) {
+    if (tabs.length === 0) {
       lines.push('  (no pages open)');
     } else {
-      for (const page of pages) {
-        const indicator = page.idx === selectedIdx ? '👉' : '  ';
-        const title = page.title || 'Untitled';
-        const url = page.url || 'about:blank';
-        lines.push(`${indicator} [${page.idx}] ${title}`);
+      for (const tab of tabs) {
+        const idx = tabs.indexOf(tab);
+        const indicator = idx === selectedIdx ? '👉' : '  ';
+        const title = tab.title || 'Untitled';
+        const url = tab.url || 'about:blank';
+        lines.push(`${indicator} [${idx}] ${title}`);
         lines.push(`     ${url}`);
       }
     }
@@ -114,11 +115,10 @@ export async function handleNewPage(args: unknown): Promise<McpToolResponse> {
       throw new Error('url parameter is required and must be a string');
     }
 
-    const { getContext } = await import('../index.js');
-    const context = await getContext();
+    const { getFirefox } = await import('../index.js');
+    const firefox = await getFirefox();
 
-    // Create new page by navigating a newly created tab
-    const newIdx = await context.createNewPage(url);
+    const newIdx = await firefox.createNewPage(url);
 
     return successResponse(`✅ Created new page [${newIdx}] and navigated to: ${url}`);
   } catch (error) {
@@ -134,14 +134,21 @@ export async function handleNavigatePage(args: unknown): Promise<McpToolResponse
       throw new Error('url parameter is required and must be a string');
     }
 
-    const { getContext } = await import('../index.js');
-    const context = await getContext();
+    const { getFirefox } = await import('../index.js');
+    const firefox = await getFirefox();
 
-    const page = await context.getSelectedPage();
-    await context.navigatePage(url);
+    const tabs = firefox.getTabs();
+    const selectedIdx = firefox.getSelectedTabIdx();
+    const page = tabs[selectedIdx];
+
+    if (!page) {
+      throw new Error('No page selected');
+    }
+
+    await firefox.navigate(url);
 
     return successResponse(
-      `✅ Navigated page [${page.idx}] to: ${url}\n` + `   Previous URL: ${page.url}`
+      `✅ Navigated page [${selectedIdx}] to: ${url}\n` + `   Previous URL: ${page.url}`
     );
   } catch (error) {
     return errorResponse(error as Error);
@@ -156,11 +163,16 @@ export async function handleSelectPage(args: unknown): Promise<McpToolResponse> 
       throw new Error('pageIdx parameter is required and must be a number');
     }
 
-    const { getContext } = await import('../index.js');
-    const context = await getContext();
+    const { getFirefox } = await import('../index.js');
+    const firefox = await getFirefox();
 
-    await context.setSelectedPageIdx(pageIdx);
-    const page = await context.getSelectedPage();
+    await firefox.selectTab(pageIdx);
+    const tabs = firefox.getTabs();
+    const page = tabs[pageIdx];
+
+    if (!page) {
+      throw new Error(`Page at index ${pageIdx} not found`);
+    }
 
     return successResponse(`✅ Selected page [${pageIdx}]: ${page.title}\n   ${page.url}`);
   } catch (error) {
@@ -176,17 +188,17 @@ export async function handleClosePage(args: unknown): Promise<McpToolResponse> {
       throw new Error('pageIdx parameter is required and must be a number');
     }
 
-    const { getContext } = await import('../index.js');
-    const context = await getContext();
+    const { getFirefox } = await import('../index.js');
+    const firefox = await getFirefox();
 
-    const pages = await context.getPages();
-    const pageToClose = pages.find((p) => p.idx === pageIdx);
+    const tabs = firefox.getTabs();
+    const pageToClose = tabs[pageIdx];
 
     if (!pageToClose) {
       throw new Error(`Page with index ${pageIdx} not found`);
     }
 
-    await context.closePage(pageIdx);
+    await firefox.closeTab(pageIdx);
 
     return successResponse(
       `✅ Closed page [${pageIdx}]: ${pageToClose.title}\n   ${pageToClose.url}`

@@ -32,12 +32,12 @@ import {
 import { SERVER_NAME, SERVER_VERSION } from './config/constants.js';
 import { log, logError, logDebug } from './utils/logger.js';
 import { parseArguments } from './cli.js';
-import { McpContext } from './McpContext.js';
+import { FirefoxDevTools } from './firefox/devtools.js';
 import type { FirefoxLaunchOptions } from './firefox/types.js';
 import * as tools from './tools/index.js';
 
-// Export McpContext for direct usage in scripts
-export { McpContext };
+// Export for direct usage in scripts
+export { FirefoxDevTools } from './firefox/devtools.js';
 
 // Validate Node.js version
 const [major] = version.substring(1).split('.').map(Number);
@@ -50,10 +50,10 @@ if (!major || major < 18) {
 export const args = parseArguments(SERVER_VERSION);
 
 // Global context (lazy initialized on first tool call)
-let context: McpContext | null = null;
+let firefox: FirefoxDevTools | null = null;
 
-export async function getContext(): Promise<McpContext> {
-  if (!context) {
+export async function getFirefox(): Promise<FirefoxDevTools> {
+  if (!firefox) {
     log('Initializing Firefox DevTools connection...');
 
     const options: FirefoxLaunchOptions = {
@@ -61,17 +61,18 @@ export async function getContext(): Promise<McpContext> {
       headless: args.headless,
       rdpHost: args.rdpHost,
       rdpPort: args.rdpPort,
-      bidiPort: args.bidiPort,
       profilePath: args.profilePath ?? undefined,
       viewport: args.viewport ?? undefined,
       args: (args.firefoxArg as string[] | undefined) ?? undefined,
+      startUrl: args.startUrl ?? undefined,
     };
 
-    context = await McpContext.create(options);
+    firefox = new FirefoxDevTools(options);
+    await firefox.connect();
     log('Firefox DevTools connection established');
   }
 
-  return context;
+  return firefox;
 }
 
 // Tool handler mapping
@@ -85,10 +86,6 @@ const toolHandlers = new Map<
   ['navigate_page', tools.handleNavigatePage],
   ['select_page', tools.handleSelectPage],
   ['close_page', tools.handleClosePage],
-
-  // Screenshot and snapshot (task 07)
-  ['take_screenshot', tools.handleTakeScreenshot],
-  ['take_snapshot', tools.handleTakeSnapshot],
 
   // Script evaluation (task 08)
   ['evaluate_script', tools.handleEvaluateScript],
@@ -117,10 +114,6 @@ const allTools = [
   tools.selectPageTool,
   tools.closePageTool,
 
-  // Screenshot tools
-  tools.takeScreenshotTool,
-  tools.takeSnapshotTool,
-
   // Script tools
   tools.evaluateScriptTool,
 
@@ -147,7 +140,6 @@ async function main() {
   logDebug(`Configuration:`);
   logDebug(`  RDP Host: ${args.rdpHost}`);
   logDebug(`  RDP Port: ${args.rdpPort}`);
-  logDebug(`  BiDi Port: ${args.bidiPort}`);
   logDebug(`  Auto Launch: ${args.autoLaunch}`);
   logDebug(`  Headless: ${args.headless}`);
   if (args.firefoxPath) {

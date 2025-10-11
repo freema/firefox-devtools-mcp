@@ -65,22 +65,10 @@ export interface FirefoxLaunchOptions {
   headless: boolean;
   rdpHost: string;
   rdpPort: number;
-  bidiPort: number;
   profilePath?: string | undefined;
   viewport?: { width: number; height: number } | undefined;
   args?: string[] | undefined;
-}
-
-export interface ScreenshotOptions {
-  format?: 'png' | 'jpeg' | 'webp';
-  quality?: number;
-  fullPage?: boolean;
-  clip?: {
-    x: number;
-    y: number;
-    width: number;
-    height: number;
-  };
+  startUrl?: string | undefined;
 }
 
 export interface ConsoleMessage {

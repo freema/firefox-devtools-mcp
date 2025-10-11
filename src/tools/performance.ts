@@ -51,8 +51,8 @@ export const performanceStopTraceTool = {
 // Tool handlers
 export async function handlePerformanceGetMetrics(_args: unknown): Promise<McpToolResponse> {
   try {
-    const { getContext } = await import('../index.js');
-    const context = await getContext();
+    const { getFirefox } = await import('../index.js');
+    const firefox = await getFirefox();
 
     // Use Navigation Timing API to get basic performance metrics
     const code = `
@@ -79,8 +79,8 @@ export async function handlePerformanceGetMetrics(_args: unknown): Promise<McpTo
       })
     `;
 
-    const result = await context.evaluateScript<string>(code);
-    const metrics = JSON.parse(result) as {
+    const result = await firefox.evaluate(code);
+    const metrics = JSON.parse(result as string) as {
       navigation: {
         domContentLoadedEventEnd?: number;
         domContentLoadedEventStart?: number;

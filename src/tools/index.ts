@@ -16,14 +16,6 @@ export {
   handleClosePage,
 } from './pages.js';
 
-// Screenshot tools
-export {
-  takeScreenshotTool,
-  takeSnapshotTool,
-  handleTakeScreenshot,
-  handleTakeSnapshot,
-} from './screenshot.js';
-
 // Script evaluation tools
 export { evaluateScriptTool, handleEvaluateScript } from './script.js';
 

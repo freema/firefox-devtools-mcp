@@ -256,27 +256,31 @@ export class FirefoxLauncher {
       const pollInterval = 500;
       let attempt = 0;
 
-      const pollPort = async () => {
-        attempt++;
-        logDebug(`Testing RDP port ${this.options.rdpPort} (attempt ${attempt}/${maxAttempts})...`);
+      const pollPort = (): void => {
+        void (async () => {
+          attempt++;
+          logDebug(
+            `Testing RDP port ${this.options.rdpPort} (attempt ${attempt}/${maxAttempts})...`
+          );
 
-        const isReady = await testTcpPort(this.options.rdpHost, this.options.rdpPort, 300);
+          const isReady = await testTcpPort(this.options.rdpHost, this.options.rdpPort, 300);
 
-        if (isReady) {
-          log(`✅ Firefox RDP server ready on port ${this.options.rdpPort}`);
-          resolve();
-        } else if (attempt >= maxAttempts) {
-          const errorMsg =
-            `Firefox RDP server not ready after ${maxAttempts * pollInterval}ms. ` +
-            `Troubleshooting:\n` +
-            `  1. Check if port ${this.options.rdpPort} is already in use: lsof -i :${this.options.rdpPort}\n` +
-            `  2. Try different port: --rdp-port <port>\n` +
-            `  3. Check Firefox path: --firefox-path <path>`;
-          logError('RDP readiness timeout', new Error(errorMsg));
-          reject(new Error(errorMsg));
-        } else {
-          setTimeout(pollPort, pollInterval);
-        }
+          if (isReady) {
+            log(`✅ Firefox RDP server ready on port ${this.options.rdpPort}`);
+            resolve();
+          } else if (attempt >= maxAttempts) {
+            const errorMsg =
+              `Firefox RDP server not ready after ${maxAttempts * pollInterval}ms. ` +
+              `Troubleshooting:\n` +
+              `  1. Check if port ${this.options.rdpPort} is already in use: lsof -i :${this.options.rdpPort}\n` +
+              `  2. Try different port: --rdp-port <port>\n` +
+              `  3. Check Firefox path: --firefox-path <path>`;
+            logError('RDP readiness timeout', new Error(errorMsg));
+            reject(new Error(errorMsg));
+          } else {
+            setTimeout(pollPort, pollInterval);
+          }
+        })();
       };
 
       // Start polling after a brief delay to let Firefox initialize
@@ -289,9 +293,6 @@ export class FirefoxLauncher {
 
     // Enable RDP server - use single-dash flags for better compatibility
     args.push('-start-debugger-server', String(this.options.rdpPort));
-
-    // Enable WebDriver BiDi Remote Agent (for screenshots)
-    args.push('-remote-debugging-port', String(this.options.bidiPort));
 
     // Headless mode
     if (this.options.headless) {
@@ -318,8 +319,8 @@ export class FirefoxLauncher {
       args.push(...this.options.args);
     }
 
-    // Open blank page by default
-    args.push('about:blank');
+    // Open configured start URL (default: about:home)
+    args.push(this.options.startUrl || 'about:home');
 
     return args;
   }

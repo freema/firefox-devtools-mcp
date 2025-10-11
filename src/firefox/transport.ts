@@ -1,5 +1,5 @@
 /**
- * Firefox RDP TCP transport with JSON framing
+ * Firefox RDP TCP transport with byte-precise JSON framing
  */
 
 import { Socket } from 'net';
@@ -8,11 +8,11 @@ import type { RdpPacket } from './types.js';
 import { logDebug, logError } from '../utils/logger.js';
 
 const DEFAULT_CONNECT_TIMEOUT = 5000;
-const PACKET_DELIMITER = ':';
+const COLON = ':'.charCodeAt(0);
 
 export class RdpTransport extends EventEmitter {
   private socket: Socket | null = null;
-  private buffer = '';
+  private buffer: Buffer = Buffer.alloc(0);
   private connected = false;
 
   async connect(host: string, port: number, timeout = DEFAULT_CONNECT_TIMEOUT): Promise<void> {
@@ -37,7 +37,6 @@ export class RdpTransport extends EventEmitter {
         clearTimeout(timeoutHandle);
         this.connected = true;
         logDebug(`Connected to Firefox RDP at ${host}:${port}`);
-        // Keep data/close listeners for the lifetime of the socket
         resolve();
       });
 
@@ -58,11 +57,8 @@ export class RdpTransport extends EventEmitter {
         this.connected = false;
         logDebug('RDP connection closed');
         this.emit('close');
-        // If we closed before establishing a connection, reject to let callers fallback to auto-launch
         if (!socket.connecting && !this.connected) {
           cleanup();
-          // Only reject if connect() hasn't resolved yet
-          // Note: if 'connect' already fired, the promise is resolved and close is just lifecycle.
         }
       });
 
@@ -70,45 +66,72 @@ export class RdpTransport extends EventEmitter {
     });
   }
 
-  private handleData(data: Buffer): void {
-    this.buffer += data.toString('utf-8');
+  private handleData(chunk: Buffer): void {
+    // Accumulate bytes
+    this.buffer = Buffer.concat([this.buffer, chunk]);
 
-    // Firefox RDP uses length-prefixed JSON messages: "<length>:<json>"
+    // Process all complete messages
     while (this.buffer.length > 0) {
-      const delimiterIndex = this.buffer.indexOf(PACKET_DELIMITER);
-      if (delimiterIndex === -1) {
-        // Not enough data yet
-        break;
+      // Find header delimiter ':'
+      const colonIndex = this.indexOfColon(this.buffer);
+      if (colonIndex === -1) {
+        // Need more data for header
+        return;
       }
 
-      const lengthStr = this.buffer.substring(0, delimiterIndex);
-      const length = parseInt(lengthStr, 10);
-
-      if (Number.isNaN(length)) {
+      // Parse ASCII length
+      const lengthStr = this.buffer.subarray(0, colonIndex).toString('ascii');
+      const bodyLength = parseInt(lengthStr, 10);
+      if (!Number.isFinite(bodyLength) || bodyLength < 0) {
         logError('Invalid RDP packet length', new Error(`Invalid length: ${lengthStr}`));
-        this.buffer = ''; // Reset buffer on error
-        break;
+        // Desync: drop buffer to recover
+        this.buffer = Buffer.alloc(0);
+        return;
       }
 
-      const packetStart = delimiterIndex + 1;
-      const packetEnd = packetStart + length;
+      const bodyStart = colonIndex + 1;
+      const bodyEnd = bodyStart + bodyLength;
 
-      if (this.buffer.length < packetEnd) {
-        // Not enough data yet
-        break;
+      if (this.buffer.length < bodyEnd) {
+        // Not enough bytes for the full JSON body yet
+        return;
       }
 
-      const packetData = this.buffer.substring(packetStart, packetEnd);
-      this.buffer = this.buffer.substring(packetEnd);
+      const bodyBuf = this.buffer.subarray(bodyStart, bodyEnd);
+      // Slice remaining bytes for next iteration
+      this.buffer = this.buffer.subarray(bodyEnd);
 
       try {
-        const packet = JSON.parse(packetData) as RdpPacket;
+        const packetJson = bodyBuf.toString('utf8');
+        const packet = JSON.parse(packetJson) as RdpPacket;
         logDebug(`RDP recv: ${JSON.stringify(packet)}`);
         this.emit('message', packet);
       } catch (err) {
         logError('Failed to parse RDP packet', err);
+        // Continue parsing subsequent messages (best effort)
       }
     }
+  }
+
+  private indexOfColon(buf: Buffer): number {
+    // Find a colon such that all preceding bytes are ASCII digits (length header)
+    for (let i = 0; i < buf.length; i++) {
+      if (buf[i] !== COLON) {
+        continue;
+      }
+      let digits = true;
+      for (let j = 0; j < i; j++) {
+        const c = buf[j];
+        if (c === undefined || c < 0x30 || c > 0x39) {
+          digits = false;
+          break;
+        }
+      }
+      if (digits && i > 0) {
+        return i;
+      }
+    }
+    return -1;
   }
 
   send(packet: RdpPacket): void {
@@ -117,11 +140,12 @@ export class RdpTransport extends EventEmitter {
     }
 
     const json = JSON.stringify(packet);
-    const length = Buffer.byteLength(json, 'utf-8');
-    const message = `${length}:${json}`;
+    const msgBuf = Buffer.from(json, 'utf8');
 
     logDebug(`RDP send: ${JSON.stringify(packet)}`);
-    this.socket.write(message, 'utf-8');
+    // Write header in ASCII, then body bytes
+    this.socket.write(`${msgBuf.length}:`, 'ascii');
+    this.socket.write(msgBuf);
   }
 
   isConnected(): boolean {
@@ -134,6 +158,6 @@ export class RdpTransport extends EventEmitter {
       this.socket = null;
     }
     this.connected = false;
-    this.buffer = '';
+    this.buffer = Buffer.alloc(0);
   }
 }
