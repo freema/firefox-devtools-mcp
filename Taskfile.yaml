@@ -1,0 +1,144 @@
+version: '3'
+
+tasks:
+  default:
+    desc: Show available tasks
+    cmds:
+      - task --list
+
+  install:
+    desc: Install dependencies
+    cmds:
+      - npm install
+
+  build:
+    desc: Build the project
+    cmds:
+      - npm run build
+
+  dev:
+    desc: Run in development mode with hot reload
+    cmds:
+      - npm run dev
+
+  start:
+    desc: Run the production build
+    deps: [build]
+    cmds:
+      - npm start
+
+  clean:
+    desc: Clean build artifacts
+    cmds:
+      - rm -rf dist
+      - rm -rf node_modules
+      - rm -f package-lock.json
+
+  typecheck:
+    desc: Run TypeScript type checking
+    cmds:
+      - npm run typecheck
+
+  lint:
+    desc: Run ESLint
+    cmds:
+      - npm run lint
+
+  lint:fix:
+    desc: Run ESLint with auto-fix
+    cmds:
+      - npm run lint:fix
+
+  fmt:
+    desc: Format code with Prettier
+    cmds:
+      - npm run format
+
+  fmt:check:
+    desc: Check code formatting
+    cmds:
+      - npm run format:check
+
+  check:
+    desc: Run lint fix and typecheck
+    cmds:
+      - npm run lint:fix
+      - npm run typecheck
+
+  check:all:
+    desc: Run all checks (lint, typecheck, format, tests, build)
+    cmds:
+      - task: lint
+      - task: typecheck
+      - task: fmt:check
+      - task: test:run
+      - task: build
+
+  setup:
+    desc: Run interactive setup for MCP configuration
+    cmds:
+      - npm run setup
+
+  inspector:
+    desc: Run MCP inspector for debugging
+    deps: [build]
+    cmds:
+      - npm run inspector
+
+  inspector:dev:
+    desc: Run MCP inspector in development mode
+    cmds:
+      - npm run inspector:dev
+
+  release:
+    desc: Prepare for release (clean, install, build, check)
+    cmds:
+      - task: clean
+      - task: install
+      - task: check
+      - task: build
+
+  watch:
+    desc: Watch for file changes and rebuild
+    cmds:
+      - npx tsup --watch
+
+  env:
+    desc: Create .env file from example
+    cmds:
+      - cp .env.example .env
+      - echo "Created .env file. Please edit it with your Firefox configuration."
+
+  test:
+    desc: Run all unit tests
+    cmds:
+      - npm test
+
+  test:run:
+    desc: Run tests once (no watch mode)
+    cmds:
+      - npm run test:run
+
+  test:coverage:
+    desc: Run tests with coverage report
+    cmds:
+      - npm run test:coverage
+
+  test:watch:
+    desc: Run tests in watch mode
+    cmds:
+      - npm run test:watch
+
+  test:ui:
+    desc: Run tests with UI
+    cmds:
+      - npm run test:ui
+
+  ci:
+    desc: Run CI pipeline (clean, install, check, test, build)
+    cmds:
+      - task: clean
+      - task: install
+      - task: check
+      - task: test:coverage
+      - task: build

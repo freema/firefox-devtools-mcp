@@ -1,0 +1,65 @@
+**Firefox DevTools MCP – TODO Roadmap**
+
+Tento adresář obsahuje rozpracované úkoly k vývoji nového MCP serveru pro Firefox DevTools. Implementace se bude držet struktury a praxe jako v `old/mcp_gsheet` a funkční parity (kde dává smysl) s `old/mcp_dev_tool_chrome`.
+
+- Kompletní specifikace (původní návrh) byla přesunuta do: `tasks/99-specification.md`
+
+Stav práce budeme řídit přes checklist níže. Každý bod odkazuje na samostatný úkol s detaily, akceptačními kritérii, referencemi a ukázkovými snippetami (ilustrační, ne finální kód).
+
+Roadmapa
+
+- [x] 00 – Výzkum a architektura: přístup k Firefoxu, parity s Chrome, struktura projektu (`tasks/00-architecture-research.md`)
+- [x] 01 – Projektový scaffold (TypeScript, tsup, eslint, prettier, vitest, scripts) (`tasks/01-project-scaffold.md`)
+- [x] 02 – Struktura `src/` a skelet MCP serveru (`tasks/02-structure-and-boilerplate.md`)
+- [x] 03 – Konfigurace, `.env`, setup skript pro MCP klienty, Inspector (`tasks/03-config-env-and-scripts.md`)
+- [x] 04 – Taskfile.yaml a Dockerfile pro lokální testování a Inspector (`tasks/04-taskfile-and-dockerfile.md`)
+- [x] 05 – Vrstva prohlížeče (McpContext/browser wrapper) (`tasks/05-browser-abstraction.md`)
+- [x] 06 – Tools: Navigace a správa stránek (MVP) (`tasks/06-tools-pages-and-navigation.md`)
+- [x] 07 – Tools: Debug a screenshoty (MVP) (`tasks/07-tools-debug-and-screenshot.md`)
+- [x] 08 – Tools: Console a evaluate (MVP) (`tasks/08-tools-console-and-script.md`)
+- [x] 09 – Tools: Síť a výkon (iterace, omezení Firefoxu) (`tasks/09-tools-network-and-performance.md`)
+- [ ] 10 – Testování (unit/integration) a Inspector workflow (`tasks/10-testing-and-inspector.md`)
+- [ ] 11 – Balíčkování, metadata, `server.json`, publikace (`tasks/11-ci-and-packaging.md`)
+- [ ] 12 – Dokumentace: README, Tool reference, Troubleshooting (`tasks/12-docs-and-readme.md`)
+ - [x] 13 – Launcher: RDP přepínače a readiness (`tasks/13-launcher-rdp-flags-and-readiness.md`)
+ - [x] 14 – Launcher: Detekce binárky + edice (`tasks/14-launcher-executable-detection-and-editions.md`)
+ - [x] 15 – BiDi port a screenshot (volitelné) (`tasks/15-bidi-port-and-screenshot.md`)
+ - [x] 16 – Docs: Vlastní Firefox klient (EN) (`tasks/16-docs-firefox-client.md`)
+
+Poznámky
+
+- V ukázkových snippetech odkazujeme na existující implementace v `old/`. Nepíšeme finální kód, snippety slouží jen k ilustraci a jako „most“ k hotovým souborům.
+- Struktura, tooling a skripty se mají co nejvíce držet `old/mcp_gsheet`.
+- Při definici tools zachovávejme názvy a semantics z `old/mcp_dev_tool_chrome`, kde to dává smysl (lepší přenositelnost promptů). Pokud Firefox neumí 1:1 funkci, uvést odchylky v tasku.
+
+Proces a kontrola kvality
+
+- Úkoly plň postupně dle pořadí (00 → 12). Nepřeskakovat, pokud to není výslovně domluveno.
+- Po dokončení každého úkolu spusť `task check`.
+  - `task check` provede automatický ESLint fix a TypeScript typecheck (formát a přesnou skladbu úloh držíme v Taskfile podle vzoru `old/mcp_gsheet`).
+- Po každém úkolu ulož záznam pro code review do souboru `tasks/CR-<ID>.md`.
+  - Příklad: `tasks/CR-06.md` nebo `tasks/CR-06-tools-pages-and-navigation.md`.
+  - Doporučená osnova CR záznamu:
+
+```md
+# Code Review – <ID> <název úkolu>
+
+Datum: YYYY-MM-DD
+
+Co bylo provedeno
+- Krátký souhrn změn a důvodů
+- Dotčené části (soubory/oblast)
+
+Rozhodnutí a dopady
+- Důležitá rozhodnutí (např. naming, chování CLI, defaulty)
+- Známá omezení nebo technické dluhy
+
+Reference
+- Odkazy do `old/mcp_gsheet` a `old/mcp_dev_tool_chrome` (konkrétní soubory)
+
+Další kroky
+- Navazující task/y nebo testy
+```
+
+- Rozšiřuj `.gitignore` podle potřeby (např. `dist/`, `node_modules/`, `coverage/`, `*.log`, `.env`, dočasné soubory, artefakty Dockeru, atd.). Vycházej ze vzoru v `old/mcp_gsheet/.gitignore`.
+- Po každém dokončeném úkolu aktualizuj dokumentaci (README, případně `docs/*`, tool reference, poznámky k konfiguraci a omezením). Uveď změny i do CR záznamu.
