@@ -27,27 +27,24 @@ export interface ConsoleMessage {
 }
 
 /**
- * BiDi network request
+ * Combined network request+response record
  */
-export interface NetworkRequest {
-  requestId: string;
+export interface NetworkRecord {
+  id: string;
   url: string;
   method: string;
-  headers?: Record<string, string>;
   timestamp: number;
-  isBlocked?: boolean;
-}
-
-/**
- * BiDi network response
- */
-export interface NetworkResponse {
-  requestId: string;
-  url: string;
-  status: number;
-  statusText: string;
-  headers?: Record<string, string>;
-  timestamp: number;
+  resourceType?: string;
+  isXHR?: boolean;
+  status?: number;
+  statusText?: string;
+  requestHeaders?: Record<string, string>;
+  responseHeaders?: Record<string, string>;
+  timings?: {
+    requestTime?: number;
+    responseTime?: number;
+    duration?: number;
+  };
 }
 
 /**

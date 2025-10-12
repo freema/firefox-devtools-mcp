@@ -13,7 +13,7 @@ export const listNetworkRequestsTool = {
   description:
     'List all network requests for the currently selected page since the last navigation. ' +
     'NOTE: Network monitoring must be started first using start_network_monitoring. ' +
-    'Firefox RDP network monitoring has limitations compared to Chrome DevTools.',
+    'Current BiDi MVP network monitoring has limitations compared to Chrome DevTools.',
   inputSchema: {
     type: 'object' as const,
     properties: {
@@ -38,7 +38,7 @@ export const getNetworkRequestTool = {
   description:
     'Get detailed information about a specific network request by URL. ' +
     'You can get all requests by calling list_network_requests first. ' +
-    'NOTE: Detailed request/response data may be limited in Firefox RDP.',
+    'NOTE: Detailed request/response data may be limited in current BiDi MVP.',
   inputSchema: {
     type: 'object' as const,
     properties: {
@@ -111,7 +111,7 @@ export async function handleListNetworkRequests(args: unknown): Promise<McpToolR
       'Network Requests:',
       ...formattedRequests,
       '',
-      'NOTE: Firefox RDP network monitoring has limitations. Some request details may not be available.',
+      'NOTE: Current BiDi MVP network monitoring has limitations. Some request details may not be available.',
       'Use get_network_request to get more details about a specific request.',
     ]
       .filter(Boolean)
@@ -159,8 +159,8 @@ export async function handleGetNetworkRequest(args: unknown): Promise<McpToolRes
       request.resourceType !== undefined ? `Resource Type: ${request.resourceType}` : '',
       request.isXHR !== undefined ? `Is XHR: ${request.isXHR}` : '',
       '',
-      'NOTE: Firefox RDP has limited support for detailed request/response data.',
-      'Request and response headers/body may not be available in this MVP implementation.',
+      'NOTE: Current BiDi MVP has limited support for detailed request/response data.',
+      'Request and response headers/body may not be available in this implementation.',
     ]
       .filter(Boolean)
       .join('\n');

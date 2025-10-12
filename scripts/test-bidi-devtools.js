@@ -159,8 +159,114 @@ async function main() {
     });
     console.log();
 
-    console.log('✅ All BiDi DevTools tests passed! 🎉\n');
-    console.log('🎯 BiDi implementation is working perfectly!\n');
+    // 11. Resize viewport (client utility)
+    console.log('📐 Resizing viewport to 1024x600...');
+    try {
+      await firefox.setViewportSize(1024, 600);
+      console.log('✅ Viewport resized\n');
+    } catch (e) {
+      console.log('⚠️ Skipping viewport resize test:', e.message);
+    }
+
+    // 12. Drag & drop via JS fallback
+    console.log('🧲 Testing drag & drop (JS fallback)...');
+    try {
+      const dndPage = `data:text/html;charset=utf-8,<!doctype html><meta charset=utf-8><style>\n#drag{width:80px;height:80px;background:#08f;color:#fff;display:flex;align-items:center;justify-content:center}#drop{width:160px;height:100px;border:3px dashed #888;margin-left:16px;display:inline-flex;align-items:center;justify-content:center}#ok{color:green;font-weight:bold}\n</style>\n<div id=drag draggable=true>Drag</div><div id=drop>Drop here</div>\n<script>\nconst drop = document.getElementById('drop');\ndrop.addEventListener('drop', (e)=>{e.preventDefault();drop.innerHTML='<span id=ok>OK</span>';});\ndrop.addEventListener('dragover', (e)=>e.preventDefault());\n</script>`;
+      await firefox.navigate(dndPage);
+      await firefox.dragAndDropBySelectors('#drag', '#drop');
+      // Verify
+      const ok = await firefox.evaluate("return !!document.querySelector('#ok')");
+      console.log(ok ? '✅ Drag & drop worked\n' : '❌ Drag & drop failed\n');
+    } catch (e) {
+      console.log('⚠️ Skipping drag & drop test:', e.message);
+    }
+
+    // 13. File upload: sendKeys + JS unhide
+    console.log('📁 Testing file upload (sendKeys)...');
+    try {
+      const fs = await import('node:fs/promises');
+      const os = await import('node:os');
+      const path = await import('node:path');
+      const tmp = await fs.mkdtemp(path.join(os.tmpdir(), 'bidi-test-'));
+      const filePath = path.join(tmp, 'hello.txt');
+      await fs.writeFile(filePath, 'hello bidi');
+
+      const uploadPage = `data:text/html;charset=utf-8,<!doctype html><meta charset=utf-8>\n<style>#file{display:none}</style>\n<label for=file>Pick file</label>\n<input id=file type=file>\n<script>document.getElementById('file').addEventListener('change',()=>{document.body.setAttribute('data-ok','1')});</script>`;
+      await firefox.navigate(uploadPage);
+      await firefox.uploadFileBySelector('#file', filePath);
+      const ok = await firefox.evaluate("return document.body.getAttribute('data-ok') === '1'");
+      console.log(ok ? '✅ File upload worked\n' : '❌ File upload failed\n');
+    } catch (e) {
+      console.log('⚠️ Skipping file upload test:', e.message);
+    }
+
+    // 14. Network monitoring
+    console.log('🌐 Testing network monitoring...');
+    try {
+      // Start monitoring BEFORE navigation
+      await firefox.startNetworkMonitoring();
+      console.log('   Network monitoring started');
+
+      // Small delay to ensure listener is ready
+      await new Promise((r) => setTimeout(r, 100));
+
+      // Navigate to a page with resources
+      await firefox.navigate('https://example.com');
+
+      // Wait for page load and network activity
+      await new Promise((r) => setTimeout(r, 3000));
+
+      // Get network requests
+      const requests = await firefox.getNetworkRequests();
+      console.log(`✅ Captured ${requests.length} network request(s):`);
+
+      // Show first 5 requests
+      requests.slice(0, 5).forEach((req, idx) => {
+        const statusEmoji = req.status >= 400 ? '❌' : req.status >= 300 ? '⚠️' : '✅';
+        console.log(`   ${idx + 1}. ${statusEmoji} [${req.method}] ${req.status || '?'} ${req.url.substring(0, 80)}`);
+        if (req.resourceType) {
+          console.log(`      Type: ${req.resourceType}`);
+        }
+        if (req.timings?.duration) {
+          console.log(`      Duration: ${req.timings.duration}ms`);
+        }
+      });
+
+      if (requests.length > 5) {
+        console.log(`   ... and ${requests.length - 5} more requests`);
+      }
+
+      // Stop monitoring
+      await firefox.stopNetworkMonitoring();
+      console.log('   Network monitoring stopped');
+
+      // Clear requests
+      firefox.clearNetworkRequests();
+      const clearedRequests = await firefox.getNetworkRequests();
+      console.log(`✅ Cleared requests (now: ${clearedRequests.length})\n`);
+    } catch (e) {
+      console.log('⚠️ Network monitoring test failed:', e.message, '\n');
+    }
+
+    // 15. History navigation
+    console.log('↩️ Testing back/forward navigation...');
+    try {
+      await firefox.navigate('https://example.com');
+      await new Promise((r) => setTimeout(r, 1000));
+      await firefox.navigate('https://www.mozilla.org');
+      await new Promise((r) => setTimeout(r, 1000));
+      await firefox.navigateBack();
+      const titleBack = await firefox.evaluate('return document.title');
+      console.log('   Back title:', titleBack);
+      await firefox.navigateForward();
+      const titleFwd = await firefox.evaluate('return document.title');
+      console.log('   Forward title:', titleFwd);
+      console.log('✅ History navigation tested\n');
+    } catch (e) {
+      console.log('⚠️ Skipping history test:', e.message);
+    }
+
+    console.log('✅ All BiDi DevTools tests completed! 🎉\n');
   } catch (error) {
     console.error('❌ Test failed:', error.message);
     if (error.stack) {

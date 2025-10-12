@@ -13,7 +13,7 @@ export const performanceGetMetricsTool = {
   description:
     'Get performance metrics for the currently selected page using Navigation Timing API. ' +
     'NOTE: This is a basic MVP implementation. Full performance profiling (like Chrome DevTools) ' +
-    'is not available via Firefox RDP. Use Firefox DevTools UI for advanced profiling.',
+    'is not available via WebDriver BiDi. Use Firefox DevTools UI for advanced profiling.',
   inputSchema: {
     type: 'object' as const,
     properties: {},
@@ -23,7 +23,7 @@ export const performanceGetMetricsTool = {
 export const performanceStartTraceTool = {
   name: 'performance_start_trace',
   description:
-    'DEPRECATED: Performance tracing is not supported in Firefox RDP. ' +
+    'DEPRECATED: Performance tracing is not supported in WebDriver BiDi. ' +
     'This tool exists for API compatibility but will return a "not supported" message. ' +
     'Use Firefox DevTools UI Performance panel for detailed performance profiling.',
   inputSchema: {
@@ -40,7 +40,7 @@ export const performanceStartTraceTool = {
 export const performanceStopTraceTool = {
   name: 'performance_stop_trace',
   description:
-    'DEPRECATED: Performance tracing is not supported in Firefox RDP. ' +
+    'DEPRECATED: Performance tracing is not supported in WebDriver BiDi. ' +
     'This tool exists for API compatibility but will return a "not supported" message.',
   inputSchema: {
     type: 'object' as const,
@@ -166,7 +166,7 @@ export async function handlePerformanceGetMetrics(_args: unknown): Promise<McpTo
     lines.push(
       'NOTE: This is a basic implementation using Navigation Timing API.',
       'For detailed performance profiling, use Firefox DevTools Performance panel.',
-      'Advanced tracing (like Chrome DevTools) is not available via Firefox RDP.'
+      'Advanced tracing (like Chrome DevTools) is not available via WebDriver BiDi.'
     );
 
     return successResponse(lines.join('\n'));
@@ -180,8 +180,8 @@ export async function handlePerformanceGetMetrics(_args: unknown): Promise<McpTo
 
 export async function handlePerformanceStartTrace(_args: unknown): Promise<McpToolResponse> {
   return errorResponse(
-    'Performance tracing is not supported in Firefox RDP.\n\n' +
-      'Unlike Chrome DevTools Protocol, Firefox Remote Debugging Protocol does not provide ' +
+    'Performance tracing is not supported in WebDriver BiDi.\n\n' +
+      'Unlike Chrome DevTools Protocol, WebDriver BiDi does not provide ' +
       'detailed performance tracing capabilities. For advanced performance profiling:\n\n' +
       '1. Use Firefox DevTools Performance panel (F12 → Performance tab)\n' +
       '2. Use performance_get_metrics for basic Navigation Timing data\n' +
@@ -193,7 +193,7 @@ export async function handlePerformanceStartTrace(_args: unknown): Promise<McpTo
 
 export async function handlePerformanceStopTrace(_args: unknown): Promise<McpToolResponse> {
   return errorResponse(
-    'Performance tracing is not supported in Firefox RDP.\n\n' +
+    'Performance tracing is not supported in WebDriver BiDi.\n\n' +
       'See performance_start_trace documentation for alternatives.'
   );
 }

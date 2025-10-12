@@ -7,16 +7,6 @@ import yargs from 'yargs';
 import { hideBin } from 'yargs/helpers';
 
 export const cliOptions = {
-  rdpHost: {
-    type: 'string',
-    description: 'Host where Firefox RDP server is running',
-    default: process.env.RDP_HOST ?? '127.0.0.1',
-  },
-  rdpPort: {
-    type: 'number',
-    description: 'Port where Firefox RDP server is listening',
-    default: Number(process.env.RDP_PORT ?? 6000),
-  },
   firefoxPath: {
     type: 'string',
     description: 'Path to Firefox executable (optional, uses system Firefox if not specified)',
@@ -26,11 +16,6 @@ export const cliOptions = {
     type: 'boolean',
     description: 'Whether to run Firefox in headless (no UI) mode',
     default: (process.env.FIREFOX_HEADLESS ?? 'false') === 'true',
-  },
-  autoLaunch: {
-    type: 'boolean',
-    description: 'Automatically launch Firefox with RDP enabled',
-    default: (process.env.AUTO_LAUNCH_FIREFOX ?? 'true') === 'true',
   },
   viewport: {
     type: 'string',
@@ -77,13 +62,11 @@ export function parseArguments(version: string, argv = process.argv) {
     .scriptName('npx firefox-devtools-mcp@latest')
     .options(cliOptions)
     .example([
-      ['$0 --rdp-host 127.0.0.1 --rdp-port 6000', 'Connect to a running Firefox instance'],
       [
         '$0 --firefox-path /Applications/Firefox.app/Contents/MacOS/firefox',
         'Use specific Firefox',
       ],
       ['$0 --headless', 'Run Firefox in headless mode'],
-      ['$0 --no-auto-launch', 'Do not automatically launch Firefox'],
       ['$0 --viewport 1280x720', 'Launch Firefox with viewport size of 1280x720px'],
       ['$0 --help', 'Print CLI options'],
     ]);

@@ -2,7 +2,7 @@
 
 /**
  * Firefox DevTools MCP Server
- * Model Context Protocol server for Firefox browser automation via Remote Debugging Protocol
+ * Model Context Protocol server for Firefox browser automation via WebDriver BiDi
  */
 
 // Load .env file in development mode
@@ -32,12 +32,12 @@ import {
 import { SERVER_NAME, SERVER_VERSION } from './config/constants.js';
 import { log, logError, logDebug } from './utils/logger.js';
 import { parseArguments } from './cli.js';
-import { FirefoxDevTools } from './firefox/devtools.js';
+import { FirefoxDevTools } from './firefox/index.js';
 import type { FirefoxLaunchOptions } from './firefox/types.js';
 import * as tools from './tools/index.js';
 
 // Export for direct usage in scripts
-export { FirefoxDevTools } from './firefox/devtools.js';
+export { FirefoxDevTools } from './firefox/index.js';
 
 // Validate Node.js version
 const [major] = version.substring(1).split('.').map(Number);
@@ -59,8 +59,6 @@ export async function getFirefox(): Promise<FirefoxDevTools> {
     const options: FirefoxLaunchOptions = {
       firefoxPath: args.firefoxPath ?? undefined,
       headless: args.headless,
-      rdpHost: args.rdpHost,
-      rdpPort: args.rdpPort,
       profilePath: args.profilePath ?? undefined,
       viewport: args.viewport ?? undefined,
       args: (args.firefoxArg as string[] | undefined) ?? undefined,
@@ -138,9 +136,6 @@ async function main() {
 
   // Log configuration
   logDebug(`Configuration:`);
-  logDebug(`  RDP Host: ${args.rdpHost}`);
-  logDebug(`  RDP Port: ${args.rdpPort}`);
-  logDebug(`  Auto Launch: ${args.autoLaunch}`);
   logDebug(`  Headless: ${args.headless}`);
   if (args.firefoxPath) {
     logDebug(`  Firefox Path: ${args.firefoxPath}`);

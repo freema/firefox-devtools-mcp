@@ -39,18 +39,22 @@ await bidi.subscribe('log.entryAdded', contextId, (event) => {
 
 ## Client Architecture
 
-### Selenium WebDriver Integration
+### Modular Structure (Task 18)
 
-The architecture is intentionally simple - a **thin wrapper** around Selenium's WebDriver:
+The client has been refactored into a modular architecture for better separation of concerns:
 
-**FirefoxDevTools** (`src/firefox/devtools.ts`)
-- Direct proxy to Selenium WebDriver
-- No "smart" logic or modifications
-- Console event subscription via BiDi
-- Tab and window management
-- Simple state tracking
+**FirefoxClient** (`src/firefox/index.ts`)
+- Public facade delegating to specialized modules
+- Maintains backward compatibility as `FirefoxDevTools`
 
-**Key principle:** Don't reinvent the wheel. Selenium knows what it's doing.
+**Modules:**
+- **`core.ts`** - WebDriver + BiDi connection management
+- **`dom.ts`** - JavaScript evaluation, element lookup, input actions
+- **`pages.ts`** - Tab/window management, navigation, history
+- **`events.ts`** - Console buffer (live), network buffer (Task 19)
+- **`types.ts`** - Shared TypeScript types
+
+**Key principle:** Keep it simple. Minimum modules, clear interfaces, easy maintenance.
 
 ### Core Components
 
@@ -99,16 +103,16 @@ async evaluate(script: string): Promise<unknown> {
 
 ### High-Level API
 
-**FirefoxDevTools** (`src/firefox/devtools.ts`)
-- Unified API for browser automation
-- Tab state management
-- Console message buffering
-- Network monitoring stubs (planned)
+**FirefoxClient** (`src/firefox/index.ts`)
+- Unified facade for browser automation
+- Delegates to specialized modules
+- Maintains backward compatibility via `FirefoxDevTools` alias
 
-**McpContext** (`src/McpContext.ts`)
-- MCP server integration layer
-- Tool method implementations
-- Resource management
+**Module Responsibilities:**
+- **`core`** - Driver lifecycle, BiDi connection
+- **`dom`** - Evaluate, getContent, click/hover/fill, drag&drop, file upload
+- **`pages`** - navigate, back/forward, resize, tab CRUD
+- **`events`** - Console messages (live), network requests (live, Task 19)
 
 ## Auto-Launch and Configuration
 
@@ -178,14 +182,13 @@ The server provides comprehensive browser automation tools:
 | Tool | Description | Status |
 |------|------------|--------|
 | `list_console_messages` | Get console logs | ✅ Real-time BiDi events |
-| `list_network_requests` | Get network activity | 🚧 Planned (BiDi events) |
-| `get_network_request` | Get request details | 🚧 Planned (BiDi events) |
-| `start_network_monitoring` | Enable network capture | 🚧 Planned |
-| `stop_network_monitoring` | Disable network capture | 🚧 Planned |
+| `list_network_requests` | Get network activity | ✅ Real-time BiDi events (Task 19) |
+| `get_network_request` | Get request details | ✅ Via `getNetworkRequests()` |
+| `start_network_monitoring` | Enable network capture | ✅ Implemented |
+| `stop_network_monitoring` | Disable network capture | ✅ Implemented |
 | `performance_get_metrics` | Get timing metrics | ✅ Via `performance` API |
 
 ✅ = Fully implemented
-🚧 = Planned (BiDi supports this)
 
 ## Migration from RDP
 
@@ -229,12 +232,48 @@ This server was migrated from a custom Remote Debugging Protocol (RDP) implement
 - ✅ PNG format
 - ✅ Base64 encoded
 
+### Network Monitoring (Implemented - Task 19)
+
+**Fully functional via BiDi events:**
+- ✅ Request/response capture via `network.beforeRequestSent`, `network.responseStarted`, `network.responseCompleted`
+- ✅ Full headers (request + response)
+- ✅ Timing metrics (duration, request/response timestamps)
+- ✅ Resource type detection (script, stylesheet, image, font, media, xhr, document)
+- ✅ Enable/disable mechanism (start/stop monitoring)
+- ✅ Per-request tracking with unique IDs
+
+**Usage example:**
+```typescript
+// Start monitoring
+await firefox.startNetworkMonitoring();
+
+// Navigate or perform actions
+await firefox.navigate('https://example.com');
+
+// Get captured requests
+const requests = await firefox.getNetworkRequests();
+// Returns: Array<NetworkRecord>
+// Each record contains: id, url, method, timestamp, resourceType, isXHR,
+//                       status, statusText, requestHeaders, responseHeaders, timings
+
+// Stop monitoring
+await firefox.stopNetworkMonitoring();
+
+// Clear buffer
+firefox.clearNetworkRequests();
+```
+
+**Implementation details:**
+- Events are subscribed at `connect()` time
+- Data collection is **enabled only when `startNetworkMonitoring()` is called**
+- Buffer persists across navigations (unlike console)
+- Resource type is inferred from URL extension
+- XHR/Fetch detection via BiDi `initiator.type`
+
 ### Planned Features (BiDi Supports These)
 
-**Network Monitoring:**
-- 🚧 Request/response capture via `network.beforeRequestSent`
-- 🚧 Response body access via `network.responseCompleted`
-- 🚧 Full headers and timing
+**Advanced Network:**
+- 🚧 Response body access (requires additional BiDi commands)
 - 🚧 Request interception
 
 **Performance Monitoring:**

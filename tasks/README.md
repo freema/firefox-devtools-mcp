@@ -24,7 +24,15 @@ Roadmapa
  - [x] 13 – Launcher: RDP přepínače a readiness (`tasks/13-launcher-rdp-flags-and-readiness.md`)
  - [x] 14 – Launcher: Detekce binárky + edice (`tasks/14-launcher-executable-detection-and-editions.md`)
  - [x] 15 – BiDi port a screenshot (volitelné) (`tasks/15-bidi-port-and-screenshot.md`)
- - [x] 16 – Docs: Vlastní Firefox klient (EN) (`tasks/16-docs-firefox-client.md`)
+- [x] 16 – Docs: Vlastní Firefox klient (EN) (`tasks/16-docs-firefox-client.md`)
+- [x] 17 – BiDi coverage vs. Chrome tools (`tasks/17-bidi-coverage-vs-chrome-tools.md`)
+- [x] 18 – Refaktor architektury `src/firefox/` (modularizace) (`tasks/18-firefox-client-architecture-refactor.md`)
+- [x] 19 – Network backend (BiDi events) (`tasks/19-network-backend-bidi-events.md`)
+- [ ] 20 – Snapshot + UID mapping (`tasks/20-snapshot-and-uid-mapping.md`)
+- [ ] 21 – Input tools (click/hover/fill/drag/upload) (`tasks/21-input-tools-bidi.md`)
+- [ ] 22 – Screenshot tool (page/element) (`tasks/22-screenshot-tool.md`)
+- [ ] 23 – Page utilities (history/resize/dialog) (`tasks/23-page-utilities-history-resize-dialog.md`)
+- [x] 24 – Remove legacy RDP options & wording (`tasks/24-remove-legacy-rdp.md`)
 
 Poznámky
 

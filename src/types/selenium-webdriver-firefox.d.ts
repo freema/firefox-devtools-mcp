@@ -7,4 +7,3 @@ declare module 'selenium-webdriver/firefox.js' {
   import firefox = require('selenium-webdriver/firefox');
   export default firefox;
 }
-
