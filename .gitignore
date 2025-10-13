@@ -166,3 +166,7 @@ docker-compose.override.yml
 
 # LLM cache
 /old/*
+
+# Test snapshots
+snapshot-*.txt
+temp/

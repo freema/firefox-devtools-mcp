@@ -7,6 +7,7 @@ import { FirefoxCore } from './core.js';
 import { ConsoleEvents, NetworkEvents } from './events.js';
 import { DomInteractions } from './dom.js';
 import { PageManagement } from './pages.js';
+import { SnapshotManager, type Snapshot } from './snapshot.js';
 
 /**
  * Main Firefox Client facade
@@ -18,6 +19,7 @@ export class FirefoxClient {
   private networkEvents: NetworkEvents | null = null;
   private dom: DomInteractions | null = null;
   private pages: PageManagement | null = null;
+  private snapshot: SnapshotManager | null = null;
 
   constructor(options: FirefoxLaunchOptions) {
     this.core = new FirefoxCore(options);
@@ -41,6 +43,7 @@ export class FirefoxClient {
       () => this.core.getCurrentContextId(),
       (id: string) => this.core.setCurrentContextId(id)
     );
+    this.snapshot = new SnapshotManager(driver);
 
     // Subscribe to console and network events
     await this.consoleEvents.subscribe(currentContextId || undefined);
@@ -127,8 +130,9 @@ export class FirefoxClient {
       throw new Error('Not connected');
     }
     await this.pages.navigate(url);
-    // Clear console on navigation
+    // Clear console and snapshot on navigation
     this.clearConsoleMessages();
+    this.clearSnapshot();
   }
 
   async navigateBack(): Promise<void> {
@@ -227,6 +231,31 @@ export class FirefoxClient {
   }
 
   // ============================================================================
+  // Snapshot
+  // ============================================================================
+
+  async takeSnapshot(): Promise<Snapshot> {
+    if (!this.snapshot) {
+      throw new Error('Not connected');
+    }
+    return await this.snapshot.takeSnapshot();
+  }
+
+  resolveUidToSelector(uid: string): string {
+    if (!this.snapshot) {
+      throw new Error('Not connected');
+    }
+    return this.snapshot.resolveUidToSelector(uid);
+  }
+
+  clearSnapshot(): void {
+    if (!this.snapshot) {
+      throw new Error('Not connected');
+    }
+    this.snapshot.clear();
+  }
+
+  // ============================================================================
   // Cleanup
   // ============================================================================
 
@@ -234,6 +263,9 @@ export class FirefoxClient {
     await this.core.close();
   }
 }
+
+// Re-export types
+export type { Snapshot } from './snapshot.js';
 
 // Re-export for backward compatibility
 export { FirefoxClient as FirefoxDevTools };
