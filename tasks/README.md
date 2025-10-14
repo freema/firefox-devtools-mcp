@@ -33,6 +33,7 @@ Roadmapa
 - [ ] 22 – Screenshot tool (page/element) (`tasks/22-screenshot-tool.md`)
 - [ ] 23 – Page utilities (history/resize/dialog) (`tasks/23-page-utilities-history-resize-dialog.md`)
 - [x] 24 – Remove legacy RDP options & wording (`tasks/24-remove-legacy-rdp.md`)
+- [ ] 25 – Snapshot: Finalization and Extensions (`tasks/25-snapshot-finalization-and-extensions.md`)
 
 Poznámky
 

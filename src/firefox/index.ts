@@ -7,7 +7,7 @@ import { FirefoxCore } from './core.js';
 import { ConsoleEvents, NetworkEvents } from './events.js';
 import { DomInteractions } from './dom.js';
 import { PageManagement } from './pages.js';
-import { SnapshotManager, type Snapshot } from './snapshot.js';
+import { SnapshotManager, type Snapshot } from './snapshot/index.js';
 
 /**
  * Main Firefox Client facade
@@ -248,11 +248,30 @@ export class FirefoxClient {
     return this.snapshot.resolveUidToSelector(uid);
   }
 
+  async resolveUidToElement(uid: string): Promise<any> {
+    if (!this.snapshot) {
+      throw new Error('Not connected');
+    }
+    return await this.snapshot.resolveUidToElement(uid);
+  }
+
   clearSnapshot(): void {
     if (!this.snapshot) {
       throw new Error('Not connected');
     }
     this.snapshot.clear();
+  }
+
+  // ============================================================================
+  // Internal / Advanced
+  // ============================================================================
+
+  /**
+   * Get WebDriver instance (for advanced operations)
+   * @internal
+   */
+  getDriver(): any {
+    return this.core.getDriver();
   }
 
   // ============================================================================
@@ -265,7 +284,7 @@ export class FirefoxClient {
 }
 
 // Re-export types
-export type { Snapshot } from './snapshot.js';
+export type { Snapshot } from './snapshot/index.js';
 
 // Re-export for backward compatibility
 export { FirefoxClient as FirefoxDevTools };

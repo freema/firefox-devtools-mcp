@@ -266,6 +266,75 @@ async function main() {
       console.log('⚠️ Skipping history test:', e.message);
     }
 
+    // 16. Snapshot tests
+    console.log('📸 Testing snapshot functionality...');
+    try {
+      // Navigate to example.com for simple snapshot
+      await firefox.navigate('https://example.com');
+      await new Promise((r) => setTimeout(r, 2000));
+
+      // Take first snapshot
+      console.log('   Taking first snapshot...');
+      const snapshot1 = await firefox.takeSnapshot();
+      console.log(`✅ Snapshot taken! (ID: ${snapshot1.json.snapshotId})`);
+      console.log(`   Elements with UIDs: ${Object.keys(snapshot1.json.root).length}`);
+      console.log(`   First few lines of text output:`);
+      const lines = snapshot1.text.split('\n').slice(0, 10);
+      lines.forEach(line => console.log(`   ${line}`));
+      if (snapshot1.text.split('\n').length > 10) {
+        console.log(`   ... and ${snapshot1.text.split('\n').length - 10} more lines`);
+      }
+
+      // Test UID resolution
+      console.log('\n   Testing UID resolution...');
+      const firstUid = snapshot1.json.root.uid;
+      const selector = firefox.resolveUidToSelector(firstUid);
+      console.log(`   ✅ UID ${firstUid} resolves to selector: ${selector}`);
+
+      // Test element resolution
+      const element = await firefox.resolveUidToElement(firstUid);
+      console.log(`   ✅ UID ${firstUid} resolves to WebElement: ${!!element}`);
+
+      // Test staleness detection
+      console.log('\n   Testing staleness detection...');
+      await firefox.navigate('https://www.mozilla.org');
+      await new Promise((r) => setTimeout(r, 2000));
+
+      try {
+        firefox.resolveUidToSelector(firstUid);
+        console.log('   ❌ Staleness detection failed - should have thrown error');
+      } catch (e) {
+        console.log(`   ✅ Staleness detected correctly: ${e.message}`);
+      }
+
+      // Take new snapshot after navigation
+      console.log('\n   Taking snapshot after navigation...');
+      const snapshot2 = await firefox.takeSnapshot();
+      console.log(`   ✅ New snapshot taken! (ID: ${snapshot2.json.snapshotId})`);
+      console.log(`   Old snapshot ID: ${snapshot1.json.snapshotId}, New: ${snapshot2.json.snapshotId}`);
+
+      // Test same-origin iframe (using data: URL)
+      console.log('\n   Testing iframe support...');
+      const iframePage = `data:text/html;charset=utf-8,<!doctype html>
+<html><head><title>Iframe Test</title></head><body>
+<h1>Main Page</h1>
+<p>This is the main page</p>
+<iframe srcdoc="<h2>Iframe Content</h2><p>This is inside the iframe</p>"></iframe>
+</body></html>`;
+      await firefox.navigate(iframePage);
+      await new Promise((r) => setTimeout(r, 1000));
+
+      const snapshot3 = await firefox.takeSnapshot();
+      console.log(`   ✅ Snapshot with iframe taken!`);
+      const hasIframe = JSON.stringify(snapshot3.json).includes('isIframe');
+      console.log(`   ${hasIframe ? '✅' : '❌'} Iframe detected in snapshot: ${hasIframe}`);
+
+      console.log('\n✅ Snapshot tests completed!\n');
+    } catch (e) {
+      console.log('⚠️ Snapshot test failed:', e.message);
+      if (e.stack) console.log(e.stack);
+    }
+
     console.log('✅ All BiDi DevTools tests completed! 🎉\n');
   } catch (error) {
     console.error('❌ Test failed:', error.message);

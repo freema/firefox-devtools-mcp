@@ -54,41 +54,52 @@ export async function handleEvaluateScript(args: unknown): Promise<McpToolRespon
     const { getFirefox } = await import('../index.js');
     const firefox = await getFirefox();
 
-    // Build evaluation code
-    let evalCode = '';
-
-    // If args provided, we need to resolve UIDs to elements
+    // If args provided, we need to resolve UIDs to WebElements first
     if (fnArgs && fnArgs.length > 0) {
-      // Build code to find elements by UID
-      const elementFinders = fnArgs.map((arg, idx) => {
-        return `
-          const arg${idx} = document.querySelector('[data-mcp-uid="${arg.uid}"]');
-          if (!arg${idx}) {
-            throw new Error('Element with uid "${arg.uid}" not found');
+      // Resolve UIDs to WebElements using the new resolver
+      const elements = await Promise.all(
+        fnArgs.map(async (arg) => {
+          try {
+            return await firefox.resolveUidToElement(arg.uid);
+          } catch (error) {
+            throw new Error(`Failed to resolve UID "${arg.uid}": ${(error as Error).message}`);
           }
-        `;
-      });
+        })
+      );
 
-      const argNames = fnArgs.map((_, idx) => `arg${idx}`).join(', ');
+      // Execute the function with resolved elements
+      // We'll use executeScript which can handle WebElement arguments
+      const driver = firefox.getDriver();
 
-      evalCode = `
-        (async function() {
-          ${elementFinders.join('\n')}
-          const fn = ${fnString};
-          const result = await fn(${argNames});
-          return JSON.stringify(result);
-        })()
+      if (!driver) {
+        throw new Error('WebDriver not available');
+      }
+
+      const evalCode = `
+        const fn = ${fnString};
+        const args = Array.from(arguments);
+        const result = fn(...args);
+        return result instanceof Promise ? result : Promise.resolve(result);
       `;
-    } else {
-      // No args - simple function call
-      evalCode = `
-        (async function() {
-          const fn = ${fnString};
-          const result = await fn();
-          return JSON.stringify(result);
-        })()
-      `;
+
+      const result = await driver.executeScript(evalCode, ...elements);
+
+      let output = 'Script ran on page and returned:\n';
+      output += '```json\n';
+      output += JSON.stringify(result, null, 2);
+      output += '\n```';
+
+      return successResponse(output);
     }
+
+    // No args - simple function call
+    const evalCode = `
+      (async function() {
+        const fn = ${fnString};
+        const result = await fn();
+        return JSON.stringify(result);
+      })()
+    `;
 
     const result = await firefox.evaluate(evalCode);
 

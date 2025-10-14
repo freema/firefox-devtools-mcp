@@ -8,6 +8,11 @@ Model Context Protocol server for Firefox DevTools — enables AI assistants to 
 
 📖 **[Read the full migration guide →](./BREAKING_CHANGES.md)**
 
+## Requirements
+
+- **Node.js**: v20.19 or newer (latest maintenance LTS version)
+- **Firefox**: 100+ (auto-detected or specify with `--firefox-path`)
+
 ## Key Features
 
 - **Firefox‑only**: uses your system Firefox (no Playwright/Puppeteer browser bundles)
