@@ -388,6 +388,56 @@ async function main() {
       if (e.stack) console.log(e.stack);
     }
 
+    // 18. Dialog handling tests (Task 23)
+    console.log('💬 Testing dialog handling...');
+    try {
+      // Test 1: Alert dialog
+      console.log('   Testing alert dialog...');
+      await firefox.navigate('about:blank');
+      await firefox.evaluate('setTimeout(() => alert("Test alert!"), 100)');
+      await new Promise((r) => setTimeout(r, 200));
+      await firefox.acceptDialog();
+      console.log('   ✅ Alert dialog accepted');
+
+      // Test 2: Confirm dialog - accept
+      console.log('\n   Testing confirm dialog (accept)...');
+      await firefox.evaluate('setTimeout(() => { window.confirmResult = confirm("Test confirm?"); }, 100)');
+      await new Promise((r) => setTimeout(r, 200));
+      await firefox.acceptDialog();
+      const confirmAccepted = await firefox.evaluate('return window.confirmResult');
+      console.log(`   ${confirmAccepted ? '✅' : '❌'} Confirm accepted: ${confirmAccepted}`);
+
+      // Test 3: Confirm dialog - dismiss
+      console.log('\n   Testing confirm dialog (dismiss)...');
+      await firefox.evaluate('setTimeout(() => { window.confirmResult2 = confirm("Test confirm 2?"); }, 100)');
+      await new Promise((r) => setTimeout(r, 200));
+      await firefox.dismissDialog();
+      const confirmDismissed = await firefox.evaluate('return window.confirmResult2');
+      console.log(`   ${!confirmDismissed ? '✅' : '❌'} Confirm dismissed: ${!confirmDismissed}`);
+
+      // Test 4: Prompt dialog with text
+      console.log('\n   Testing prompt dialog...');
+      await firefox.evaluate('setTimeout(() => { window.promptResult = prompt("Enter your name:"); }, 100)');
+      await new Promise((r) => setTimeout(r, 200));
+      await firefox.acceptDialog('John Doe');
+      const promptResult = await firefox.evaluate('return window.promptResult');
+      console.log(`   ${promptResult === 'John Doe' ? '✅' : '❌'} Prompt result: ${promptResult}`);
+
+      // Test 5: Error handling - no dialog
+      console.log('\n   Testing error handling (no dialog)...');
+      try {
+        await firefox.acceptDialog();
+        console.log('   ❌ Should have thrown error for missing dialog');
+      } catch (e) {
+        console.log(`   ✅ Error caught correctly: ${e.message}`);
+      }
+
+      console.log('\n✅ Dialog handling tests completed!\n');
+    } catch (e) {
+      console.log('⚠️ Dialog test failed:', e.message);
+      if (e.stack) console.log(e.stack);
+    }
+
     console.log('✅ All BiDi DevTools tests completed! 🎉\n');
   } catch (error) {
     console.error('❌ Test failed:', error.message);

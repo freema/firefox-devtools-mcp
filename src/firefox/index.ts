@@ -207,6 +207,20 @@ export class FirefoxClient {
     return await this.pages.setViewportSize(width, height);
   }
 
+  async acceptDialog(promptText?: string): Promise<void> {
+    if (!this.pages) {
+      throw new Error('Not connected');
+    }
+    return await this.pages.acceptDialog(promptText);
+  }
+
+  async dismissDialog(): Promise<void> {
+    if (!this.pages) {
+      throw new Error('Not connected');
+    }
+    return await this.pages.dismissDialog();
+  }
+
   getTabs(): Array<{ actor: string; title: string; url: string }> {
     if (!this.pages) {
       throw new Error('Not connected');

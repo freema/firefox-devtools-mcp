@@ -42,6 +42,38 @@ export class PageManagement {
   }
 
   /**
+   * Accept dialog (alert/confirm/prompt)
+   * @param promptText - Optional text to enter in prompt dialog
+   */
+  async acceptDialog(promptText?: string): Promise<void> {
+    try {
+      const alert = await this.driver.switchTo().alert();
+      if (promptText !== undefined) {
+        await alert.sendKeys(promptText);
+      }
+      await alert.accept();
+    } catch (error) {
+      throw new Error(
+        `Failed to accept dialog: ${error instanceof Error ? error.message : String(error)}`
+      );
+    }
+  }
+
+  /**
+   * Dismiss dialog (alert/confirm/prompt)
+   */
+  async dismissDialog(): Promise<void> {
+    try {
+      const alert = await this.driver.switchTo().alert();
+      await alert.dismiss();
+    } catch (error) {
+      throw new Error(
+        `Failed to dismiss dialog: ${error instanceof Error ? error.message : String(error)}`
+      );
+    }
+  }
+
+  /**
    * Get all tabs (window handles)
    * TODO: In future, fetch actual URLs and titles via BiDi
    */
