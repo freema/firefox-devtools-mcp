@@ -188,7 +188,9 @@ export class DomInteractions {
    */
   async dragByUidToUid(fromUid: string, toUid: string): Promise<void> {
     if (!this.resolveUid) {
-      throw new Error('dragByUidToUid: resolveUid callback not set. Ensure snapshot is initialized.');
+      throw new Error(
+        'dragByUidToUid: resolveUid callback not set. Ensure snapshot is initialized.'
+      );
     }
 
     const fromEl = await this.resolveUid(fromUid);
@@ -231,7 +233,9 @@ export class DomInteractions {
    */
   async fillFormByUid(elements: Array<{ uid: string; value: string }>): Promise<void> {
     if (!this.resolveUid) {
-      throw new Error('fillFormByUid: resolveUid callback not set. Ensure snapshot is initialized.');
+      throw new Error(
+        'fillFormByUid: resolveUid callback not set. Ensure snapshot is initialized.'
+      );
     }
 
     for (const { uid, value } of elements) {
@@ -245,7 +249,9 @@ export class DomInteractions {
    */
   async uploadFileByUid(uid: string, filePath: string): Promise<void> {
     if (!this.resolveUid) {
-      throw new Error('uploadFileByUid: resolveUid callback not set. Ensure snapshot is initialized.');
+      throw new Error(
+        'uploadFileByUid: resolveUid callback not set. Ensure snapshot is initialized.'
+      );
     }
 
     const el = await this.resolveUid(uid);
@@ -285,6 +291,46 @@ export class DomInteractions {
     // Wait for microtask/raf to allow event handlers to fire
     await this.driver.executeScript('return new Promise(r => requestAnimationFrame(() => r()))');
     // Small additional delay for good measure
-    await new Promise(resolve => setTimeout(resolve, 50));
+    await new Promise((resolve) => setTimeout(resolve, 50));
+  }
+
+  // ============================================================================
+  // Screenshot (Task 22)
+  // ============================================================================
+
+  /**
+   * Take screenshot of the entire page
+   * @returns PNG as base64 string
+   */
+  async takeScreenshotPage(): Promise<string> {
+    return await this.driver.takeScreenshot();
+  }
+
+  /**
+   * Take screenshot of element by UID
+   * Scrolls element into view, then captures it
+   * @param uid Element UID from snapshot
+   * @returns PNG as base64 string
+   */
+  async takeScreenshotByUid(uid: string): Promise<string> {
+    if (!this.resolveUid) {
+      throw new Error(
+        'takeScreenshotByUid: resolveUid callback not set. Ensure snapshot is initialized.'
+      );
+    }
+
+    const el = await this.resolveUid(uid);
+
+    // Scroll element into view
+    await this.driver.executeScript(
+      'arguments[0].scrollIntoView({block: "center", inline: "center"});',
+      el
+    );
+
+    // Wait for scroll to complete
+    await new Promise((resolve) => setTimeout(resolve, 100));
+
+    // Take screenshot of element (Selenium automatically crops to element bounds)
+    return await el.takeScreenshot();
   }
 }

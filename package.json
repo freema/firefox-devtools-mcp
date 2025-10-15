@@ -32,7 +32,8 @@
     "test:watch": "vitest watch",
     "test:ui": "vitest --ui",
     "test:tools": "node scripts/test-bidi-devtools.js",
-    "test:input": "node scripts/test-input-tools.js"
+    "test:input": "node scripts/test-input-tools.js",
+    "test:screenshot": "node scripts/test-screenshot.js"
   },
   "keywords": [
     "mcp",

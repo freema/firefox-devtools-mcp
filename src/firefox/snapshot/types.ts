@@ -89,6 +89,7 @@ export interface InjectedScriptResult {
   uidMap: UidEntry[];
   error?: string;
   truncated?: boolean;
+  debugLog?: Array<{ el: string; relevant: boolean; depth: number }>;
 }
 
 /**

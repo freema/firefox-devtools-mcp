@@ -44,11 +44,7 @@ export function isRelevant(el: Element): boolean {
   // Check visibility
   try {
     const style = window.getComputedStyle(el);
-    if (
-      style.display === 'none' ||
-      style.visibility === 'hidden' ||
-      style.opacity === '0'
-    ) {
+    if (style.display === 'none' || style.visibility === 'hidden' || style.opacity === '0') {
       return false;
     }
   } catch (e) {

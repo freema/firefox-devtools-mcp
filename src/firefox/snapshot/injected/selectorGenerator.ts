@@ -59,10 +59,14 @@ export function generateCssSelector(el: Element): string {
     if (siblings && siblings.length > 1) {
       let nth = 1;
       for (let i = 0; i < siblings.length; i++) {
-        if (siblings[i] === current) {
+        const sibling = siblings[i];
+        if (!sibling) {
+          continue;
+        }
+        if (sibling === current) {
           break;
         }
-        if (siblings[i].nodeName === current.nodeName) {
+        if (sibling.nodeName === current.nodeName) {
           nth++;
         }
       }
@@ -139,7 +143,7 @@ export function generateXPath(el: Element): string {
  * Escape CSS attribute value
  */
 function escapeCssAttributeValue(value: string): string {
-  return value.replace(/"/g, '\\"').substring(0, MAX_SEGMENT_LENGTH);
+  return value.replace(/"/g, '\\' + '"').substring(0, MAX_SEGMENT_LENGTH);
 }
 
 /**
@@ -154,7 +158,13 @@ function escapeXPathValue(value: string): string {
     return value;
   }
   // Contains both quotes - use concat
-  return `concat("${value.replace(/"/g, '",\'"\',\"')}")`;
+  const parts = value.split('"').map((part, idx, arr) => {
+    if (idx === arr.length - 1) {
+      return part ? `"${part}"` : '';
+    }
+    return part ? `"${part}",'"'` : '"\'"';
+  });
+  return `concat(${parts.filter((p) => p).join(',')})`;
 }
 
 /**

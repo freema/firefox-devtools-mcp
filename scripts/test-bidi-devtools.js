@@ -335,6 +335,59 @@ async function main() {
       if (e.stack) console.log(e.stack);
     }
 
+    // 17. Screenshot tests (Task 22)
+    console.log('📷 Testing screenshot functionality...');
+    try {
+      // Navigate to example.com
+      await firefox.navigate('https://example.com');
+      await new Promise((r) => setTimeout(r, 2000));
+
+      // Test 1: Full page screenshot
+      console.log('   Taking full page screenshot...');
+      const pageScreenshot = await firefox.takeScreenshotPage();
+      console.log(`   ✅ Page screenshot captured (${pageScreenshot.length} chars base64)`);
+
+      // Validate base64 PNG
+      const isValidBase64 = /^[A-Za-z0-9+/=]+$/.test(pageScreenshot);
+      const isPNG = pageScreenshot.startsWith('iVBOR');
+      console.log(`   ${isValidBase64 ? '✅' : '❌'} Valid base64: ${isValidBase64}`);
+      console.log(`   ${isPNG ? '✅' : '❌'} PNG format: ${isPNG}`);
+
+      // Test 2: Element screenshot by UID
+      console.log('\n   Taking element screenshot by UID...');
+      const snapshot = await firefox.takeSnapshot();
+
+      // Find first heading or paragraph
+      const targetNode = snapshot.json.root.children?.find(
+        (n) => n.tag === 'h1' || n.tag === 'p'
+      );
+
+      if (targetNode && targetNode.uid) {
+        console.log(`   Found element: <${targetNode.tag}> with UID ${targetNode.uid}`);
+        const elementScreenshot = await firefox.takeScreenshotByUid(targetNode.uid);
+        console.log(`   ✅ Element screenshot captured (${elementScreenshot.length} chars base64)`);
+
+        const isValidBase64Elem = /^[A-Za-z0-9+/=]+$/.test(elementScreenshot);
+        const isPNGElem = elementScreenshot.startsWith('iVBOR');
+        console.log(`   ${isValidBase64Elem ? '✅' : '❌'} Valid base64: ${isValidBase64Elem}`);
+        console.log(`   ${isPNGElem ? '✅' : '❌'} PNG format: ${isPNGElem}`);
+
+        // Compare sizes (element should be smaller than page)
+        if (elementScreenshot.length < pageScreenshot.length) {
+          console.log('   ✅ Element screenshot is smaller than page screenshot');
+        } else {
+          console.log('   ⚠️ Element screenshot size: unexpected (could be fullpage fallback)');
+        }
+      } else {
+        console.log('   ⚠️ No suitable element found for screenshot test');
+      }
+
+      console.log('\n✅ Screenshot tests completed!\n');
+    } catch (e) {
+      console.log('⚠️ Screenshot test failed:', e.message);
+      if (e.stack) console.log(e.stack);
+    }
+
     console.log('✅ All BiDi DevTools tests completed! 🎉\n');
   } catch (error) {
     console.error('❌ Test failed:', error.message);

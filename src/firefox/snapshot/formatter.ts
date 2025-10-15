@@ -13,10 +13,7 @@ const MAX_ATTR_LENGTH = 50;
 /**
  * Format snapshot tree as human-readable text
  */
-export function formatSnapshotTree(
-  node: SnapshotNode,
-  depth = 0
-): string {
+export function formatSnapshotTree(node: SnapshotNode, depth = 0): string {
   const indent = '  '.repeat(depth);
   const attrs: string[] = [];
 
@@ -62,9 +59,15 @@ export function formatSnapshotTree(
   // ARIA attributes
   if (node.aria) {
     // Boolean states
-    if (node.aria.disabled) attrs.push('disabled');
-    if (node.aria.hidden) attrs.push('hidden');
-    if (node.aria.selected) attrs.push('selected');
+    if (node.aria.disabled) {
+      attrs.push('disabled');
+    }
+    if (node.aria.hidden) {
+      attrs.push('hidden');
+    }
+    if (node.aria.selected) {
+      attrs.push('selected');
+    }
     if (node.aria.expanded !== undefined) {
       attrs.push(node.aria.expanded ? 'expanded' : 'collapsed');
     }
@@ -103,10 +106,18 @@ export function formatSnapshotTree(
 
   // Computed properties
   if (node.computed) {
-    if (node.computed.focusable) attrs.push('focusable');
-    if (node.computed.interactive) attrs.push('interactive');
-    if (!node.computed.visible) attrs.push('invisible');
-    if (!node.computed.accessible) attrs.push('inaccessible');
+    if (node.computed.focusable) {
+      attrs.push('focusable');
+    }
+    if (node.computed.interactive) {
+      attrs.push('interactive');
+    }
+    if (!node.computed.visible) {
+      attrs.push('invisible');
+    }
+    if (!node.computed.accessible) {
+      attrs.push('inaccessible');
+    }
   }
 
   // Iframe marker

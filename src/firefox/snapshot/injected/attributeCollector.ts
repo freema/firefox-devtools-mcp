@@ -25,7 +25,7 @@ export function getElementName(el: Element): string | undefined {
   const elId = htmlEl.id;
   if (elId) {
     const label = document.querySelector(`label[for="${elId}"]`);
-    if (label && label.textContent) {
+    if (label?.textContent) {
       return label.textContent.trim();
     }
   }
@@ -47,9 +47,7 @@ export function getElementName(el: Element): string | undefined {
 
   // text content for buttons/links/headings
   const tag = el.tagName.toLowerCase();
-  if (
-    ['button', 'a', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6'].indexOf(tag) !== -1
-  ) {
+  if (['button', 'a', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6'].indexOf(tag) !== -1) {
     return getTextContent(el);
   }
 
@@ -63,7 +61,7 @@ export function getTextContent(el: Element): string | undefined {
   let text = '';
   for (let i = 0; i < el.childNodes.length; i++) {
     const node = el.childNodes[i];
-    if (node.nodeType === Node.TEXT_NODE) {
+    if (node && node.nodeType === Node.TEXT_NODE) {
       text += node.textContent || '';
     }
   }
@@ -82,43 +80,46 @@ export function getAriaAttributes(el: Element): AriaAttributes | undefined {
   let hasAny = false;
 
   // Boolean states
-  const booleanAttrs = ['disabled', 'hidden', 'selected', 'expanded'];
+  const booleanAttrs: Array<'disabled' | 'hidden' | 'selected' | 'expanded'> = [
+    'disabled',
+    'hidden',
+    'selected',
+    'expanded',
+  ];
   for (const attr of booleanAttrs) {
     const value = el.getAttribute(`aria-${attr}`);
     if (value !== null) {
-      aria[attr as keyof AriaAttributes] = value === 'true';
+      aria[attr] = value === 'true';
       hasAny = true;
     }
   }
 
   // Mixed states (true/false/mixed)
-  const mixedAttrs = ['checked', 'pressed'];
+  const mixedAttrs: Array<'checked' | 'pressed'> = ['checked', 'pressed'];
   for (const attr of mixedAttrs) {
     const value = el.getAttribute(`aria-${attr}`);
     if (value !== null) {
       if (value === 'mixed') {
-        aria[attr as keyof AriaAttributes] = 'mixed' as any;
+        aria[attr] = 'mixed';
       } else {
-        aria[attr as keyof AriaAttributes] = value === 'true';
+        aria[attr] = value === 'true';
       }
       hasAny = true;
     }
   }
 
   // String properties
-  const stringAttrs = [
-    'autocomplete',
-    'haspopup',
-    'invalid',
-    'label',
-    'labelledby',
-    'describedby',
-    'controls',
-  ];
+  const stringAttrs: Array<
+    'autocomplete' | 'haspopup' | 'invalid' | 'label' | 'labelledby' | 'describedby' | 'controls'
+  > = ['autocomplete', 'haspopup', 'invalid', 'label', 'labelledby', 'describedby', 'controls'];
   for (const attr of stringAttrs) {
     const value = el.getAttribute(`aria-${attr}`);
     if (value) {
-      aria[attr as keyof AriaAttributes] = value as any;
+      if (attr === 'haspopup' || attr === 'invalid') {
+        aria[attr] = value as boolean | string;
+      } else {
+        aria[attr] = value;
+      }
       hasAny = true;
     }
   }
@@ -146,16 +147,13 @@ export function getComputedProperties(el: Element): ComputedProperties {
   try {
     const style = window.getComputedStyle(el);
     computed.visible =
-      style.display !== 'none' &&
-      style.visibility !== 'hidden' &&
-      style.opacity !== '0';
+      style.display !== 'none' && style.visibility !== 'hidden' && style.opacity !== '0';
   } catch (e) {
     computed.visible = false;
   }
 
   // Accessible (not aria-hidden and visible)
-  computed.accessible =
-    computed.visible && !el.getAttribute('aria-hidden');
+  computed.accessible = computed.visible && !el.getAttribute('aria-hidden');
 
   // Focusable
   computed.focusable = isFocusable(el);

@@ -15,9 +15,6 @@ import type {
 } from './types.js';
 import { formatSnapshotTree } from './formatter.js';
 
-// Import injected script modules (will be bundled)
-import { createSnapshot } from './injected/snapshot.injected.js';
-
 /**
  * Snapshot Manager
  */
@@ -26,7 +23,6 @@ export class SnapshotManager {
   private currentSnapshotId = 0;
   private uidToEntry = new Map<string, UidEntry>();
   private elementCache = new Map<string, ElementCacheEntry>();
-  private lastNavigationTime = Date.now();
 
   constructor(driver: WebDriver) {
     this.driver = driver;
@@ -79,7 +75,7 @@ export class SnapshotManager {
       root: result.tree,
       snapshotId,
       timestamp: Date.now(),
-      truncated: result.truncated,
+      truncated: result.truncated || false,
     };
 
     const snapshot: Snapshot = {
@@ -122,7 +118,7 @@ export class SnapshotManager {
 
     // Check cache
     const cached = this.elementCache.get(uid);
-    if (cached && cached.cachedElement) {
+    if (cached?.cachedElement) {
       try {
         // Validate element is still alive
         await cached.cachedElement.isDisplayed();
@@ -141,7 +137,7 @@ export class SnapshotManager {
       // Update cache
       this.elementCache.set(uid, {
         selector: entry.css,
-        xpath: entry.xpath,
+        ...(entry.xpath && { xpath: entry.xpath }),
         cachedElement: element,
         snapshotId: this.currentSnapshotId,
         timestamp: Date.now(),
@@ -150,19 +146,18 @@ export class SnapshotManager {
       logDebug(`Found element by CSS for UID: ${uid}`);
       return element;
     } catch (cssError) {
-      logDebug(
-        `CSS selector failed for UID: ${uid}, trying XPath fallback...`
-      );
+      logDebug(`CSS selector failed for UID: ${uid}, trying XPath fallback...`);
 
       // Fallback to XPath if available
-      if (entry.xpath) {
+      const xpathSelector = entry.xpath;
+      if (xpathSelector) {
         try {
-          const element = await this.driver.findElement(By.xpath(entry.xpath));
+          const element = await this.driver.findElement(By.xpath(xpathSelector));
 
           // Update cache
           this.elementCache.set(uid, {
             selector: entry.css,
-            xpath: entry.xpath,
+            ...(xpathSelector && { xpath: xpathSelector }),
             cachedElement: element,
             snapshotId: this.currentSnapshotId,
             timestamp: Date.now(),
@@ -189,7 +184,6 @@ export class SnapshotManager {
   clear(): void {
     this.uidToEntry.clear();
     this.elementCache.clear();
-    this.lastNavigationTime = Date.now();
     logDebug('Snapshot UIDs cleared');
   }
 
@@ -198,7 +192,7 @@ export class SnapshotManager {
    */
   private validateUid(uid: string): void {
     const parts = uid.split('_');
-    if (parts.length < 2) {
+    if (parts.length < 2 || !parts[0]) {
       throw new Error(`Invalid UID format: ${uid}`);
     }
 
@@ -218,9 +212,7 @@ export class SnapshotManager {
    * Execute injected snapshot script
    * TODO: In Milestone 5, this will use a pre-bundled script
    */
-  private async executeInjectedScript(
-    snapshotId: number
-  ): Promise<InjectedScriptResult> {
+  private async executeInjectedScript(snapshotId: number): Promise<InjectedScriptResult> {
     // For now, we'll build the script inline
     // This is a temporary solution until we add the bundler in Milestone 5
 

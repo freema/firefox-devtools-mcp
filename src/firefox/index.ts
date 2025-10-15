@@ -42,9 +42,8 @@ export class FirefoxClient {
     this.networkEvents = new NetworkEvents(driver);
 
     // Initialize DOM with UID resolver callback
-    this.dom = new DomInteractions(
-      driver,
-      (uid: string) => this.snapshot!.resolveUidToElement(uid)
+    this.dom = new DomInteractions(driver, (uid: string) =>
+      this.snapshot!.resolveUidToElement(uid)
     );
 
     this.pages = new PageManagement(
@@ -312,6 +311,24 @@ export class FirefoxClient {
       throw new Error('Not connected');
     }
     this.snapshot.clear();
+  }
+
+  // ============================================================================
+  // Screenshot (Task 22)
+  // ============================================================================
+
+  async takeScreenshotPage(): Promise<string> {
+    if (!this.dom) {
+      throw new Error('Not connected');
+    }
+    return await this.dom.takeScreenshotPage();
+  }
+
+  async takeScreenshotByUid(uid: string): Promise<string> {
+    if (!this.dom) {
+      throw new Error('Not connected');
+    }
+    return await this.dom.takeScreenshotByUid(uid);
   }
 
   // ============================================================================

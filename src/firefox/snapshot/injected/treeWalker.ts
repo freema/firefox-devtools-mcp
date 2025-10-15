@@ -68,17 +68,26 @@ export function walkTree(
 
     // Collect attributes
     const htmlEl = el as HTMLElement;
+    const roleAttr = el.getAttribute('role');
+    const nameAttr = getElementName(el);
+    const textAttr = getTextContent(el);
+    const valueAttr = (htmlEl as any).value;
+    const hrefAttr = (htmlEl as any).href;
+    const srcAttr = (htmlEl as any).src;
+    const ariaAttr = getAriaAttributes(el);
+    const computedAttr = getComputedProperties(el);
+
     const node: SnapshotNode = {
       uid,
       tag,
-      role: el.getAttribute('role') || undefined,
-      name: getElementName(el),
-      value: (htmlEl as any).value || undefined,
-      href: (htmlEl as any).href || undefined,
-      src: (htmlEl as any).src || undefined,
-      text: getTextContent(el),
-      aria: getAriaAttributes(el),
-      computed: getComputedProperties(el),
+      ...(roleAttr && { role: roleAttr }),
+      ...(nameAttr && { name: nameAttr }),
+      ...(valueAttr && { value: valueAttr }),
+      ...(hrefAttr && { href: hrefAttr }),
+      ...(srcAttr && { src: srcAttr }),
+      ...(textAttr && { text: textAttr }),
+      ...(ariaAttr && { aria: ariaAttr }),
+      ...(computedAttr && { computed: computedAttr }),
       children: [],
     };
 
@@ -86,10 +95,9 @@ export function walkTree(
     if (tag === 'iframe' && includeIframes) {
       try {
         const iframe = el as HTMLIFrameElement;
-        const iframeDoc =
-          iframe.contentDocument || iframe.contentWindow?.document;
+        const iframeDoc = iframe.contentDocument || iframe.contentWindow?.document;
 
-        if (iframeDoc && iframeDoc.body) {
+        if (iframeDoc?.body) {
           // Same-origin iframe - traverse it
           const iframeTree = walk(iframeDoc.body, depth + 1);
           if (iframeTree) {
@@ -120,6 +128,10 @@ export function walkTree(
       }
 
       const child = el.children[i];
+      if (!child) {
+        continue;
+      }
+
       const childNode = walk(child, depth + 1);
       if (childNode) {
         node.children.push(childNode);
