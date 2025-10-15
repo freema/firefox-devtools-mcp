@@ -31,8 +31,8 @@
     "test:coverage": "vitest run --coverage",
     "test:watch": "vitest watch",
     "test:ui": "vitest --ui",
-    "test:tools": "node scripts/test-tools.js",
-    "test:direct": "node scripts/test-firefox-direct.js"
+    "test:tools": "node scripts/test-bidi-devtools.js",
+    "test:input": "node scripts/test-input-tools.js"
   },
   "keywords": [
     "mcp",

@@ -34,16 +34,24 @@ export class FirefoxClient {
     const driver = this.core.getDriver();
     const currentContextId = this.core.getCurrentContextId();
 
-    // Initialize modules
+    // Initialize snapshot manager first
+    this.snapshot = new SnapshotManager(driver);
+
+    // Initialize other modules
     this.consoleEvents = new ConsoleEvents(driver);
     this.networkEvents = new NetworkEvents(driver);
-    this.dom = new DomInteractions(driver);
+
+    // Initialize DOM with UID resolver callback
+    this.dom = new DomInteractions(
+      driver,
+      (uid: string) => this.snapshot!.resolveUidToElement(uid)
+    );
+
     this.pages = new PageManagement(
       driver,
       () => this.core.getCurrentContextId(),
       (id: string) => this.core.setCurrentContextId(id)
     );
-    this.snapshot = new SnapshotManager(driver);
 
     // Subscribe to console and network events
     await this.consoleEvents.subscribe(currentContextId || undefined);
@@ -101,6 +109,50 @@ export class FirefoxClient {
       throw new Error('Not connected');
     }
     return await this.dom.uploadFileBySelector(selector, filePath);
+  }
+
+  // UID-based input methods (Task 21)
+
+  async clickByUid(uid: string, dblClick = false): Promise<void> {
+    if (!this.dom) {
+      throw new Error('Not connected');
+    }
+    return await this.dom.clickByUid(uid, dblClick);
+  }
+
+  async hoverByUid(uid: string): Promise<void> {
+    if (!this.dom) {
+      throw new Error('Not connected');
+    }
+    return await this.dom.hoverByUid(uid);
+  }
+
+  async fillByUid(uid: string, value: string): Promise<void> {
+    if (!this.dom) {
+      throw new Error('Not connected');
+    }
+    return await this.dom.fillByUid(uid, value);
+  }
+
+  async dragByUidToUid(fromUid: string, toUid: string): Promise<void> {
+    if (!this.dom) {
+      throw new Error('Not connected');
+    }
+    return await this.dom.dragByUidToUid(fromUid, toUid);
+  }
+
+  async fillFormByUid(elements: Array<{ uid: string; value: string }>): Promise<void> {
+    if (!this.dom) {
+      throw new Error('Not connected');
+    }
+    return await this.dom.fillFormByUid(elements);
+  }
+
+  async uploadFileByUid(uid: string, filePath: string): Promise<void> {
+    if (!this.dom) {
+      throw new Error('Not connected');
+    }
+    return await this.dom.uploadFileByUid(uid, filePath);
   }
 
   // ============================================================================

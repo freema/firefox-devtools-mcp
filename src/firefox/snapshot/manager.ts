@@ -52,6 +52,17 @@ export class SnapshotManager {
       `Snapshot executeScript result: hasResult=${!!result}, hasTree=${!!result?.tree}, truncated=${result?.truncated || false}`
     );
 
+    // Debug: log isRelevant results
+    if (result?.debugLog && Array.isArray(result.debugLog)) {
+      logDebug(`isRelevant debug log (${result.debugLog.length} elements checked):`);
+      result.debugLog.slice(0, 20).forEach((log: any) => {
+        logDebug(`  ${log.relevant ? '✓' : '✗'} ${log.el} (depth ${log.depth})`);
+      });
+      if (result.debugLog.length > 20) {
+        logDebug(`  ... and ${result.debugLog.length - 20} more`);
+      }
+    }
+
     if (!result?.tree) {
       const errorMsg = 'Unknown error';
       logDebug(`Snapshot generation failed: ${errorMsg}`);
@@ -269,9 +280,11 @@ export class SnapshotManager {
         if (SEMANTIC_TAGS.indexOf(tag) !== -1) return true;
 
         if (CONTAINER_TAGS.indexOf(tag) !== -1) {
+          // Include if it has id or class (for testing/automation)
+          if (el.id || el.className) return true;
+          // Include if it has text content
           const textContent = (el.textContent || '').trim();
           if (textContent.length > 0 && textContent.length < MAX_TEXT_CONTENT) return true;
-          if (el.id || el.className) return true;
         }
 
         return false;
@@ -299,6 +312,7 @@ export class SnapshotManager {
         if (el.hasAttribute('placeholder')) return el.getAttribute('placeholder');
         if (el.hasAttribute('title')) return el.getAttribute('title');
         if (el.hasAttribute('alt')) return el.getAttribute('alt');
+        if (el.hasAttribute('name')) return el.getAttribute('name');
 
         const tag = el.tagName.toLowerCase();
         if (['button', 'a', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6'].indexOf(tag) !== -1) {
@@ -444,6 +458,7 @@ export class SnapshotManager {
         let counter = 0;
         const uidMap = [];
         let truncated = false;
+        const debugLog = [];
 
         function walk(el, depth) {
           if (depth > MAX_DEPTH || counter >= MAX_NODES) {
@@ -454,7 +469,15 @@ export class SnapshotManager {
           const tag = el.tagName.toLowerCase();
           const isRoot = tag === 'body' || tag === 'html';
 
-          if (!isRoot && !isRelevant(el)) return null;
+          // Debug logging
+          const elId = el.id || '';
+          const elDebug = tag + (elId ? '#' + elId : '');
+
+          if (!isRoot) {
+            const relevant = isRelevant(el);
+            debugLog.push({ el: elDebug, relevant, depth });
+            if (!relevant) return null;
+          }
 
           const uid = snapshotId + '_' + counter++;
           const css = generateCssSelector(el);
@@ -513,7 +536,7 @@ export class SnapshotManager {
         }
 
         const tree = walk(rootElement, 0);
-        return { tree: tree, uidMap: uidMap, truncated: truncated };
+        return { tree: tree, uidMap: uidMap, truncated: truncated, debugLog: debugLog };
       }
 
       window.__createSnapshot = function(snapshotId) {

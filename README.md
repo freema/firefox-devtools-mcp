@@ -33,8 +33,9 @@ Quick start
 1) Build
 - `npm run build`
 
-2) Run local tool test (auto‑launches Firefox if needed)
-- `npm run test:tools`
+2) Run tests (auto‑launches Firefox if needed)
+- `node scripts/test-bidi-devtools.js` - comprehensive test (navigation, console, network, snapshot)
+- `node scripts/test-input-tools.js` - input tools test (click, fill, hover, drag, upload)
 
 Tips
 

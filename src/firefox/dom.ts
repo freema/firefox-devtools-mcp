@@ -2,10 +2,13 @@
  * DOM interactions: evaluate, element lookup, input actions
  */
 
-import { By, Key, until, type WebDriver } from 'selenium-webdriver';
+import { By, Key, until, type WebDriver, type WebElement } from 'selenium-webdriver';
 
 export class DomInteractions {
-  constructor(private driver: WebDriver) {}
+  constructor(
+    private driver: WebDriver,
+    private resolveUid?: (uid: string) => Promise<WebElement>
+  ) {}
 
   /**
    * Evaluate JavaScript - direct passthrough to executeScript
@@ -116,5 +119,172 @@ export class DomInteractions {
       }
     }, selector);
     await el.sendKeys(filePath);
+  }
+
+  // ============================================================================
+  // UID-based input methods (Task 21)
+  // ============================================================================
+
+  /**
+   * Click element by UID
+   * Requires resolveUid callback to be set (from SnapshotManager)
+   */
+  async clickByUid(uid: string, dblClick = false): Promise<void> {
+    if (!this.resolveUid) {
+      throw new Error('clickByUid: resolveUid callback not set. Ensure snapshot is initialized.');
+    }
+    const el = await this.resolveUid(uid);
+    await this.driver.wait(until.elementIsVisible(el), 5000).catch(() => {});
+
+    if (dblClick) {
+      await this.driver.actions({ async: true }).doubleClick(el).perform();
+    } else {
+      await el.click();
+    }
+
+    // Wait for events to propagate
+    await this.waitForEventsAfterAction();
+  }
+
+  /**
+   * Hover over element by UID
+   */
+  async hoverByUid(uid: string): Promise<void> {
+    if (!this.resolveUid) {
+      throw new Error('hoverByUid: resolveUid callback not set. Ensure snapshot is initialized.');
+    }
+    const el = await this.resolveUid(uid);
+    await this.driver.actions({ async: true }).move({ origin: el }).perform();
+
+    // Wait for events to propagate
+    await this.waitForEventsAfterAction();
+  }
+
+  /**
+   * Fill input field by UID
+   */
+  async fillByUid(uid: string, value: string): Promise<void> {
+    if (!this.resolveUid) {
+      throw new Error('fillByUid: resolveUid callback not set. Ensure snapshot is initialized.');
+    }
+    const el = await this.resolveUid(uid);
+
+    try {
+      await el.clear();
+    } catch {
+      // Some inputs may not support clear(); fall back to select-all + delete
+      await el.sendKeys(Key.chord(Key.CONTROL, 'a'), Key.DELETE);
+    }
+
+    await el.sendKeys(value);
+
+    // Wait for events to propagate
+    await this.waitForEventsAfterAction();
+  }
+
+  /**
+   * Drag & drop by UIDs
+   * Uses JS events fallback for better compatibility
+   */
+  async dragByUidToUid(fromUid: string, toUid: string): Promise<void> {
+    if (!this.resolveUid) {
+      throw new Error('dragByUidToUid: resolveUid callback not set. Ensure snapshot is initialized.');
+    }
+
+    const fromEl = await this.resolveUid(fromUid);
+    const toEl = await this.resolveUid(toUid);
+
+    // Use Actions API first, then dispatch JS events as fallback
+    await this.driver.executeScript(
+      (srcEl: Element, tgtEl: Element) => {
+        if (!srcEl || !tgtEl) {
+          throw new Error('dragAndDrop: element not found');
+        }
+
+        function dispatch(type: string, target: Element, dataTransfer?: DataTransfer) {
+          const evt = new DragEvent(type, {
+            bubbles: true,
+            cancelable: true,
+            dataTransfer,
+          } as DragEventInit);
+          return target.dispatchEvent(evt);
+        }
+
+        // Create DataTransfer if available
+        const dt = typeof DataTransfer !== 'undefined' ? new DataTransfer() : undefined;
+        dispatch('dragstart', srcEl, dt);
+        dispatch('dragenter', tgtEl, dt);
+        dispatch('dragover', tgtEl, dt);
+        dispatch('drop', tgtEl, dt);
+        dispatch('dragend', srcEl, dt);
+      },
+      fromEl,
+      toEl
+    );
+
+    // Wait for events to propagate
+    await this.waitForEventsAfterAction();
+  }
+
+  /**
+   * Fill multiple form fields by UIDs
+   */
+  async fillFormByUid(elements: Array<{ uid: string; value: string }>): Promise<void> {
+    if (!this.resolveUid) {
+      throw new Error('fillFormByUid: resolveUid callback not set. Ensure snapshot is initialized.');
+    }
+
+    for (const { uid, value } of elements) {
+      await this.fillByUid(uid, value);
+    }
+  }
+
+  /**
+   * Upload file by UID
+   * Handles hidden file inputs by making them visible
+   */
+  async uploadFileByUid(uid: string, filePath: string): Promise<void> {
+    if (!this.resolveUid) {
+      throw new Error('uploadFileByUid: resolveUid callback not set. Ensure snapshot is initialized.');
+    }
+
+    const el = await this.resolveUid(uid);
+
+    // Ensure it's an <input type=file>; if hidden, unhide via JS
+    await this.driver.executeScript((element: Element) => {
+      if (!element) {
+        throw new Error('uploadFile: element not found');
+      }
+      if (element.tagName !== 'INPUT' || (element as HTMLInputElement).type !== 'file') {
+        throw new Error('uploadFile: element must be <input type=file>');
+      }
+      const style = window.getComputedStyle(element);
+      if (style.display === 'none' || style.visibility === 'hidden' || style.opacity === '0') {
+        const s = (element as HTMLElement).style;
+        s.display = 'block';
+        s.visibility = 'visible';
+        s.opacity = '1';
+        s.position = 'fixed';
+        s.left = '0px';
+        s.top = '0px';
+        s.zIndex = '2147483647';
+      }
+    }, el);
+
+    await el.sendKeys(filePath);
+
+    // Wait for events to propagate
+    await this.waitForEventsAfterAction();
+  }
+
+  /**
+   * Wait for events to propagate after user action
+   * Gives the page time to respond to interactions
+   */
+  private async waitForEventsAfterAction(): Promise<void> {
+    // Wait for microtask/raf to allow event handlers to fire
+    await this.driver.executeScript('return new Promise(r => requestAnimationFrame(() => r()))');
+    // Small additional delay for good measure
+    await new Promise(resolve => setTimeout(resolve, 50));
   }
 }
