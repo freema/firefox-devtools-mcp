@@ -11,6 +11,12 @@ import { writeFile, mkdir } from 'node:fs/promises';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { dirname } from 'node:path';
+import {
+  loadHTML,
+  waitShort,
+  shouldRunOnlineTests,
+  skipOnlineTest,
+} from './_helpers/page-loader.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -43,77 +49,40 @@ async function main() {
     await firefox.connect();
     console.log('✅ Connected!\n');
 
-    // Test 1: Screenshot of example.com
-    console.log('🌐 Test 1: Full page screenshot (example.com)');
-    await firefox.navigate('https://example.com');
-    await new Promise(r => setTimeout(r, 2000));
+    // Online tests (optional)
+    if (shouldRunOnlineTests()) {
+      // Test 1: Screenshot of example.com
+      console.log('🌐 Test 1: Full page screenshot (example.com)');
+      await firefox.navigate('https://example.com');
+      await waitShort(2000);
 
-    const examplePageScreenshot = await firefox.takeScreenshotPage();
-    await saveScreenshot(examplePageScreenshot, 'screenshot-example-page.png');
-    console.log(`   ✅ Screenshot captured (${examplePageScreenshot.length} chars base64)\n`);
+      const examplePageScreenshot = await firefox.takeScreenshotPage();
+      await saveScreenshot(examplePageScreenshot, 'screenshot-example-page.png');
+      console.log(`   ✅ Screenshot captured (${examplePageScreenshot.length} chars base64)\n`);
 
-    // Test 2: Screenshot of specific element (heading)
-    console.log('🎯 Test 2: Element screenshot (h1 heading)');
-    const snapshot1 = await firefox.takeSnapshot();
-    const h1Node = snapshot1.json.root.children?.find(n => n.tag === 'h1');
+      // Test 2: Screenshot of specific element (heading)
+      console.log('🎯 Test 2: Element screenshot (h1 heading)');
+      const snapshot1 = await firefox.takeSnapshot();
+      const h1Node = snapshot1.json.root.children?.find((n) => n.tag === 'h1');
 
-    if (h1Node && h1Node.uid) {
-      console.log(`   Found: <h1> with UID ${h1Node.uid}`);
-      const h1Screenshot = await firefox.takeScreenshotByUid(h1Node.uid);
-      await saveScreenshot(h1Screenshot, 'screenshot-example-h1.png');
-      console.log(`   ✅ Element screenshot captured (${h1Screenshot.length} chars base64)\n`);
+      if (h1Node && h1Node.uid) {
+        console.log(`   Found: <h1> with UID ${h1Node.uid}`);
+        const h1Screenshot = await firefox.takeScreenshotByUid(h1Node.uid);
+        await saveScreenshot(h1Screenshot, 'screenshot-example-h1.png');
+        console.log(`   ✅ Element screenshot captured (${h1Screenshot.length} chars base64)\n`);
+      } else {
+        console.log('   ⚠️ No h1 element found\n');
+      }
     } else {
-      console.log('   ⚠️ No h1 element found\n');
+      skipOnlineTest('Online screenshot tests (example.com)');
     }
 
-    // Test 3: Screenshot of mozilla.org (richer content)
-    console.log('🌐 Test 3: Full page screenshot (mozilla.org)');
-    await firefox.navigate('https://www.mozilla.org');
-    await new Promise(r => setTimeout(r, 3000));
+    // Test 3: Custom HTML page with styled elements (OFFLINE)
+    console.log('🎨 Test 3: Custom styled page (offline)');
 
-    const mozillaPageScreenshot = await firefox.takeScreenshotPage();
-    await saveScreenshot(mozillaPageScreenshot, 'screenshot-mozilla-page.png');
-    console.log(`   ✅ Screenshot captured (${mozillaPageScreenshot.length} chars base64)\n`);
-
-    // Test 4: Screenshot of specific button/link on mozilla.org
-    console.log('🎯 Test 4: Element screenshot (first interactive element)');
-    const snapshot2 = await firefox.takeSnapshot();
-
-    // Find first button or link
-    const findInteractive = (node) => {
-      if (node.tag === 'button' || node.tag === 'a') {
-        return node;
-      }
-      if (node.children) {
-        for (const child of node.children) {
-          const found = findInteractive(child);
-          if (found) return found;
-        }
-      }
-      return null;
-    };
-
-    const interactiveNode = findInteractive(snapshot2.json.root);
-
-    if (interactiveNode && interactiveNode.uid) {
-      console.log(`   Found: <${interactiveNode.tag}> with UID ${interactiveNode.uid}`);
-      console.log(`   Name: ${interactiveNode.name || '(no name)'}`);
-      const elemScreenshot = await firefox.takeScreenshotByUid(interactiveNode.uid);
-      await saveScreenshot(elemScreenshot, `screenshot-mozilla-${interactiveNode.tag}.png`);
-      console.log(`   ✅ Element screenshot captured (${elemScreenshot.length} chars base64)\n`);
-    } else {
-      console.log('   ⚠️ No interactive element found\n');
-    }
-
-    // Test 5: Custom HTML page with styled elements
-    console.log('🎨 Test 5: Custom styled page');
-
-    // Use innerHTML injection for reliable rendering
-    await firefox.navigate('about:blank');
-    await new Promise(r => setTimeout(r, 300));
-
-    await firefox.evaluate(`
-      document.documentElement.innerHTML = \`
+    await loadHTML(
+      firefox,
+      `
 <head><title>Screenshot Test</title><style>
 body { font-family: Arial; padding: 40px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); margin: 0; min-height: 100vh; }
 .card { background: white; border-radius: 12px; padding: 30px; box-shadow: 0 20px 60px rgba(0,0,0,0.3); max-width: 600px; margin: 0 auto; }
@@ -129,18 +98,49 @@ p { color: #555; line-height: 1.6; font-size: 16px; }
 <button class="button" id="btn2">Secondary Action</button>
 </div>
 </body>
-\`;
-    `);
+`
+    );
 
-    await new Promise(r => setTimeout(r, 500));
+    await waitShort(500);
 
     const customPageScreenshot = await firefox.takeScreenshotPage();
     await saveScreenshot(customPageScreenshot, 'screenshot-custom-page.png');
     console.log(`   ✅ Full page screenshot captured\n`);
 
-    // Test 6: Screenshot of styled elements using CSS selectors
-    // (Snapshot might filter out some elements, so we use direct CSS selectors)
-    console.log('🎨 Test 6: Individual styled elements (via CSS selectors)');
+    // Test 4: Screenshot of styled elements using UID
+    console.log('🎨 Test 4: Individual styled elements (via UID)');
+
+    const snapshot = await firefox.takeSnapshot();
+
+    // Find h1 element
+    const findElement = (node, tag) => {
+      if (node.tag === tag) return node;
+      if (node.children) {
+        for (const child of node.children) {
+          const found = findElement(child, tag);
+          if (found) return found;
+        }
+      }
+      return null;
+    };
+
+    const h1 = findElement(snapshot.json.root, 'h1');
+    if (h1 && h1.uid) {
+      const h1Screenshot = await firefox.takeScreenshotByUid(h1.uid);
+      await saveScreenshot(h1Screenshot, 'screenshot-custom-h1.png');
+      console.log(`   ✅ H1 screenshot captured via UID`);
+    }
+
+    // Find first button
+    const button = findElement(snapshot.json.root, 'button');
+    if (button && button.uid) {
+      const buttonScreenshot = await firefox.takeScreenshotByUid(button.uid);
+      await saveScreenshot(buttonScreenshot, 'screenshot-custom-button.png');
+      console.log(`   ✅ Button screenshot captured via UID\n`);
+    }
+
+    // Test 5: Screenshot using direct CSS selectors (fallback method)
+    console.log('🎨 Test 5: Individual styled elements (via CSS selectors)');
 
     try {
       // Get element via evaluate and take screenshot using WebDriver directly
@@ -149,23 +149,23 @@ p { color: #555; line-height: 1.6; font-size: 16px; }
       // Screenshot title
       const titleEl = await driver.findElement({ css: '#title' });
       await driver.executeScript('arguments[0].scrollIntoView({block: "center"});', titleEl);
-      await new Promise(r => setTimeout(r, 200));
+      await waitShort(200);
       const titleScreenshot = await titleEl.takeScreenshot();
       await saveScreenshot(titleScreenshot, 'screenshot-custom-title.png');
       console.log(`   ✅ Title screenshot captured`);
 
-      // Screenshot first button
-      const buttonEl = await driver.findElement({ css: '#btn1' });
+      // Screenshot second button (avoid conflict with UID test)
+      const buttonEl = await driver.findElement({ css: '#btn2' });
       await driver.executeScript('arguments[0].scrollIntoView({block: "center"});', buttonEl);
-      await new Promise(r => setTimeout(r, 200));
+      await waitShort(200);
       const buttonScreenshot = await buttonEl.takeScreenshot();
-      await saveScreenshot(buttonScreenshot, 'screenshot-custom-button.png');
+      await saveScreenshot(buttonScreenshot, 'screenshot-custom-button2.png');
       console.log(`   ✅ Button screenshot captured`);
 
       // Screenshot card container
       const cardEl = await driver.findElement({ css: '.card' });
       await driver.executeScript('arguments[0].scrollIntoView({block: "center"});', cardEl);
-      await new Promise(r => setTimeout(r, 200));
+      await waitShort(200);
       const cardScreenshot = await cardEl.takeScreenshot();
       await saveScreenshot(cardScreenshot, 'screenshot-custom-card.png');
       console.log(`   ✅ Card screenshot captured\n`);

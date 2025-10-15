@@ -1,31 +1,76 @@
 /**
  * Snapshot Manager
- * Handles snapshot creation, UID resolution, caching, and staleness detection
+ * Handles snapshot creation using bundled injected script
  */
 
 import type { WebDriver, WebElement } from 'selenium-webdriver';
-import { By } from 'selenium-webdriver';
+import { readFileSync } from 'node:fs';
+import { dirname, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { logDebug } from '../../utils/logger.js';
-import type {
-  Snapshot,
-  SnapshotJson,
-  InjectedScriptResult,
-  UidEntry,
-  ElementCacheEntry,
-} from './types.js';
+import type { Snapshot, SnapshotJson, InjectedScriptResult } from './types.js';
 import { formatSnapshotTree } from './formatter.js';
+import { UidResolver } from './resolver.js';
 
 /**
  * Snapshot Manager
+ * Uses bundled injected script for snapshot creation
  */
 export class SnapshotManager {
   private driver: WebDriver;
+  private resolver: UidResolver;
+  private injectedScript: string | null = null;
   private currentSnapshotId = 0;
-  private uidToEntry = new Map<string, UidEntry>();
-  private elementCache = new Map<string, ElementCacheEntry>();
 
   constructor(driver: WebDriver) {
     this.driver = driver;
+    this.resolver = new UidResolver(driver);
+  }
+
+  /**
+   * Lazy load bundled injected script
+   */
+  private getInjectedScript(): string {
+    if (this.injectedScript) {
+      return this.injectedScript;
+    }
+
+    try {
+      // Get the directory where this compiled file lives (dist/)
+      const currentFileUrl = import.meta.url;
+      const currentFilePath = fileURLToPath(currentFileUrl);
+      const currentDir = dirname(currentFilePath);
+
+      // Try multiple potential locations
+      const possiblePaths = [
+        // Production: relative to compiled dist/index.js location
+        resolve(currentDir, '../../snapshot.injected.global.js'),
+        // Alternative: relative to current working directory
+        resolve(process.cwd(), 'dist/snapshot.injected.global.js'),
+      ];
+
+      const attemptedPaths: string[] = [];
+
+      for (const path of possiblePaths) {
+        attemptedPaths.push(path);
+        try {
+          this.injectedScript = readFileSync(path, 'utf-8');
+          logDebug(`Loaded bundled snapshot injected script from: ${path}`);
+          return this.injectedScript;
+        } catch {
+          // Try next path
+        }
+      }
+
+      throw new Error(
+        `Bundle not found in any expected location. Tried paths:\n${attemptedPaths.map((p) => `  - ${p}`).join('\n')}`
+      );
+    } catch (error: any) {
+      throw new Error(
+        `Failed to load bundled snapshot script: ${error.message}. ` +
+          'Make sure you have run "npm run build" to generate the bundle.'
+      );
+    }
   }
 
   /**
@@ -34,14 +79,12 @@ export class SnapshotManager {
    */
   async takeSnapshot(): Promise<Snapshot> {
     const snapshotId = ++this.currentSnapshotId;
-    this.uidToEntry.clear();
-    this.elementCache.clear();
+    this.resolver.setSnapshotId(snapshotId);
+    this.resolver.clear();
 
     logDebug(`Taking snapshot (ID: ${snapshotId})...`);
 
-    // Inject and execute snapshot script
-    // For now, we'll inline the script as a string
-    // TODO: Bundle this properly in Milestone 5
+    // Execute bundled injected script
     const result = await this.executeInjectedScript(snapshotId);
 
     logDebug(
@@ -65,10 +108,8 @@ export class SnapshotManager {
       throw new Error(`Failed to generate snapshot: ${errorMsg}`);
     }
 
-    // Store UID mappings
-    for (const entry of result.uidMap) {
-      this.uidToEntry.set(entry.uid, entry);
-    }
+    // Store UID mappings in resolver
+    this.resolver.storeUidMappings(result.uidMap);
 
     // Create snapshot object
     const snapshotJson: SnapshotJson = {
@@ -94,451 +135,48 @@ export class SnapshotManager {
    * Resolve UID to CSS selector (with staleness check)
    */
   resolveUidToSelector(uid: string): string {
-    this.validateUid(uid);
-
-    const entry = this.uidToEntry.get(uid);
-    if (!entry) {
-      throw new Error(`UID not found: ${uid}. Take a fresh snapshot first.`);
-    }
-
-    return entry.css;
+    return this.resolver.resolveUidToSelector(uid);
   }
 
   /**
    * Resolve UID to WebElement (with staleness check and caching)
-   * Tries CSS first, falls back to XPath
    */
   async resolveUidToElement(uid: string): Promise<WebElement> {
-    this.validateUid(uid);
-
-    const entry = this.uidToEntry.get(uid);
-    if (!entry) {
-      throw new Error(`UID not found: ${uid}. Take a fresh snapshot first.`);
-    }
-
-    // Check cache
-    const cached = this.elementCache.get(uid);
-    if (cached?.cachedElement) {
-      try {
-        // Validate element is still alive
-        await cached.cachedElement.isDisplayed();
-        logDebug(`Using cached element for UID: ${uid}`);
-        return cached.cachedElement;
-      } catch (e) {
-        // Element is stale, re-find it
-        logDebug(`Cached element stale for UID: ${uid}, re-finding...`);
-      }
-    }
-
-    // Try CSS selector first
-    try {
-      const element = await this.driver.findElement(By.css(entry.css));
-
-      // Update cache
-      this.elementCache.set(uid, {
-        selector: entry.css,
-        ...(entry.xpath && { xpath: entry.xpath }),
-        cachedElement: element,
-        snapshotId: this.currentSnapshotId,
-        timestamp: Date.now(),
-      });
-
-      logDebug(`Found element by CSS for UID: ${uid}`);
-      return element;
-    } catch (cssError) {
-      logDebug(`CSS selector failed for UID: ${uid}, trying XPath fallback...`);
-
-      // Fallback to XPath if available
-      const xpathSelector = entry.xpath;
-      if (xpathSelector) {
-        try {
-          const element = await this.driver.findElement(By.xpath(xpathSelector));
-
-          // Update cache
-          this.elementCache.set(uid, {
-            selector: entry.css,
-            ...(xpathSelector && { xpath: xpathSelector }),
-            cachedElement: element,
-            snapshotId: this.currentSnapshotId,
-            timestamp: Date.now(),
-          });
-
-          logDebug(`Found element by XPath for UID: ${uid}`);
-          return element;
-        } catch (xpathError) {
-          throw new Error(
-            `Element not found for UID: ${uid}. The element may have changed. Take a fresh snapshot.`
-          );
-        }
-      }
-
-      throw new Error(
-        `Element not found for UID: ${uid}. The element may have changed. Take a fresh snapshot.`
-      );
-    }
+    return await this.resolver.resolveUidToElement(uid);
   }
 
   /**
    * Clear snapshot (called on navigation)
    */
   clear(): void {
-    this.uidToEntry.clear();
-    this.elementCache.clear();
-    logDebug('Snapshot UIDs cleared');
+    this.resolver.clear();
   }
 
   /**
-   * Validate UID (staleness check)
-   */
-  private validateUid(uid: string): void {
-    const parts = uid.split('_');
-    if (parts.length < 2 || !parts[0]) {
-      throw new Error(`Invalid UID format: ${uid}`);
-    }
-
-    const uidSnapshotId = parseInt(parts[0], 10);
-    if (isNaN(uidSnapshotId)) {
-      throw new Error(`Invalid UID format: ${uid}`);
-    }
-
-    if (uidSnapshotId !== this.currentSnapshotId) {
-      throw new Error(
-        `This uid is from a stale snapshot (snapshot ${uidSnapshotId}, current ${this.currentSnapshotId}). Take a fresh snapshot.`
-      );
-    }
-  }
-
-  /**
-   * Execute injected snapshot script
-   * TODO: In Milestone 5, this will use a pre-bundled script
+   * Execute bundled injected snapshot script
    */
   private async executeInjectedScript(snapshotId: number): Promise<InjectedScriptResult> {
-    // For now, we'll build the script inline
-    // This is a temporary solution until we add the bundler in Milestone 5
+    const scriptSource = this.getInjectedScript();
 
-    const scriptSource = this.buildInlineScript();
-
+    // Inject and execute the bundled script
+    // The script exposes window.__createSnapshot via IIFE global
+    // Guard: Only inject once, then reuse
     const result = await this.driver.executeScript<InjectedScriptResult>(
       `
-      ${scriptSource}
+      // Only inject the bundle if not already present
+      if (typeof window.__createSnapshot === 'undefined') {
+        ${scriptSource}
+        // Register the createSnapshot function globally
+        if (typeof __SnapshotInjected !== 'undefined' && __SnapshotInjected.createSnapshot) {
+          window.__createSnapshot = __SnapshotInjected.createSnapshot;
+        }
+      }
+      // Call it
       return window.__createSnapshot(arguments[0]);
       `,
       snapshotId
     );
 
     return result;
-  }
-
-  /**
-   * Build inline script (temporary until bundler is added)
-   * This concatenates all the injected modules
-   */
-  private buildInlineScript(): string {
-    // This is a placeholder - in Milestone 5 we'll use esbuild to bundle this properly
-    // For now, we'll use a simplified inline version
-
-    return `
-    (function() {
-      // Simplified inline version of the injected script
-      // This will be replaced with proper bundled version in Milestone 5
-
-      const MAX_DEPTH = 10;
-      const MAX_NODES = 1000;
-      const MAX_TEXT_LENGTH = 100;
-      const MAX_SEGMENT_LENGTH = 64;
-      const INTERACTIVE_TAGS = ['a', 'button', 'input', 'select', 'textarea', 'img', 'video', 'audio', 'iframe'];
-      const SEMANTIC_TAGS = ['nav', 'main', 'section', 'article', 'header', 'footer'];
-      const CONTAINER_TAGS = ['div', 'span', 'p', 'li', 'ul', 'ol'];
-      const MAX_TEXT_CONTENT = 500;
-      const PREFERRED_ID_ATTRS = ['id', 'data-testid', 'data-test-id'];
-
-      function isRelevant(el) {
-        if (!el || el.nodeType !== 1) return false;
-
-        try {
-          const style = window.getComputedStyle(el);
-          if (style.display === 'none' || style.visibility === 'hidden' || style.opacity === '0') {
-            return false;
-          }
-        } catch (e) {
-          return false;
-        }
-
-        const tag = el.tagName.toLowerCase();
-        if (INTERACTIVE_TAGS.indexOf(tag) !== -1) return true;
-        if (el.hasAttribute('role')) return true;
-        if (el.hasAttribute('aria-label')) return true;
-        if (/^h[1-6]$/.test(tag)) return true;
-        if (SEMANTIC_TAGS.indexOf(tag) !== -1) return true;
-
-        if (CONTAINER_TAGS.indexOf(tag) !== -1) {
-          // Include if it has id or class (for testing/automation)
-          if (el.id || el.className) return true;
-          // Include if it has text content
-          const textContent = (el.textContent || '').trim();
-          if (textContent.length > 0 && textContent.length < MAX_TEXT_CONTENT) return true;
-        }
-
-        return false;
-      }
-
-      function getTextContent(el) {
-        let text = '';
-        for (let i = 0; i < el.childNodes.length; i++) {
-          const node = el.childNodes[i];
-          if (node.nodeType === 3) text += node.textContent || '';
-        }
-        const trimmed = text.trim();
-        return trimmed ? trimmed.substring(0, MAX_TEXT_LENGTH) : undefined;
-      }
-
-      function getElementName(el) {
-        if (el.hasAttribute('aria-label')) return el.getAttribute('aria-label');
-
-        const elId = el.id;
-        if (elId) {
-          const label = document.querySelector('label[for="' + elId + '"]');
-          if (label && label.textContent) return label.textContent.trim();
-        }
-
-        if (el.hasAttribute('placeholder')) return el.getAttribute('placeholder');
-        if (el.hasAttribute('title')) return el.getAttribute('title');
-        if (el.hasAttribute('alt')) return el.getAttribute('alt');
-        if (el.hasAttribute('name')) return el.getAttribute('name');
-
-        const tag = el.tagName.toLowerCase();
-        if (['button', 'a', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6'].indexOf(tag) !== -1) {
-          return getTextContent(el);
-        }
-
-        return undefined;
-      }
-
-      function generateCssSelector(el) {
-        const path = [];
-        let current = el;
-
-        while (current && current.nodeType === 1) {
-          let selector = current.nodeName.toLowerCase();
-          let hasId = false;
-
-          for (let i = 0; i < PREFERRED_ID_ATTRS.length; i++) {
-            const idAttr = PREFERRED_ID_ATTRS[i];
-            const value = current.getAttribute(idAttr);
-            if (value) {
-              if (idAttr === 'id') {
-                selector += '#' + CSS.escape(value);
-              } else {
-                selector += '[' + idAttr + '="' + value + '"]';
-              }
-              path.unshift(selector);
-              hasId = true;
-              break;
-            }
-          }
-
-          if (hasId) break;
-
-          const siblings = current.parentElement?.children;
-          if (siblings && siblings.length > 1) {
-            let nth = 1;
-            for (let i = 0; i < siblings.length; i++) {
-              if (siblings[i] === current) break;
-              if (siblings[i].nodeName === current.nodeName) nth++;
-            }
-            if (nth > 1) selector += ':nth-of-type(' + nth + ')';
-          }
-
-          path.unshift(selector);
-          current = current.parentElement;
-
-          if (current && current.nodeName.toLowerCase() === 'body') {
-            path.unshift('body');
-            break;
-          }
-        }
-
-        return path.join(' > ');
-      }
-
-      function generateXPath(el) {
-        if (el.id) return '//*[@id="' + el.id + '"]';
-
-        const path = [];
-        let current = el;
-
-        while (current && current.nodeType === 1) {
-          const tagName = current.nodeName.toLowerCase();
-          let index = 1;
-          let sibling = current.previousElementSibling;
-
-          while (sibling) {
-            if (sibling.nodeName.toLowerCase() === tagName) index++;
-            sibling = sibling.previousElementSibling;
-          }
-
-          path.unshift(tagName + '[' + index + ']');
-          current = current.parentElement;
-
-          if (current && current.nodeName.toLowerCase() === 'html') {
-            path.unshift('html');
-            break;
-          }
-        }
-
-        return '/' + path.join('/');
-      }
-
-      function getAriaAttributes(el) {
-        const aria = {};
-        let hasAny = false;
-
-        ['disabled', 'hidden', 'selected', 'expanded'].forEach(function(attr) {
-          const value = el.getAttribute('aria-' + attr);
-          if (value !== null) {
-            aria[attr] = value === 'true';
-            hasAny = true;
-          }
-        });
-
-        ['checked', 'pressed'].forEach(function(attr) {
-          const value = el.getAttribute('aria-' + attr);
-          if (value !== null) {
-            aria[attr] = value === 'mixed' ? 'mixed' : value === 'true';
-            hasAny = true;
-          }
-        });
-
-        ['autocomplete', 'haspopup', 'invalid', 'label', 'labelledby', 'describedby', 'controls'].forEach(function(attr) {
-          const value = el.getAttribute('aria-' + attr);
-          if (value) {
-            aria[attr] = value;
-            hasAny = true;
-          }
-        });
-
-        const levelValue = el.getAttribute('aria-level');
-        if (levelValue) {
-          const level = parseInt(levelValue, 10);
-          if (!isNaN(level)) {
-            aria.level = level;
-            hasAny = true;
-          }
-        }
-
-        return hasAny ? aria : undefined;
-      }
-
-      function getComputedProperties(el) {
-        const computed = {};
-
-        try {
-          const style = window.getComputedStyle(el);
-          computed.visible = style.display !== 'none' && style.visibility !== 'hidden' && style.opacity !== '0';
-        } catch (e) {
-          computed.visible = false;
-        }
-
-        computed.accessible = computed.visible && !el.getAttribute('aria-hidden');
-        computed.focusable = el.tabIndex >= 0 || ['a', 'button', 'input', 'select', 'textarea'].indexOf(el.tagName.toLowerCase()) !== -1;
-        computed.interactive = INTERACTIVE_TAGS.indexOf(el.tagName.toLowerCase()) !== -1;
-
-        return computed;
-      }
-
-      function walkTree(rootElement, snapshotId, includeIframes) {
-        let counter = 0;
-        const uidMap = [];
-        let truncated = false;
-        const debugLog = [];
-
-        function walk(el, depth) {
-          if (depth > MAX_DEPTH || counter >= MAX_NODES) {
-            truncated = true;
-            return null;
-          }
-
-          const tag = el.tagName.toLowerCase();
-          const isRoot = tag === 'body' || tag === 'html';
-
-          // Debug logging
-          const elId = el.id || '';
-          const elDebug = tag + (elId ? '#' + elId : '');
-
-          if (!isRoot) {
-            const relevant = isRelevant(el);
-            debugLog.push({ el: elDebug, relevant, depth });
-            if (!relevant) return null;
-          }
-
-          const uid = snapshotId + '_' + counter++;
-          const css = generateCssSelector(el);
-          const xpath = generateXPath(el);
-
-          uidMap.push({ uid: uid, css: css, xpath: xpath });
-
-          const node = {
-            uid: uid,
-            tag: tag,
-            role: el.getAttribute('role') || undefined,
-            name: getElementName(el),
-            value: el.value || undefined,
-            href: el.href || undefined,
-            src: el.src || undefined,
-            text: getTextContent(el),
-            aria: getAriaAttributes(el),
-            computed: getComputedProperties(el),
-            children: []
-          };
-
-          if (tag === 'iframe' && includeIframes) {
-            try {
-              const iframeDoc = el.contentDocument || el.contentWindow?.document;
-              if (iframeDoc && iframeDoc.body) {
-                const iframeTree = walk(iframeDoc.body, depth + 1);
-                if (iframeTree) {
-                  iframeTree.isIframe = true;
-                  iframeTree.frameSrc = el.src;
-                  node.children.push(iframeTree);
-                }
-              } else {
-                node.isIframe = true;
-                node.frameSrc = el.src;
-                node.crossOrigin = true;
-              }
-            } catch (e) {
-              node.isIframe = true;
-              node.frameSrc = el.src;
-              node.crossOrigin = true;
-            }
-            return node;
-          }
-
-          for (let i = 0; i < el.children.length; i++) {
-            if (counter >= MAX_NODES) {
-              truncated = true;
-              break;
-            }
-            const child = el.children[i];
-            const childNode = walk(child, depth + 1);
-            if (childNode) node.children.push(childNode);
-          }
-
-          return node;
-        }
-
-        const tree = walk(rootElement, 0);
-        return { tree: tree, uidMap: uidMap, truncated: truncated, debugLog: debugLog };
-      }
-
-      window.__createSnapshot = function(snapshotId) {
-        try {
-          return walkTree(document.body, snapshotId, true);
-        } catch (error) {
-          return { tree: null, uidMap: [], truncated: false };
-        }
-      };
-    })();
-    `;
   }
 }

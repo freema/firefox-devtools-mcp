@@ -11,25 +11,7 @@ import { FirefoxDevTools } from '../dist/index.js';
 import { writeFile, mkdtemp, rm } from 'node:fs/promises';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
-
-async function loadHTML(firefox, htmlWithScript) {
-  // Split HTML and script parts
-  const scriptMatch = htmlWithScript.match(/<script>([\s\S]*?)<\/script>/);
-  const htmlWithoutScript = htmlWithScript.replace(/<script>[\s\S]*?<\/script>/g, '');
-
-  await firefox.navigate('about:blank');
-  await new Promise(r => setTimeout(r, 300));
-
-  // Set HTML (without script tags)
-  await firefox.evaluate(`document.documentElement.innerHTML = \`${htmlWithoutScript}\`;`);
-
-  // Execute script separately (if any)
-  if (scriptMatch && scriptMatch[1]) {
-    await firefox.evaluate(scriptMatch[1]);
-  }
-
-  await new Promise(r => setTimeout(r, 300));
-}
+import { loadHTML, waitShort } from './_helpers/page-loader.js';
 
 async function main() {
   console.log('🧪 Testing UID-based input tools...\n');
@@ -62,7 +44,7 @@ async function main() {
     const btnUid = snapshot.json.root.children.find(n => n.tag === 'button')?.uid;
     if (btnUid) {
       await firefox.clickByUid(btnUid);
-      await new Promise(r => setTimeout(r, 300));
+      await waitShort();
       const result = await firefox.evaluate("return document.body.getAttribute('data-result')");
       console.log(`   ${result === 'clicked' ? '✅' : '❌'} Click: ${result}\n`);
     } else {
@@ -86,7 +68,7 @@ async function main() {
     const inpUid = snapshot.json.root.children.find(n => n.tag === 'input')?.uid;
     if (inpUid) {
       await firefox.fillByUid(inpUid, 'Hello Test');
-      await new Promise(r => setTimeout(r, 300));
+      await waitShort();
       const value = await firefox.evaluate("return document.body.getAttribute('data-value')");
       console.log(`   ${value === 'Hello Test' ? '✅' : '❌'} Fill: ${value}\n`);
     } else {
@@ -110,7 +92,7 @@ async function main() {
     const hoverUid = snapshot.json.root.children.find(n => n.tag === 'div')?.uid;
     if (hoverUid) {
       await firefox.hoverByUid(hoverUid);
-      await new Promise(r => setTimeout(r, 300));
+      await waitShort();
       const hovered = await firefox.evaluate("return document.body.getAttribute('data-hovered')");
       console.log(`   ${hovered === '1' ? '✅' : '❌'} Hover: ${hovered}\n`);
     } else {
@@ -144,7 +126,7 @@ async function main() {
         { uid: inputs[0].uid, value: 'John' },
         { uid: inputs[1].uid, value: 'Doe' },
       ]);
-      await new Promise(r => setTimeout(r, 500));
+      await waitShort(500);
       const formData = await firefox.evaluate("return document.body.getAttribute('data-form')");
       const parsed = JSON.parse(formData || '{}');
       const ok = parsed.first === 'John' && parsed.last === 'Doe';
@@ -176,7 +158,7 @@ async function main() {
     const fileUid = snapshot.json.root.children.find(n => n.tag === 'input')?.uid;
     if (fileUid) {
       await firefox.uploadFileByUid(fileUid, filePath);
-      await new Promise(r => setTimeout(r, 300));
+      await waitShort();
       const filename = await firefox.evaluate("return document.body.getAttribute('data-filename')");
       console.log(`   ${filename === 'test.txt' ? '✅' : '❌'} Upload: ${filename}\n`);
     } else {
@@ -205,7 +187,7 @@ async function main() {
     const divs = snapshot.json.root.children.filter(n => n.tag === 'div');
     if (divs.length === 2) {
       await firefox.dragByUidToUid(divs[0].uid, divs[1].uid);
-      await new Promise(r => setTimeout(r, 300));
+      await waitShort();
       const dropped = await firefox.evaluate("return document.body.getAttribute('data-dropped')");
       console.log(`   ${dropped === '1' ? '✅' : '❌'} Drag & Drop: ${dropped}\n`);
     } else {
@@ -229,7 +211,7 @@ async function main() {
     const dblBtnUid = snapshot.json.root.children.find(n => n.tag === 'button')?.uid;
     if (dblBtnUid) {
       await firefox.clickByUid(dblBtnUid, true);
-      await new Promise(r => setTimeout(r, 300));
+      await waitShort();
       const dblClicked = await firefox.evaluate("return document.body.getAttribute('data-dblclick')");
       console.log(`   ${dblClicked === '1' ? '✅' : '❌'} Double Click: ${dblClicked}\n`);
     } else {

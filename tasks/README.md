@@ -34,6 +34,9 @@ Roadmapa
 - [x] 23 – Page utilities (history/resize/dialog) (`tasks/23-page-utilities-history-resize-dialog.md`)
 - [x] 24 – Remove legacy RDP options & wording (`tasks/24-remove-legacy-rdp.md`)
 - [x] 25 – Snapshot: Finalization and Extensions (`tasks/25-snapshot-finalization-and-extensions.md`)
+- [x] 26 – Firefox modules cleanup & lifecycle hooks (`tasks/26-firefox-modules-cleanup-and-lifecycle.md`)
+- [x] 27 – Offline test harness & scripts refactor (`tasks/27-offline-test-harness-and-scripts-refactor.md`)
+- [x] 28 – Snapshot bundling integration & de‑dup (`tasks/28-snapshot-bundling-integration-and-dedup.md`)
 
 Poznámky
 

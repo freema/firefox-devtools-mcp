@@ -4,7 +4,7 @@
 
 import type { FirefoxLaunchOptions, ConsoleMessage } from './types.js';
 import { FirefoxCore } from './core.js';
-import { ConsoleEvents, NetworkEvents } from './events.js';
+import { ConsoleEvents, NetworkEvents } from './events/index.js';
 import { DomInteractions } from './dom.js';
 import { PageManagement } from './pages.js';
 import { SnapshotManager, type Snapshot } from './snapshot/index.js';
@@ -37,9 +37,24 @@ export class FirefoxClient {
     // Initialize snapshot manager first
     this.snapshot = new SnapshotManager(driver);
 
-    // Initialize other modules
-    this.consoleEvents = new ConsoleEvents(driver);
-    this.networkEvents = new NetworkEvents(driver);
+    // Create centralized navigation handler for lifecycle hooks
+    const onNavigate = () => {
+      // Clear snapshot on any navigation
+      if (this.snapshot) {
+        this.snapshot.clear();
+      }
+    };
+
+    // Initialize event modules with lifecycle hooks
+    this.consoleEvents = new ConsoleEvents(driver, {
+      onNavigate,
+      autoClearOnNavigate: true,
+    });
+
+    this.networkEvents = new NetworkEvents(driver, {
+      onNavigate,
+      autoClearOnNavigate: true,
+    });
 
     // Initialize DOM with UID resolver callback
     this.dom = new DomInteractions(driver, (uid: string) =>

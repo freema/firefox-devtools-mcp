@@ -1,81 +1,36 @@
 /**
- * Event handling: console, network (future)
+ * Network event handling with lifecycle hooks
  */
 
 import type { WebDriver } from 'selenium-webdriver';
-import type { ConsoleMessage } from './types.js';
-import { logDebug } from '../utils/logger.js';
+import { logDebug } from '../../utils/logger.js';
 
-export class ConsoleEvents {
-  private consoleMessages: ConsoleMessage[] = [];
-  private subscribed = false;
-
-  constructor(private driver: WebDriver) {}
-
-  /**
-   * Subscribe to BiDi console events
-   */
-  async subscribe(contextId?: string): Promise<void> {
-    if (this.subscribed) {
-      return;
-    }
-
-    const bidi = await this.driver.getBidi();
-    await bidi.subscribe('log.entryAdded', contextId ? [contextId] : undefined);
-
-    const ws: any = bidi.socket;
-    ws.on('message', (data: any) => {
-      try {
-        const payload = JSON.parse(data.toString());
-        if (payload?.method === 'log.entryAdded') {
-          const entry = payload.params;
-          const message: ConsoleMessage = {
-            level: (entry.level as ConsoleMessage['level']) || 'info',
-            text: entry.text || (entry.args ? JSON.stringify(entry.args) : ''),
-            timestamp: entry.timestamp || Date.now(),
-            source: entry.source?.realm,
-            args: entry.args,
-          };
-          this.consoleMessages.push(message);
-          logDebug(`Console [${message.level}]: ${message.text}`);
-        }
-      } catch (err) {
-        // ignore parse errors
-      }
-    });
-
-    this.subscribed = true;
-    logDebug('Console listener active');
-  }
-
-  /**
-   * Get all collected console messages
-   */
-  getMessages(): ConsoleMessage[] {
-    return [...this.consoleMessages];
-  }
-
-  /**
-   * Clear console messages (e.g., on navigation)
-   */
-  clearMessages(): void {
-    this.consoleMessages = [];
-  }
+export interface NetworkEventsOptions {
+  /** Callback triggered on navigation events (for auto-clear) */
+  onNavigate?: () => void;
+  /** Auto-clear network requests on navigation (default: true when monitoring is enabled) */
+  autoClearOnNavigate?: boolean;
 }
 
-/**
- * Network events (BiDi implementation)
- */
 export class NetworkEvents {
   private networkRecords: Map<string, any> = new Map();
   private subscribed = false;
   private enabled = false;
   private requestStartTimes: Map<string, number> = new Map();
+  private options: NetworkEventsOptions;
 
-  constructor(private driver: WebDriver) {}
+  constructor(
+    private driver: WebDriver,
+    options: NetworkEventsOptions = {}
+  ) {
+    this.options = {
+      autoClearOnNavigate: true,
+      ...options,
+    };
+  }
 
   /**
-   * Subscribe to BiDi network events
+   * Subscribe to BiDi network events and navigation lifecycle
    */
   async subscribe(contextId?: string): Promise<void> {
     if (this.subscribed) {
@@ -89,14 +44,40 @@ export class NetworkEvents {
     await bidi.subscribe('network.responseStarted', contextId ? [contextId] : undefined);
     await bidi.subscribe('network.responseCompleted', contextId ? [contextId] : undefined);
 
+    // Subscribe to navigation events for lifecycle hooks
+    try {
+      await bidi.subscribe('browsingContext.load', contextId ? [contextId] : undefined);
+      await bidi.subscribe('browsingContext.domContentLoaded', contextId ? [contextId] : undefined);
+    } catch (err) {
+      logDebug(
+        'Navigation events subscription skipped (may not be available in this Firefox version)'
+      );
+    }
+
     const ws: any = bidi.socket;
     ws.on('message', (data: any) => {
-      if (!this.enabled) {
-        return; // Only collect when explicitly enabled
-      }
-
       try {
         const payload = JSON.parse(data.toString());
+
+        // Handle navigation lifecycle events
+        if (
+          payload?.method === 'browsingContext.load' ||
+          payload?.method === 'browsingContext.domContentLoaded'
+        ) {
+          // Only clear if monitoring is enabled and autoClear is on
+          if (this.enabled && this.options.autoClearOnNavigate) {
+            this.clearRequests();
+          }
+          if (this.options.onNavigate) {
+            this.options.onNavigate();
+          }
+          return;
+        }
+
+        // Only collect network events when explicitly enabled
+        if (!this.enabled) {
+          return;
+        }
 
         // Handle beforeRequestSent
         if (payload?.method === 'network.beforeRequestSent') {
@@ -173,7 +154,7 @@ export class NetworkEvents {
     });
 
     this.subscribed = true;
-    logDebug('Network listener ready (call startMonitoring to enable)');
+    logDebug('Network listener ready with lifecycle hooks (call startMonitoring to enable)');
   }
 
   /**
