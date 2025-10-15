@@ -18,9 +18,9 @@ Roadmapa
 - [x] 07 – Tools: Debug a screenshoty (MVP) (`tasks/07-tools-debug-and-screenshot.md`)
 - [x] 08 – Tools: Console a evaluate (MVP) (`tasks/08-tools-console-and-script.md`)
 - [x] 09 – Tools: Síť a výkon (iterace, omezení Firefoxu) (`tasks/09-tools-network-and-performance.md`)
-- [ ] 10 – Testování (unit/integration) a Inspector workflow (`tasks/10-testing-and-inspector.md`)
-- [ ] 11 – Balíčkování, metadata, `server.json`, publikace (`tasks/11-ci-and-packaging.md`)
-- [ ] 12 – Dokumentace: README, Tool reference, Troubleshooting (`tasks/12-docs-and-readme.md`)
+- [x] 10 – Testování (unit/integration) a Inspector workflow (`tasks/10-testing-and-inspector.md`)
+- [x] 11 – Balíčkování, metadata, `server.json`, publikace (`tasks/11-ci-and-packaging.md`)
+- [x] 12 – Dokumentace: README, Tool reference, Troubleshooting (`tasks/12-docs-and-readme.md`)
  - [x] 13 – Launcher: RDP přepínače a readiness (`tasks/13-launcher-rdp-flags-and-readiness.md`)
  - [x] 14 – Launcher: Detekce binárky + edice (`tasks/14-launcher-executable-detection-and-editions.md`)
  - [x] 15 – BiDi port a screenshot (volitelné) (`tasks/15-bidi-port-and-screenshot.md`)
@@ -33,7 +33,7 @@ Roadmapa
 - [x] 22 – Screenshot tool (page/element) (`tasks/22-screenshot-tool.md`)
 - [x] 23 – Page utilities (history/resize/dialog) (`tasks/23-page-utilities-history-resize-dialog.md`)
 - [x] 24 – Remove legacy RDP options & wording (`tasks/24-remove-legacy-rdp.md`)
-- [ ] 25 – Snapshot: Finalization and Extensions (`tasks/25-snapshot-finalization-and-extensions.md`)
+- [x] 25 – Snapshot: Finalization and Extensions (`tasks/25-snapshot-finalization-and-extensions.md`)
 
 Poznámky
 
