@@ -72,7 +72,7 @@ async function main() {
   console.log('3. Both');
   console.log('4. Display config only (manual setup)');
 
-  const clientChoice = await question('\nSelect option (1-4) [2]: ') || '2';
+  const clientChoice = (await question('\nSelect option (1-4) [2]: ')) || '2';
 
   // Get project path
   const projectPath = path.resolve(__dirname, '..');
@@ -105,10 +105,7 @@ async function main() {
   console.log(`${colors.bright}Firefox Configuration:${colors.reset}`);
   console.log(`${colors.yellow}(Press Enter to use default values)${colors.reset}\n`);
 
-  const rdpHost = (await question('RDP Host [127.0.0.1]: ')) || '127.0.0.1';
-  const rdpPort = (await question('RDP Port [6000]: ')) || '6000';
   const headless = (await question('Run in headless mode? (y/n) [n]: ')) || 'n';
-  const autoLaunch = (await question('Auto-launch Firefox? (y/n) [y]: ')) || 'y';
   const viewport = (await question('Viewport size (e.g., 1280x720) [1280x720]: ')) || '1280x720';
 
   // Detect Node.js path
@@ -120,7 +117,7 @@ async function main() {
   console.log(`2. Specify custom Node.js path`);
   console.log(`3. Use system default (node)`);
 
-  const nodeChoice = await question('\nSelect option (1-3): ');
+  const nodeChoice = await question('\nSelect option (1-3) [1]: ') || '1';
   let finalNodePath = nodePath;
 
   switch (nodeChoice) {
@@ -141,14 +138,7 @@ async function main() {
     mcpServers: {
       'firefox-devtools': {
         command: finalNodePath,
-        args: [distIndexPath],
-        env: {
-          RDP_HOST: rdpHost,
-          RDP_PORT: rdpPort,
-          FIREFOX_HEADLESS: headless.toLowerCase() === 'y' ? 'true' : 'false',
-          AUTO_LAUNCH_FIREFOX: autoLaunch.toLowerCase() === 'y' ? 'true' : 'false',
-          VIEWPORT: viewport,
-        },
+        args: [distIndexPath, '--headless=' + (headless.toLowerCase() === 'y' ? 'true' : 'false'), '--viewport=' + viewport],
       },
     },
   };
@@ -182,113 +172,84 @@ async function main() {
     claudeCodeConfigPath = path.join(claudeCodeConfigDir, 'mcp_settings.json');
   }
 
-  console.log(`${colors.bright}Configuration Options:${colors.reset}`);
-  console.log('1. Save to Claude Desktop config');
-  console.log('2. Display config (copy manually)');
-  console.log('3. Save to custom file');
+  // Handle display-only option
+  if (clientChoice === '4') {
+    console.log(
+      `\n${colors.bright}Copy this configuration to your MCP config:${colors.reset}\n`
+    );
+    console.log(JSON.stringify(mcpConfig, null, 2));
 
-  const choice = await question('\nSelect option (1-3): ');
+    console.log(`\n${colors.bright}${colors.blue}Config file locations:${colors.reset}`);
+    console.log(`Claude Desktop: ${desktopConfigPath}`);
+    console.log(`Claude Code: ${claudeCodeConfigPath}`);
+    rl.close();
+    return;
+  }
 
-  switch (choice) {
-    case '1':
-      // Check if config exists
-      let existingConfig = {};
-      if (fs.existsSync(configPath)) {
-        try {
-          existingConfig = JSON.parse(fs.readFileSync(configPath, 'utf8'));
-          if (existingConfig.mcpServers && existingConfig.mcpServers['firefox-devtools']) {
-            const overwrite = await question(
-              `\n${colors.yellow}⚠️  'firefox-devtools' server already exists. Overwrite? (y/n): ${colors.reset}`
-            );
-            if (overwrite.toLowerCase() !== 'y') {
-              console.log('Cancelled.');
-              process.exit(0);
-            }
-          }
-        } catch (error) {
-          console.log(
-            `${colors.yellow}⚠️  Could not read existing config, will create new one${colors.reset}`
+  // Helper function to save config
+  async function saveConfig(configPath, configDir, clientName) {
+    let existingConfig = {};
+    if (fs.existsSync(configPath)) {
+      try {
+        existingConfig = JSON.parse(fs.readFileSync(configPath, 'utf8'));
+        if (existingConfig.mcpServers && existingConfig.mcpServers['firefox-devtools']) {
+          const overwrite = await question(
+            `\n${colors.yellow}⚠️  'firefox-devtools' server already exists in ${clientName}. Overwrite? (y/n): ${colors.reset}`
           );
+          if (overwrite.toLowerCase() !== 'y') {
+            console.log(`Skipped ${clientName}`);
+            return false;
+          }
         }
+      } catch (error) {
+        console.log(
+          `${colors.yellow}⚠️  Could not read existing ${clientName} config, will create new one${colors.reset}`
+        );
       }
+    }
 
-      // Merge configs
-      const finalConfig = {
-        ...existingConfig,
-        mcpServers: {
-          ...existingConfig.mcpServers,
-          ...mcpConfig.mcpServers,
-        },
-      };
+    // Merge configs
+    const finalConfig = {
+      ...existingConfig,
+      mcpServers: {
+        ...existingConfig.mcpServers,
+        ...mcpConfig.mcpServers,
+      },
+    };
 
-      if (!fs.existsSync(configDir)) {
-        fs.mkdirSync(configDir, { recursive: true });
-      }
+    if (!fs.existsSync(configDir)) {
+      fs.mkdirSync(configDir, { recursive: true });
+    }
 
-      fs.writeFileSync(configPath, JSON.stringify(finalConfig, null, 2));
-      console.log(`\n${colors.green}✅ Configuration saved to: ${configPath}${colors.reset}`);
-      console.log(`\n${colors.yellow}⚠️  Restart Claude Desktop to apply changes${colors.reset}`);
-      break;
+    fs.writeFileSync(configPath, JSON.stringify(finalConfig, null, 2));
+    console.log(`\n${colors.green}✅ Configuration saved to ${clientName}: ${configPath}${colors.reset}`);
+    return true;
+  }
 
-    case '2':
-      console.log(
-        `\n${colors.bright}Copy this configuration to your Claude Desktop config:${colors.reset}\n`
-      );
-      console.log(JSON.stringify(mcpConfig, null, 2));
-      break;
-
-    case '3':
-      const customPath = await question('Enter file path: ');
-      fs.writeFileSync(customPath, JSON.stringify(mcpConfig, null, 2));
-      console.log(`\n${colors.green}✅ Configuration saved to: ${customPath}${colors.reset}`);
-      break;
-
-    default:
-      console.log(`${colors.red}Invalid option${colors.reset}`);
+  // Save to appropriate client(s)
+  if (clientChoice === '1') {
+    await saveConfig(desktopConfigPath, desktopConfigDir, 'Claude Desktop');
+    console.log(`${colors.yellow}⚠️  Restart Claude Desktop to apply changes${colors.reset}`);
+  } else if (clientChoice === '2') {
+    await saveConfig(claudeCodeConfigPath, claudeCodeConfigDir, 'Claude Code');
+    console.log(`${colors.yellow}⚠️  Restart Claude Code to apply changes${colors.reset}`);
+  } else if (clientChoice === '3') {
+    await saveConfig(desktopConfigPath, desktopConfigDir, 'Claude Desktop');
+    await saveConfig(claudeCodeConfigPath, claudeCodeConfigDir, 'Claude Code');
+    console.log(`${colors.yellow}⚠️  Restart Claude Desktop and Claude Code to apply changes${colors.reset}`);
   }
 
   // Show next steps
   console.log(`\n${colors.bright}${colors.blue}Next Steps:${colors.reset}`);
-  console.log(`1. Restart Claude Desktop`);
-  console.log(
-    `2. Test with: "${colors.green}List all open pages in Firefox${colors.reset}" or "${colors.green}Take a screenshot${colors.reset}"`
-  );
-
-  // Create .env file option
-  const createEnv = await question(
-    `\n${colors.yellow}Create .env file for development? (y/n): ${colors.reset}`
-  );
-  if (createEnv.toLowerCase() === 'y') {
-    const envContent = `# Firefox Remote Debugging Protocol configuration
-RDP_HOST=${rdpHost}
-RDP_PORT=${rdpPort}
-
-# Firefox executable path (optional)
-FIREFOX_PATH=
-
-# Headless mode
-FIREFOX_HEADLESS=${headless.toLowerCase() === 'y' ? 'true' : 'false'}
-
-# Automatically launch Firefox with RDP enabled
-AUTO_LAUNCH_FIREFOX=${autoLaunch.toLowerCase() === 'y' ? 'true' : 'false'}
-
-# Initial viewport size
-VIEWPORT=${viewport}
-
-# Accept insecure certificates (use with caution)
-ACCEPT_INSECURE_CERTS=false
-
-# Firefox profile path (optional, for persistent profile)
-FIREFOX_PROFILE_PATH=
-
-# Debug logging (set to * or firefox-devtools for verbose logs)
-DEBUG=
-`;
-
-    const envPath = path.join(projectPath, '.env');
-    fs.writeFileSync(envPath, envContent);
-    console.log(`\n${colors.green}✅ Created .env file for development${colors.reset}`);
+  if (clientChoice === '1' || clientChoice === '3') {
+    console.log(`1. Restart Claude Desktop`);
   }
+  if (clientChoice === '2' || clientChoice === '3') {
+    console.log(`${clientChoice === '3' ? '2' : '1'}. Restart Claude Code (or reload window)`);
+  }
+  console.log(
+    `${clientChoice === '3' ? '3' : '2'}. Test with: "${colors.green}List all open pages in Firefox${colors.reset}" or "${colors.green}Take a screenshot${colors.reset}"`
+  );
 
   rl.close();
 }
