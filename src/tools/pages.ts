@@ -62,16 +62,33 @@ export const navigatePageTool = {
 
 export const selectPageTool = {
   name: 'select_page',
-  description: 'Select a page as context for future tool calls',
+  description:
+    'Select a page as context for future tool calls. ' +
+    'You can select by index (recommended - call list_pages first), by URL pattern, or by title pattern. ' +
+    'If multiple parameters provided, pageIdx takes priority.',
   inputSchema: {
     type: 'object',
     properties: {
       pageIdx: {
         type: 'number',
-        description: 'The index of the page to select. Call list_pages to list pages.',
+        description:
+          'The index of the page to select (e.g., 0, 1, 2). ' +
+          'Use list_pages first to see all available page indices. Most reliable method.',
+      },
+      url: {
+        type: 'string',
+        description:
+          'Select page by URL (partial match, case-insensitive). ' +
+          'Example: "github.com" will match "https://github.com/user/repo"',
+      },
+      title: {
+        type: 'string',
+        description:
+          'Select page by title (partial match, case-insensitive). ' +
+          'Example: "Google" will match "Google Search - About"',
       },
     },
-    required: ['pageIdx'],
+    required: [],
   },
 };
 
@@ -196,24 +213,67 @@ export async function handleNavigatePage(args: unknown): Promise<McpToolResponse
 
 export async function handleSelectPage(args: unknown): Promise<McpToolResponse> {
   try {
-    const { pageIdx } = args as { pageIdx: number };
-
-    if (typeof pageIdx !== 'number') {
-      throw new Error('pageIdx parameter is required and must be a number');
-    }
+    const { pageIdx, url, title } = args as { pageIdx?: number; url?: string; title?: string };
 
     const { getFirefox } = await import('../index.js');
     const firefox = await getFirefox();
-
-    await firefox.selectTab(pageIdx);
     const tabs = firefox.getTabs();
-    const page = tabs[pageIdx];
 
-    if (!page) {
-      throw new Error(`Page at index ${pageIdx} not found`);
+    let selectedIdx: number;
+    let selectionMethod: string;
+
+    // Priority 1: Select by index
+    if (typeof pageIdx === 'number') {
+      selectedIdx = pageIdx;
+      selectionMethod = 'by index';
+    }
+    // Priority 2: Select by URL pattern
+    else if (url && typeof url === 'string') {
+      const urlLower = url.toLowerCase();
+      const foundIdx = tabs.findIndex((tab) => tab.url?.toLowerCase().includes(urlLower));
+
+      if (foundIdx === -1) {
+        throw new Error(
+          `No page found with URL matching "${url}". Use list_pages to see all available pages.`
+        );
+      }
+      selectedIdx = foundIdx;
+      selectionMethod = `by URL pattern "${url}"`;
+    }
+    // Priority 3: Select by title pattern
+    else if (title && typeof title === 'string') {
+      const titleLower = title.toLowerCase();
+      const foundIdx = tabs.findIndex((tab) => tab.title?.toLowerCase().includes(titleLower));
+
+      if (foundIdx === -1) {
+        throw new Error(
+          `No page found with title matching "${title}". Use list_pages to see all available pages.`
+        );
+      }
+      selectedIdx = foundIdx;
+      selectionMethod = `by title pattern "${title}"`;
+    } else {
+      throw new Error(
+        'At least one of pageIdx, url, or title must be provided. Use list_pages to see available pages.'
+      );
     }
 
-    return successResponse(`✅ Selected page [${pageIdx}]: ${page.title}\n   ${page.url}`);
+    // Validate the selected index
+    const page = tabs[selectedIdx];
+    if (!page) {
+      throw new Error(
+        `Page at index ${selectedIdx} not found. Use list_pages to see valid indices.`
+      );
+    }
+
+    // Select the tab
+    await firefox.selectTab(selectedIdx);
+
+    return successResponse(
+      `✅ Selected page [${selectedIdx}] ${selectionMethod}\n` +
+        `   Title: ${page.title || 'Untitled'}\n` +
+        `   URL: ${page.url || 'about:blank'}`
+    );
   } catch (error) {
     return errorResponse(error as Error);
   }
