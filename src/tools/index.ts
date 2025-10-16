@@ -5,11 +5,13 @@
 // Pages tools
 export {
   listPagesTool,
+  refreshPagesTool,
   newPageTool,
   navigatePageTool,
   selectPageTool,
   closePageTool,
   handleListPages,
+  handleRefreshPages,
   handleNewPage,
   handleNavigatePage,
   handleSelectPage,
@@ -20,7 +22,12 @@ export {
 export { evaluateScriptTool, handleEvaluateScript } from './script.js';
 
 // Console tools
-export { listConsoleMessagesTool, handleListConsoleMessages } from './console.js';
+export {
+  listConsoleMessagesTool,
+  clearConsoleMessagesTool,
+  handleListConsoleMessages,
+  handleClearConsoleMessages,
+} from './console.js';
 
 // Network tools
 export {
@@ -28,10 +35,12 @@ export {
   getNetworkRequestTool,
   startNetworkMonitoringTool,
   stopNetworkMonitoringTool,
+  clearNetworkRequestsTool,
   handleListNetworkRequests,
   handleGetNetworkRequest,
   handleStartNetworkMonitoring,
   handleStopNetworkMonitoring,
+  handleClearNetworkRequests,
 } from './network.js';
 
 // Performance tools
@@ -43,3 +52,49 @@ export {
   handlePerformanceStartTrace,
   handlePerformanceStopTrace,
 } from './performance.js';
+
+// Snapshot tools
+export {
+  takeSnapshotTool,
+  resolveUidToSelectorTool,
+  clearSnapshotTool,
+  handleTakeSnapshot,
+  handleResolveUidToSelector,
+  handleClearSnapshot,
+} from './snapshot.js';
+
+// Input tools (UID-based interactions)
+export {
+  clickByUidTool,
+  hoverByUidTool,
+  fillByUidTool,
+  dragByUidToUidTool,
+  fillFormByUidTool,
+  uploadFileByUidTool,
+  handleClickByUid,
+  handleHoverByUid,
+  handleFillByUid,
+  handleDragByUidToUid,
+  handleFillFormByUid,
+  handleUploadFileByUid,
+} from './input.js';
+
+// Screenshot tools
+export {
+  screenshotPageTool,
+  screenshotByUidTool,
+  handleScreenshotPage,
+  handleScreenshotByUid,
+} from './screenshot.js';
+
+// Utility tools (dialogs, history, viewport)
+export {
+  acceptDialogTool,
+  dismissDialogTool,
+  navigateHistoryTool,
+  setViewportSizeTool,
+  handleAcceptDialog,
+  handleDismissDialog,
+  handleNavigateHistory,
+  handleSetViewportSize,
+} from './utilities.js';

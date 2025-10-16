@@ -80,6 +80,7 @@ const toolHandlers = new Map<
 >([
   // Page management (task 06)
   ['list_pages', tools.handleListPages],
+  ['refresh_pages', tools.handleRefreshPages],
   ['new_page', tools.handleNewPage],
   ['navigate_page', tools.handleNavigatePage],
   ['select_page', tools.handleSelectPage],
@@ -90,23 +91,49 @@ const toolHandlers = new Map<
 
   // Console (task 08)
   ['list_console_messages', tools.handleListConsoleMessages],
+  ['clear_console_messages', tools.handleClearConsoleMessages],
 
   // Network (task 09)
   ['list_network_requests', tools.handleListNetworkRequests],
   ['get_network_request', tools.handleGetNetworkRequest],
   ['start_network_monitoring', tools.handleStartNetworkMonitoring],
   ['stop_network_monitoring', tools.handleStopNetworkMonitoring],
+  ['clear_network_requests', tools.handleClearNetworkRequests],
 
   // Performance (task 09)
   ['performance_get_metrics', tools.handlePerformanceGetMetrics],
   ['performance_start_trace', tools.handlePerformanceStartTrace],
   ['performance_stop_trace', tools.handlePerformanceStopTrace],
+
+  // Snapshot (task 29)
+  ['take_snapshot', tools.handleTakeSnapshot],
+  ['resolve_uid_to_selector', tools.handleResolveUidToSelector],
+  ['clear_snapshot', tools.handleClearSnapshot],
+
+  // Input actions (task 30)
+  ['click_by_uid', tools.handleClickByUid],
+  ['hover_by_uid', tools.handleHoverByUid],
+  ['fill_by_uid', tools.handleFillByUid],
+  ['drag_by_uid_to_uid', tools.handleDragByUidToUid],
+  ['fill_form_by_uid', tools.handleFillFormByUid],
+  ['upload_file_by_uid', tools.handleUploadFileByUid],
+
+  // Screenshot (task 31)
+  ['screenshot_page', tools.handleScreenshotPage],
+  ['screenshot_by_uid', tools.handleScreenshotByUid],
+
+  // Utilities (task 31)
+  ['accept_dialog', tools.handleAcceptDialog],
+  ['dismiss_dialog', tools.handleDismissDialog],
+  ['navigate_history', tools.handleNavigateHistory],
+  ['set_viewport_size', tools.handleSetViewportSize],
 ]);
 
 // All tool definitions
 const allTools = [
   // Navigation tools
   tools.listPagesTool,
+  tools.refreshPagesTool,
   tools.newPageTool,
   tools.navigatePageTool,
   tools.selectPageTool,
@@ -117,17 +144,42 @@ const allTools = [
 
   // Console tools
   tools.listConsoleMessagesTool,
+  tools.clearConsoleMessagesTool,
 
   // Network tools
   tools.listNetworkRequestsTool,
   tools.getNetworkRequestTool,
   tools.startNetworkMonitoringTool,
   tools.stopNetworkMonitoringTool,
+  tools.clearNetworkRequestsTool,
 
   // Performance tools
   tools.performanceGetMetricsTool,
   tools.performanceStartTraceTool,
   tools.performanceStopTraceTool,
+
+  // Snapshot tools
+  tools.takeSnapshotTool,
+  tools.resolveUidToSelectorTool,
+  tools.clearSnapshotTool,
+
+  // Input tools
+  tools.clickByUidTool,
+  tools.hoverByUidTool,
+  tools.fillByUidTool,
+  tools.dragByUidToUidTool,
+  tools.fillFormByUidTool,
+  tools.uploadFileByUidTool,
+
+  // Screenshot tools
+  tools.screenshotPageTool,
+  tools.screenshotByUidTool,
+
+  // Utility tools
+  tools.acceptDialogTool,
+  tools.dismissDialogTool,
+  tools.navigateHistoryTool,
+  tools.setViewportSizeTool,
 ];
 
 async function main() {

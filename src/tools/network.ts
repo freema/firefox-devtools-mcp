@@ -13,6 +13,7 @@ export const listNetworkRequestsTool = {
   description:
     'List all network requests for the currently selected page since the last navigation. ' +
     'NOTE: Network monitoring must be started first using start_network_monitoring. ' +
+    'Use filters (urlContains, method, status...) to narrow results and avoid context overload. ' +
     'Current BiDi MVP network monitoring has limitations compared to Chrome DevTools.',
   inputSchema: {
     type: 'object' as const,
@@ -29,6 +30,19 @@ export const listNetworkRequestsTool = {
         .min(0)
         .optional()
         .describe('Page number to return (0-based). When omitted, returns the first page.'),
+      urlContains: z
+        .string()
+        .optional()
+        .describe('Filter requests by URL substring (case-insensitive)'),
+      method: z
+        .string()
+        .optional()
+        .describe('Filter by HTTP method (GET, POST, etc., case-insensitive)'),
+      status: z.number().int().optional().describe('Filter by exact HTTP status code'),
+      statusMin: z.number().int().optional().describe('Filter by minimum HTTP status code'),
+      statusMax: z.number().int().optional().describe('Filter by maximum HTTP status code'),
+      isXHR: z.boolean().optional().describe('Filter by XHR/fetch requests only'),
+      resourceType: z.string().optional().describe('Filter by resource type (case-insensitive)'),
     },
   },
 };
@@ -53,10 +67,16 @@ export const startNetworkMonitoringTool = {
   description:
     'Start monitoring network requests for the currently selected page. ' +
     'This must be called before list_network_requests will return data. ' +
+    'For precise measurements, start monitoring before navigation and stop it after page load. ' +
     'Network monitoring will continue until stopped or page is navigated.',
   inputSchema: {
     type: 'object' as const,
-    properties: {},
+    properties: {
+      clearFirst: z
+        .boolean()
+        .optional()
+        .describe('Clear existing network requests before starting (default: true)'),
+    },
   },
 };
 
@@ -71,15 +91,80 @@ export const stopNetworkMonitoringTool = {
   },
 };
 
+export const clearNetworkRequestsTool = {
+  name: 'clear_network_requests',
+  description:
+    'Clear all collected network requests from the buffer. ' +
+    'Use this to start fresh measurements or when starting a new test. ' +
+    'Alternatively, use start_network_monitoring with clearFirst=true.',
+  inputSchema: {
+    type: 'object' as const,
+    properties: {},
+  },
+};
+
 // Tool handlers
 export async function handleListNetworkRequests(args: unknown): Promise<McpToolResponse> {
   try {
-    const { pageSize, pageIdx } = (args as { pageSize?: number; pageIdx?: number }) || {};
+    const {
+      pageSize,
+      pageIdx,
+      urlContains,
+      method,
+      status,
+      statusMin,
+      statusMax,
+      isXHR,
+      resourceType,
+    } =
+      (args as {
+        pageSize?: number;
+        pageIdx?: number;
+        urlContains?: string;
+        method?: string;
+        status?: number;
+        statusMin?: number;
+        statusMax?: number;
+        isXHR?: boolean;
+        resourceType?: string;
+      }) || {};
 
     const { getFirefox } = await import('../index.js');
     const firefox = await getFirefox();
 
-    const requests = await firefox.getNetworkRequests();
+    let requests = await firefox.getNetworkRequests();
+
+    // Apply filters
+    if (urlContains) {
+      const urlLower = urlContains.toLowerCase();
+      requests = requests.filter((req) => req.url.toLowerCase().includes(urlLower));
+    }
+
+    if (method) {
+      const methodUpper = method.toUpperCase();
+      requests = requests.filter((req) => req.method.toUpperCase() === methodUpper);
+    }
+
+    if (status !== undefined) {
+      requests = requests.filter((req) => req.status === status);
+    }
+
+    if (statusMin !== undefined) {
+      requests = requests.filter((req) => req.status !== undefined && req.status >= statusMin);
+    }
+
+    if (statusMax !== undefined) {
+      requests = requests.filter((req) => req.status !== undefined && req.status <= statusMax);
+    }
+
+    if (isXHR !== undefined) {
+      requests = requests.filter((req) => req.isXHR === isXHR);
+    }
+
+    if (resourceType) {
+      const typeLower = resourceType.toLowerCase();
+      requests = requests.filter((req) => req.resourceType?.toLowerCase() === typeLower);
+    }
 
     // Apply pagination if requested
     let paginatedRequests = requests;
@@ -173,14 +258,22 @@ export async function handleGetNetworkRequest(args: unknown): Promise<McpToolRes
   }
 }
 
-export async function handleStartNetworkMonitoring(_args: unknown): Promise<McpToolResponse> {
+export async function handleStartNetworkMonitoring(args: unknown): Promise<McpToolResponse> {
   try {
+    const { clearFirst } = (args as { clearFirst?: boolean }) || {};
+    const shouldClear = clearFirst ?? true; // Default to true
+
     const { getFirefox } = await import('../index.js');
     const firefox = await getFirefox();
 
+    // Clear existing requests if requested
+    if (shouldClear) {
+      firefox.clearNetworkRequests();
+    }
+
     await firefox.startNetworkMonitoring();
     return successResponse(
-      'Network monitoring started for the current page.\n\n' +
+      `Network monitoring started for the current page${shouldClear ? ' (buffer cleared)' : ''}.\n\n` +
         'All network requests will now be recorded until monitoring is stopped or page is navigated.\n' +
         'Use list_network_requests to see collected requests.'
     );
@@ -203,6 +296,25 @@ export async function handleStopNetworkMonitoring(_args: unknown): Promise<McpTo
   } catch (error) {
     return errorResponse(
       `Failed to stop network monitoring: ${error instanceof Error ? error.message : String(error)}`
+    );
+  }
+}
+
+export async function handleClearNetworkRequests(_args: unknown): Promise<McpToolResponse> {
+  try {
+    const { getFirefox } = await import('../index.js');
+    const firefox = await getFirefox();
+
+    const count = (await firefox.getNetworkRequests()).length;
+    firefox.clearNetworkRequests();
+
+    return successResponse(
+      `Cleared ${count} network request(s) from buffer.\n\n` +
+        'You can now start fresh measurements. Network monitoring is still active if previously started.'
+    );
+  } catch (error) {
+    return errorResponse(
+      `Failed to clear network requests: ${error instanceof Error ? error.message : String(error)}`
     );
   }
 }

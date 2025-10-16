@@ -9,7 +9,21 @@ import type { McpToolResponse } from '../types/common.js';
 // Tool definitions
 export const listPagesTool = {
   name: 'list_pages',
-  description: 'Get a list of pages open in Firefox',
+  description:
+    'Get a list of pages open in Firefox. ' +
+    'Shows page index, title, URL, and indicates which page is currently selected.',
+  inputSchema: {
+    type: 'object',
+    properties: {},
+  },
+};
+
+export const refreshPagesTool = {
+  name: 'refresh_pages',
+  description:
+    'Refresh the list of pages and return current state. ' +
+    'Call this after opening/closing tabs to update the page list. ' +
+    'select_page sets the context for all subsequent tool calls.',
   inputSchema: {
     type: 'object',
     properties: {},
@@ -76,6 +90,31 @@ export const closePageTool = {
   },
 };
 
+/**
+ * Format page list with consistent output
+ */
+function formatPageList(
+  tabs: Array<{ title?: string; url?: string }>,
+  selectedIdx: number
+): string {
+  const lines: string[] = [`📄 Open pages (${tabs.length} total, selected: [${selectedIdx}]):`];
+
+  if (tabs.length === 0) {
+    lines.push('  (no pages open)');
+  } else {
+    for (const tab of tabs) {
+      const idx = tabs.indexOf(tab);
+      const indicator = idx === selectedIdx ? '👉' : '  ';
+      const title = tab.title || 'Untitled';
+      const url = tab.url || 'about:blank';
+      lines.push(`${indicator} [${idx}] ${title}`);
+      lines.push(`     ${url}`);
+    }
+  }
+
+  return lines.join('\n');
+}
+
 // Handlers
 export async function handleListPages(_args: unknown): Promise<McpToolResponse> {
   try {
@@ -86,22 +125,22 @@ export async function handleListPages(_args: unknown): Promise<McpToolResponse> 
     const tabs = firefox.getTabs();
     const selectedIdx = firefox.getSelectedTabIdx();
 
-    const lines: string[] = ['📄 Open pages:'];
+    return successResponse(formatPageList(tabs, selectedIdx));
+  } catch (error) {
+    return errorResponse(error as Error);
+  }
+}
 
-    if (tabs.length === 0) {
-      lines.push('  (no pages open)');
-    } else {
-      for (const tab of tabs) {
-        const idx = tabs.indexOf(tab);
-        const indicator = idx === selectedIdx ? '👉' : '  ';
-        const title = tab.title || 'Untitled';
-        const url = tab.url || 'about:blank';
-        lines.push(`${indicator} [${idx}] ${title}`);
-        lines.push(`     ${url}`);
-      }
-    }
+export async function handleRefreshPages(_args: unknown): Promise<McpToolResponse> {
+  try {
+    const { getFirefox } = await import('../index.js');
+    const firefox = await getFirefox();
 
-    return successResponse(lines.join('\n'));
+    await firefox.refreshTabs();
+    const tabs = firefox.getTabs();
+    const selectedIdx = firefox.getSelectedTabIdx();
+
+    return successResponse(`🔄 Page list refreshed.\n\n` + formatPageList(tabs, selectedIdx));
   } catch (error) {
     return errorResponse(error as Error);
   }
