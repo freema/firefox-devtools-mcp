@@ -73,33 +73,69 @@ export class PageManagement {
     }
   }
 
+  private cachedTabs: Array<{ actor: string; title: string; url: string }> = [];
+  private cachedSelectedIdx: number = 0;
+
   /**
    * Get all tabs (window handles)
-   * TODO: In future, fetch actual URLs and titles via BiDi
    */
   getTabs(): Array<{ actor: string; title: string; url: string }> {
-    const currentId = this.getCurrentContextId();
-    return [
-      {
-        actor: currentId || '',
-        title: 'Current Tab',
-        url: '',
-      },
-    ];
+    return this.cachedTabs;
   }
 
   /**
    * Get selected tab index
    */
   getSelectedTabIdx(): number {
-    return 0;
+    return this.cachedSelectedIdx;
   }
 
   /**
-   * Refresh tabs metadata (no-op for now)
+   * Refresh tabs metadata - fetches all window handles and their URLs/titles
    */
   async refreshTabs(): Promise<void> {
-    // No-op for now
+    try {
+      const handles = await this.driver.getAllWindowHandles();
+      const currentHandle = await this.driver.getWindowHandle();
+
+      this.cachedTabs = [];
+      this.cachedSelectedIdx = 0;
+
+      for (let i = 0; i < handles.length; i++) {
+        const handle = handles[i]!;
+
+        // Switch to window to get its URL and title
+        await this.driver.switchTo().window(handle);
+        const url = await this.driver.getCurrentUrl();
+        const title = await this.driver.getTitle();
+
+        this.cachedTabs.push({
+          actor: handle,
+          title: title || 'Untitled',
+          url: url || 'about:blank',
+        });
+
+        // Track which tab is selected
+        if (handle === currentHandle) {
+          this.cachedSelectedIdx = i;
+        }
+      }
+
+      // Switch back to the original window
+      await this.driver.switchTo().window(currentHandle);
+    } catch (error) {
+      log(`Error refreshing tabs: ${error instanceof Error ? error.message : String(error)}`);
+      // Fallback to single tab
+      const currentId = this.getCurrentContextId();
+      this.cachedTabs = [
+        {
+          actor: currentId || '',
+          title: 'Current Tab',
+          url: '',
+        },
+      ];
+      this.cachedSelectedIdx = 0;
+    }
   }
 
   /**

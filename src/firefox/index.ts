@@ -46,14 +46,16 @@ export class FirefoxClient {
     };
 
     // Initialize event modules with lifecycle hooks
+    // Note: autoClearOnNavigate is false to preserve logs across all tabs
+    // Users can manually call clearConsoleMessages() if needed
     this.consoleEvents = new ConsoleEvents(driver, {
       onNavigate,
-      autoClearOnNavigate: true,
+      autoClearOnNavigate: false,
     });
 
     this.networkEvents = new NetworkEvents(driver, {
       onNavigate,
-      autoClearOnNavigate: true,
+      autoClearOnNavigate: false,
     });
 
     // Initialize DOM with UID resolver callback
@@ -67,9 +69,10 @@ export class FirefoxClient {
       (id: string) => this.core.setCurrentContextId(id)
     );
 
-    // Subscribe to console and network events
-    await this.consoleEvents.subscribe(currentContextId || undefined);
-    await this.networkEvents.subscribe(currentContextId || undefined);
+    // Subscribe to console and network events for ALL contexts (not just current)
+    // This ensures we capture logs from all tabs, not just the initial one
+    await this.consoleEvents.subscribe(undefined);
+    await this.networkEvents.subscribe(undefined);
   }
 
   // ============================================================================
@@ -196,8 +199,7 @@ export class FirefoxClient {
       throw new Error('Not connected');
     }
     await this.pages.navigate(url);
-    // Clear console and snapshot on navigation
-    this.clearConsoleMessages();
+    // Clear snapshot on navigation (but NOT console - users can manually clear if needed)
     this.clearSnapshot();
   }
 

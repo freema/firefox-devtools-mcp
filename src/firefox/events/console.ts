@@ -9,7 +9,7 @@ import { logDebug } from '../../utils/logger.js';
 export interface ConsoleEventsOptions {
   /** Callback triggered on navigation events (for auto-clear) */
   onNavigate?: () => void;
-  /** Auto-clear console on navigation (default: true) */
+  /** Auto-clear console on navigation (default: false - changed to prevent losing logs) */
   autoClearOnNavigate?: boolean;
 }
 
@@ -23,7 +23,7 @@ export class ConsoleEvents {
     options: ConsoleEventsOptions = {}
   ) {
     this.options = {
-      autoClearOnNavigate: true,
+      autoClearOnNavigate: false, // Changed default to false to preserve logs across tabs
       ...options,
     };
   }

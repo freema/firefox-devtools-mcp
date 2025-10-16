@@ -176,7 +176,16 @@ export async function handleNewPage(args: unknown): Promise<McpToolResponse> {
 
     const newIdx = await firefox.createNewPage(url);
 
-    return successResponse(`✅ Created new page [${newIdx}] and navigated to: ${url}`);
+    // Refresh tabs to update the list
+    await firefox.refreshTabs();
+    const tabs = firefox.getTabs();
+    const newTab = tabs[newIdx];
+
+    return successResponse(
+      `✅ Created new page [${newIdx}] and navigated to: ${url}\n` +
+        `   Title: ${newTab?.title || 'Loading...'}\n` +
+        `   Total pages: ${tabs.length}`
+    );
   } catch (error) {
     return errorResponse(error as Error);
   }
@@ -193,6 +202,8 @@ export async function handleNavigatePage(args: unknown): Promise<McpToolResponse
     const { getFirefox } = await import('../index.js');
     const firefox = await getFirefox();
 
+    // Refresh tabs to get latest list
+    await firefox.refreshTabs();
     const tabs = firefox.getTabs();
     const selectedIdx = firefox.getSelectedTabIdx();
     const page = tabs[selectedIdx];
@@ -217,6 +228,9 @@ export async function handleSelectPage(args: unknown): Promise<McpToolResponse> 
 
     const { getFirefox } = await import('../index.js');
     const firefox = await getFirefox();
+
+    // Refresh tabs to get latest list
+    await firefox.refreshTabs();
     const tabs = firefox.getTabs();
 
     let selectedIdx: number;
@@ -290,6 +304,8 @@ export async function handleClosePage(args: unknown): Promise<McpToolResponse> {
     const { getFirefox } = await import('../index.js');
     const firefox = await getFirefox();
 
+    // Refresh tabs to get latest list
+    await firefox.refreshTabs();
     const tabs = firefox.getTabs();
     const pageToClose = tabs[pageIdx];
 

@@ -86,8 +86,8 @@ const toolHandlers = new Map<
   ['select_page', tools.handleSelectPage],
   ['close_page', tools.handleClosePage],
 
-  // Script evaluation (task 08)
-  ['evaluate_script', tools.handleEvaluateScript],
+  // Script evaluation (task 08) - DISABLED (see docs/future-features.md)
+  // ['evaluate_script', tools.handleEvaluateScript],
 
   // Console (task 08)
   ['list_console_messages', tools.handleListConsoleMessages],
@@ -139,8 +139,8 @@ const allTools = [
   tools.selectPageTool,
   tools.closePageTool,
 
-  // Script tools
-  tools.evaluateScriptTool,
+  // Script tools - DISABLED (see docs/future-features.md)
+  // tools.evaluateScriptTool,
 
   // Console tools
   tools.listConsoleMessagesTool,

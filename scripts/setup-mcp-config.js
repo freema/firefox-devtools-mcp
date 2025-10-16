@@ -65,6 +65,15 @@ async function main() {
     `${colors.bright}${colors.blue}🚀 Firefox DevTools MCP Configuration Setup${colors.reset}\n`
   );
 
+  // Ask which client to configure
+  console.log(`${colors.bright}Select MCP client to configure:${colors.reset}`);
+  console.log('1. Claude Desktop (desktop app)');
+  console.log('2. Claude Code (CLI tool)');
+  console.log('3. Both');
+  console.log('4. Display config only (manual setup)');
+
+  const clientChoice = await question('\nSelect option (1-4) [2]: ') || '2';
+
   // Get project path
   const projectPath = path.resolve(__dirname, '..');
   const distIndexPath = path.join(projectPath, 'dist', 'index.js');
@@ -144,20 +153,33 @@ async function main() {
     },
   };
 
-  // Determine config path
+  // Determine config paths based on client choice
   const platform = os.platform();
-  let configPath;
-  let configDir;
+  let desktopConfigPath, desktopConfigDir;
+  let claudeCodeConfigPath, claudeCodeConfigDir;
 
+  // Claude Desktop paths
   if (platform === 'darwin') {
-    configDir = path.join(os.homedir(), 'Library', 'Application Support', 'Claude');
-    configPath = path.join(configDir, 'claude_desktop_config.json');
+    desktopConfigDir = path.join(os.homedir(), 'Library', 'Application Support', 'Claude');
+    desktopConfigPath = path.join(desktopConfigDir, 'claude_desktop_config.json');
   } else if (platform === 'win32') {
-    configDir = path.join(os.homedir(), 'AppData', 'Roaming', 'Claude');
-    configPath = path.join(configDir, 'claude_desktop_config.json');
+    desktopConfigDir = path.join(os.homedir(), 'AppData', 'Roaming', 'Claude');
+    desktopConfigPath = path.join(desktopConfigDir, 'claude_desktop_config.json');
   } else {
-    configDir = path.join(os.homedir(), '.config', 'claude');
-    configPath = path.join(configDir, 'claude_desktop_config.json');
+    desktopConfigDir = path.join(os.homedir(), '.config', 'claude');
+    desktopConfigPath = path.join(desktopConfigDir, 'claude_desktop_config.json');
+  }
+
+  // Claude Code paths
+  if (platform === 'darwin') {
+    claudeCodeConfigDir = path.join(os.homedir(), 'Library', 'Application Support', 'Claude', 'Code');
+    claudeCodeConfigPath = path.join(claudeCodeConfigDir, 'mcp_settings.json');
+  } else if (platform === 'win32') {
+    claudeCodeConfigDir = path.join(os.homedir(), 'AppData', 'Roaming', 'Claude', 'Code');
+    claudeCodeConfigPath = path.join(claudeCodeConfigDir, 'mcp_settings.json');
+  } else {
+    claudeCodeConfigDir = path.join(os.homedir(), '.config', 'claude', 'code');
+    claudeCodeConfigPath = path.join(claudeCodeConfigDir, 'mcp_settings.json');
   }
 
   console.log(`${colors.bright}Configuration Options:${colors.reset}`);
