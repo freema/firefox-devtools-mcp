@@ -14,6 +14,19 @@ Rozsah
   - `fill_form_by_uid` → `firefox.fillFormByUid([{ uid, value }, …])`
   - `upload_file_by_uid` → `firefox.uploadFileByUid(uid, filePath)`
 
+Prompty (zahrnout do implementace nástrojů)
+
+- Obecné: „Tyto akce vyžadují platný UID z posledního snapshotu. Po navigaci nebo výrazné změně DOM vždy nejprve použij `take_snapshot`. Při chybě staleness zopakuj: `take_snapshot` → akce.“
+- `click_by_uid`/`hover_by_uid`/`fill_by_uid` – stručně popsat účel a připomenout, že hodnoty musí být krátké a bezpečné (LLM by nemělo vkládat obří stringy).
+- `drag_by_uid_to_uid` – připojit upozornění: „Fallback přes JS drag events; některé knihovny (custom DnD) nemusí fungovat. Pokud akce selže, zvaž alternativní interakci (click + input).“
+- `fill_form_by_uid` – popsat formát vstupu a doporučit menší dávky (snazší debugging).
+- `upload_file_by_uid` – vysvětlit, že `uid` musí mířit na `<input type=file>` a `filePath` je lokální cesta dostupná serveru.
+
+Doporučené texty chyb
+
+- „UID je zastaralý – pořiďte nový snapshot (`take_snapshot`) a zkuste to znovu.“
+- „Element pro `upload_file_by_uid` není `<input type=file>` nebo je skrytý způsobem, který nejde odmaskovat.“
+
 Specifikace nástrojů (návrh schémat)
 
 - `click_by_uid`:
@@ -53,4 +66,3 @@ Dotčené soubory
 - src/tools/index.ts (exporty)
 - src/index.ts (registrace nástrojů)
 - tasks/99-specification.md (dokumentace nástrojů)
-

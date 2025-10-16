@@ -37,6 +37,12 @@ Roadmapa
 - [x] 26 – Firefox modules cleanup & lifecycle hooks (`tasks/26-firefox-modules-cleanup-and-lifecycle.md`)
 - [x] 27 – Offline test harness & scripts refactor (`tasks/27-offline-test-harness-and-scripts-refactor.md`)
 - [x] 28 – Snapshot bundling integration & de‑dup (`tasks/28-snapshot-bundling-integration-and-dedup.md`)
+ - [ ] 29 – MCP tools: Snapshot integration (`tasks/29-mcp-tools-snapshot-integration.md`)
+ - [ ] 30 – MCP tools: Input akce podle UID (`tasks/30-mcp-tools-input-uid-actions.md`)
+ - [ ] 31 – MCP tools: Screenshot a Utility akce stránky (`tasks/31-mcp-tools-screenshot-and-page-utilities.md`)
+ - [ ] 32 – MCP tools: Refaktor evaluate_script (`tasks/32-mcp-tools-evaluate-refactor.md`)
+ - [ ] 33 – MCP tools: Síťové nástroje – filtry + čištění (`tasks/33-mcp-tools-network-refactor.md`)
+ - [ ] 34 – MCP tools: Console + Pages drobný refaktor (`tasks/34-mcp-tools-console-and-pages-refactor.md`)
 
 Poznámky
 

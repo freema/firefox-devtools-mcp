@@ -17,6 +17,17 @@ Rozsah
     - `navigate_history` → `{ direction: 'back' | 'forward' }` → `firefox.navigateBack()` / `firefox.navigateForward()`
     - `set_viewport_size` → `{ width: number, height: number }` → `firefox.setViewportSize(w,h)`
 
+Prompty (zahrnout do implementace nástrojů)
+
+- Screenshots:
+  - `screenshot_page`: „Vrať base64 PNG (nepřidávej mime prefix). Vhodné pro finální vizuální kontrolu, nikoli pro strukturovaný popis — na to používej `take_snapshot`." 
+  - `screenshot_by_uid`: „Před voláním měj platný UID z `take_snapshot`. Při chybě staleness nejdřív pořiď nový snapshot." 
+- Dialogy:
+  - `accept_dialog`/`dismiss_dialog`: „Použij krátce po vyvolání dialogu (alert/confirm/prompt). Pokud dialog není aktivní, vrací přátelskou chybu.“
+- Utility:
+  - `navigate_history`: „Použij pouze, pokud stránka má historii. Po změně stránky ber v potaz, že UID je zastaralé (pořiď nový snapshot).“
+  - `set_viewport_size`: „Některé režimy (headless) mohou omezit přesnou velikost.“
+
 Specifikace nástrojů (návrh schémat)
 
 - `screenshot_page`: `{}` → text: `data:image/png;base64,<...>` nebo pouze base64 (zvolit konzistentně s ostatními výstupy; doporučeno prostý base64 + prefix vysvětlit v textu).
@@ -44,4 +55,3 @@ Dotčené soubory
 - src/tools/index.ts (exporty)
 - src/index.ts (registrace nástrojů)
 - tasks/99-specification.md (dokumentace nástrojů)
-

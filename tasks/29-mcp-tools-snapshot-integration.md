@@ -11,6 +11,22 @@ Rozsah
   - `resolve_uid_to_selector` – pro `uid` vrátí CSS selektor přes `firefox.resolveUidToSelector(uid)`.
   - `clear_snapshot` – vyčistí stav přes `firefox.clearSnapshot()` (volitelné; navigate() už invaliduje automaticky).
 
+Prompty (zahrnout do implementace nástrojů)
+
+- `take_snapshot` – popis z pohledu LLM:
+  - „Pořiď aktuální textový snímek stránky včetně jedinečných UID. Vždy pracuj s nejnovějším snapshotem. Snímek je zkrácený pro čitelnost; pro další práci používej UID.“
+  - Tipy: používej jen při změně stránky nebo pokud je UID zastaralé; nedomnívej se, že starý UID platí po navigaci.
+- `resolve_uid_to_selector` – popis:
+  - „Převeď UID na CSS selektor (pro debug/inspekci). Není nutné pro běžné akce na UID.“
+  - Varování: vyhodí chybu pro zastaralý UID – nejdřív proveď `take_snapshot`.
+- `clear_snapshot` – popis:
+  - „Vymaž cache UID/snapshot. Po další akci, která závisí na UID, znovu pořiď snapshot.“
+
+Doporučené texty chyb
+
+- „Tento UID je ze starého snapshotu. Pořiďte nový snapshot (tool: take_snapshot) a zkuste akci znovu.“
+- „UID nebyl nalezen. Struktura stránky se mohla změnit — pořiďte nový snapshot.“
+
 Specifikace nástrojů
 
 - `take_snapshot`
@@ -44,4 +60,3 @@ Dotčené soubory
 - src/tools/index.ts (export)
 - src/index.ts (registrace nástrojů)
 - tasks/99-specification.md (dokumentace nástrojů)
-
