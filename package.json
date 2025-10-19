@@ -1,0 +1,103 @@
+{
+  "name": "firefox-devtools-mcp",
+  "version": "0.1.0",
+  "description": "Model Context Protocol (MCP) server for Firefox DevTools automation",
+  "author": "freema",
+  "license": "MIT",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "bin": {
+    "firefox-devtools-mcp": "./dist/index.js"
+  },
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "build": "tsup",
+    "start": "node dist/index.js",
+    "setup": "node scripts/setup-mcp-config.js",
+    "clean": "rm -rf dist",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint src --ext .ts",
+    "lint:fix": "eslint src --ext .ts --fix",
+    "format": "prettier --write \"src/**/*.ts\"",
+    "format:check": "prettier --check \"src/**/*.ts\"",
+    "check": "npm run lint:fix && npm run typecheck",
+    "check:all": "npm run check && npm run test:run && npm run build",
+    "prepublishOnly": "npm run clean && npm run build",
+    "inspector": "npx @modelcontextprotocol/inspector node dist/index.js",
+    "inspector:dev": "NODE_ENV=development npx @modelcontextprotocol/inspector npx tsx src/index.ts",
+    "test": "vitest",
+    "test:run": "vitest run",
+    "test:coverage": "vitest run --coverage",
+    "test:watch": "vitest watch",
+    "test:ui": "vitest --ui",
+    "test:tools": "node scripts/test-bidi-devtools.js",
+    "test:input": "node scripts/test-input-tools.js",
+    "test:screenshot": "node scripts/test-screenshot.js",
+    "test:dialog": "node scripts/test-dialog.js",
+    "version": "node scripts/sync-version.js && git add src/config/constants.ts"
+  },
+  "keywords": [
+    "mcp",
+    "mcp-server",
+    "model-context-protocol",
+    "firefox",
+    "firefox-devtools",
+    "browser-automation",
+    "webdriver-bidi",
+    "selenium",
+    "devtools",
+    "browser-testing",
+    "web-automation",
+    "claude",
+    "claude-ai",
+    "ai-agent",
+    "llm"
+  ],
+  "engines": {
+    "node": ">=20.19.0"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.17.1",
+    "ws": "^8.18.3",
+    "yargs": "^17.7.2"
+  },
+  "devDependencies": {
+    "@types/node": "^24.1.0",
+    "@types/selenium-webdriver": "^4.35.1",
+    "@types/ws": "^8.18.1",
+    "@types/yargs": "^17.0.32",
+    "@typescript-eslint/eslint-plugin": "^6.21.0",
+    "@typescript-eslint/parser": "^6.21.0",
+    "@vitest/coverage-v8": "^3.1.4",
+    "@vitest/ui": "^3.1.4",
+    "dotenv": "^17.2.1",
+    "eslint": "^8.57.1",
+    "eslint-config-prettier": "^10.1.5",
+    "eslint-plugin-prettier": "^5.4.0",
+    "geckodriver": "^6.0.2",
+    "prettier": "^3.5.3",
+    "selenium-webdriver": "^4.36.0",
+    "tsup": "^8.0.0",
+    "tsx": "^4.7.0",
+    "typescript": "^5.3.3",
+    "vitest": "^3.1.4"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE",
+    "scripts"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/freema/firefox-devtools-mcp.git"
+  },
+  "bugs": {
+    "url": "https://github.com/freema/firefox-devtools-mcp/issues"
+  },
+  "homepage": "https://github.com/freema/firefox-devtools-mcp#readme",
+  "publishConfig": {
+    "access": "public"
+  }
+}

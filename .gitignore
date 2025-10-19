@@ -137,3 +137,36 @@ dist
 # Vite logs files
 vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
+
+# Build output
+dist/
+build/
+
+# IDE
+.vscode/
+.idea/
+*.sublime-*
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Temporary files
+*.tmp
+*.temp
+.tmp/
+.temp/
+
+# Docker artifacts
+.dockerignore
+docker-compose.override.yml
+
+# Task runner
+.task/
+
+# LLM cache
+/old/*
+
+# Test snapshots
+snapshot-*.txt
+temp/
