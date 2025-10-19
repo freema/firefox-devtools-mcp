@@ -3,6 +3,7 @@
 Tento adresář obsahuje rozpracované úkoly k vývoji nového MCP serveru pro Firefox DevTools. Implementace se bude držet struktury a praxe jako v `old/mcp_gsheet` a funkční parity (kde dává smysl) s `old/mcp_dev_tool_chrome`.
 
 - Kompletní specifikace (původní návrh) byla přesunuta do: `tasks/99-specification.md`
+ - Aktuální analýza MCP nástrojů a návrhy zjednodušení: `tasks/tools-analysis.md`
 
 Stav práce budeme řídit přes checklist níže. Každý bod odkazuje na samostatný úkol s detaily, akceptačními kritérii, referencemi a ukázkovými snippetami (ilustrační, ne finální kód).
 
@@ -42,7 +43,18 @@ Roadmapa
  - [x] 31 – MCP tools: Screenshot a Utility akce stránky (`tasks/31-mcp-tools-screenshot-and-page-utilities.md`)
  - [x] 32 – MCP tools: Refaktor evaluate_script (`tasks/32-mcp-tools-evaluate-refactor.md`)
  - [x] 33 – MCP tools: Síťové nástroje – filtry + čištění (`tasks/33-mcp-tools-network-refactor.md`)
- - [x] 34 – MCP tools: Console + Pages drobný refaktor (`tasks/34-mcp-tools-console-and-pages-refactor.md`)
+- [x] 34 – MCP tools: Console + Pages drobný refaktor (`tasks/34-mcp-tools-console-and-pages-refactor.md`)
+
+Nové prioritní úkoly (overhaul)
+
+- [x] NETWORK-01 – Přepracovat `list_network_requests` (čisté JSON Schema, stabilní `id`, detailní JSON výstup) — tasks/NETWORK-01-overhaul-list_network_requests.md
+- [x] NETWORK-02 – Redesign `get_network_request` (primárně podle `id`, strukturovaný detail) — tasks/NETWORK-02-redesign-get_network_request.md
+- [x] NETWORK-03 – Always‑on network capture; odstranit `start/stop/clear` nástroje — tasks/NETWORK-03-always-on-network-capture-and-remove-start-stop-clear.md
+- [x] SCHEMA-01 – Sjednotit `inputSchema` na čisté JSON Schema (zvl. network/performance) — tasks/SCHEMA-01-json-schema-unification.md
+- [x] PERFORMANCE-01 – Odstranit performance nástroje (`performance_*`) z veřejné sady — tasks/PERFORMANCE-01-remove-performance-tools.md
+- [x] SNAPSHOT-01 – Vyčistit výstup `take_snapshot` + doplnit návod „co dál" + parametrizace — tasks/SNAPSHOT-01-clean-snapshot-output-and-guidance.md
+- [x] PAGES – Odstranit `refresh_pages` (duplicitní s `list_pages`) — viz tasks/tools-analysis.md
+- [x] CODE-COMMENTS-01 – Review and cleanup of code comments (English only, accurate, no internal task refs) — tasks/CODE-COMMENTS-01-review-and-cleanup.md
 
 Poznámky
 

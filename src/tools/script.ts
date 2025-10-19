@@ -1,6 +1,5 @@
 /**
- * JavaScript evaluation tools
- * Full implementation in task 08
+ * JavaScript evaluation tool (currently disabled - see docs/future-features.md)
  */
 
 import { successResponse, errorResponse } from '../utils/response-helpers.js';

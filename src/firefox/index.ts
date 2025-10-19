@@ -32,7 +32,6 @@ export class FirefoxClient {
     await this.core.connect();
 
     const driver = this.core.getDriver();
-    const currentContextId = this.core.getCurrentContextId();
 
     // Initialize snapshot manager first
     this.snapshot = new SnapshotManager(driver);
@@ -128,7 +127,7 @@ export class FirefoxClient {
     return await this.dom.uploadFileBySelector(selector, filePath);
   }
 
-  // UID-based input methods (Task 21)
+  // UID-based input methods
 
   async clickByUid(uid: string, dblClick = false): Promise<void> {
     if (!this.dom) {
@@ -345,7 +344,7 @@ export class FirefoxClient {
   }
 
   // ============================================================================
-  // Screenshot (Task 22)
+  // Screenshot
   // ============================================================================
 
   async takeScreenshotPage(): Promise<string> {

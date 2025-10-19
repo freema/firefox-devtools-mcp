@@ -31,6 +31,7 @@ export class NetworkEvents {
 
   /**
    * Subscribe to BiDi network events and navigation lifecycle
+   * Enables monitoring by default (always-on capture)
    */
   async subscribe(contextId?: string): Promise<void> {
     if (this.subscribed) {
@@ -154,7 +155,9 @@ export class NetworkEvents {
     });
 
     this.subscribed = true;
-    logDebug('Network listener ready with lifecycle hooks (call startMonitoring to enable)');
+    // Enable monitoring by default (always-on)
+    this.enabled = true;
+    logDebug('Network listener ready with lifecycle hooks (monitoring enabled by default)');
   }
 
   /**

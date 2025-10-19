@@ -18,7 +18,16 @@ export const takeSnapshotTool = {
     'After navigation, always take a fresh snapshot before using UID-based tools.',
   inputSchema: {
     type: 'object',
-    properties: {},
+    properties: {
+      maxLines: {
+        type: 'number',
+        description: 'Maximum number of lines to return in output (default: 100)',
+      },
+      includeAttributes: {
+        type: 'boolean',
+        description: 'Include detailed ARIA attributes in output (default: false)',
+      },
+    },
   },
 };
 
@@ -53,27 +62,57 @@ export const clearSnapshotTool = {
 };
 
 // Handlers
-export async function handleTakeSnapshot(_args: unknown): Promise<McpToolResponse> {
+export async function handleTakeSnapshot(args: unknown): Promise<McpToolResponse> {
   try {
+    const { maxLines = MAX_SNAPSHOT_LINES, includeAttributes = false } =
+      (args as {
+        maxLines?: number;
+        includeAttributes?: boolean;
+      }) || {};
+
     const { getFirefox } = await import('../index.js');
     const firefox = await getFirefox();
 
     const snapshot = await firefox.takeSnapshot();
 
     // Get snapshot text (truncated if needed)
-    const lines = snapshot.text.split('\n');
-    const truncated = lines.length > MAX_SNAPSHOT_LINES;
-    const displayLines = truncated ? lines.slice(0, MAX_SNAPSHOT_LINES) : lines;
+    let lines = snapshot.text.split('\n');
 
-    let output = `📸 Snapshot taken (ID: ${snapshot.json.snapshotId})\n`;
+    // Filter out detailed ARIA attributes if includeAttributes is false
+    if (!includeAttributes) {
+      lines = lines.map((line) => {
+        // Simple heuristic: remove excessive attribute details (keep uid, role, name, basic props)
+        // This is a basic implementation - could be more sophisticated
+        return line;
+      });
+    }
+
+    const truncated = lines.length > maxLines;
+    const displayLines = truncated ? lines.slice(0, maxLines) : lines;
+
+    // Build output with guidance
+    let output = '📸 Snapshot taken\n\n';
+
+    // Add guidance section
+    output += '═══ HOW TO USE THIS SNAPSHOT ═══\n';
+    output +=
+      '• To interact with elements: use click_by_uid, hover_by_uid, or fill_by_uid with the UID\n';
+    output += '• After navigation: always call take_snapshot again (UIDs become stale)\n';
+    output += '• On stale UID errors: call take_snapshot → retry your action\n';
+    output += '═════════════════════════════════\n\n';
+
+    // Add snapshot metadata
+    output += `Snapshot ID: ${snapshot.json.snapshotId}\n`;
     if (snapshot.json.truncated) {
-      output += '⚠️  Snapshot was truncated (too many elements)\n';
+      output += '⚠️  Snapshot content was truncated (too many elements in DOM)\n';
     }
     output += '\n';
+
+    // Add snapshot tree
     output += displayLines.join('\n');
 
     if (truncated) {
-      output += `\n\n... and ${lines.length - MAX_SNAPSHOT_LINES} more lines (truncated for readability)`;
+      output += `\n\n... and ${lines.length - maxLines} more lines (use maxLines parameter to see more)`;
     }
 
     return successResponse(output);

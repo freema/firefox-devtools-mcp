@@ -122,7 +122,7 @@ export class DomInteractions {
   }
 
   // ============================================================================
-  // UID-based input methods (Task 21)
+  // UID-based input methods
   // ============================================================================
 
   /**
@@ -196,7 +196,7 @@ export class DomInteractions {
     const fromEl = await this.resolveUid(fromUid);
     const toEl = await this.resolveUid(toUid);
 
-    // Use Actions API first, then dispatch JS events as fallback
+    // Use JS drag events fallback for compatibility (Actions DnD not used)
     await this.driver.executeScript(
       (srcEl: Element, tgtEl: Element) => {
         if (!srcEl || !tgtEl) {
@@ -295,7 +295,7 @@ export class DomInteractions {
   }
 
   // ============================================================================
-  // Screenshot (Task 22)
+  // Screenshot
   // ============================================================================
 
   /**

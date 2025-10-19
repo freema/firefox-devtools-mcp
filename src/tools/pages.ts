@@ -1,6 +1,5 @@
 /**
- * Page navigation and management tools
- * Full implementation in task 06
+ * Page navigation and management tools for MCP
  */
 
 import { successResponse, errorResponse } from '../utils/response-helpers.js';
@@ -11,19 +10,8 @@ export const listPagesTool = {
   name: 'list_pages',
   description:
     'Get a list of pages open in Firefox. ' +
-    'Shows page index, title, URL, and indicates which page is currently selected.',
-  inputSchema: {
-    type: 'object',
-    properties: {},
-  },
-};
-
-export const refreshPagesTool = {
-  name: 'refresh_pages',
-  description:
-    'Refresh the list of pages and return current state. ' +
-    'Call this after opening/closing tabs to update the page list. ' +
-    'select_page sets the context for all subsequent tool calls.',
+    'Shows page index, title, URL, and indicates which page is currently selected. ' +
+    'This always returns the current state (automatically refreshes the page list).',
   inputSchema: {
     type: 'object',
     properties: {},
@@ -143,21 +131,6 @@ export async function handleListPages(_args: unknown): Promise<McpToolResponse> 
     const selectedIdx = firefox.getSelectedTabIdx();
 
     return successResponse(formatPageList(tabs, selectedIdx));
-  } catch (error) {
-    return errorResponse(error as Error);
-  }
-}
-
-export async function handleRefreshPages(_args: unknown): Promise<McpToolResponse> {
-  try {
-    const { getFirefox } = await import('../index.js');
-    const firefox = await getFirefox();
-
-    await firefox.refreshTabs();
-    const tabs = firefox.getTabs();
-    const selectedIdx = firefox.getSelectedTabIdx();
-
-    return successResponse(`🔄 Page list refreshed.\n\n` + formatPageList(tabs, selectedIdx));
   } catch (error) {
     return errorResponse(error as Error);
   }

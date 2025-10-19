@@ -3,7 +3,6 @@
  * Provides network request inspection capabilities
  */
 
-import { z } from 'zod';
 import { successResponse, errorResponse } from '../utils/response-helpers.js';
 import type { McpToolResponse } from '../types/common.js';
 
@@ -11,38 +10,60 @@ import type { McpToolResponse } from '../types/common.js';
 export const listNetworkRequestsTool = {
   name: 'list_network_requests',
   description:
-    'List all network requests for the currently selected page since the last navigation. ' +
-    'NOTE: Network monitoring must be started first using start_network_monitoring. ' +
-    'Use filters (urlContains, method, status...) to narrow results and avoid context overload. ' +
-    'Current BiDi MVP network monitoring has limitations compared to Chrome DevTools.',
+    'List network requests for the currently selected page. ' +
+    'Network monitoring is always active. ' +
+    'Use filters to narrow results and the detail parameter to control output verbosity. ' +
+    'Each request includes a stable "id" field - use this id with get_network_request for full details.',
   inputSchema: {
     type: 'object' as const,
     properties: {
-      pageSize: z
-        .number()
-        .int()
-        .positive()
-        .optional()
-        .describe('Maximum number of requests to return. When omitted, returns all requests.'),
-      pageIdx: z
-        .number()
-        .int()
-        .min(0)
-        .optional()
-        .describe('Page number to return (0-based). When omitted, returns the first page.'),
-      urlContains: z
-        .string()
-        .optional()
-        .describe('Filter requests by URL substring (case-insensitive)'),
-      method: z
-        .string()
-        .optional()
-        .describe('Filter by HTTP method (GET, POST, etc., case-insensitive)'),
-      status: z.number().int().optional().describe('Filter by exact HTTP status code'),
-      statusMin: z.number().int().optional().describe('Filter by minimum HTTP status code'),
-      statusMax: z.number().int().optional().describe('Filter by maximum HTTP status code'),
-      isXHR: z.boolean().optional().describe('Filter by XHR/fetch requests only'),
-      resourceType: z.string().optional().describe('Filter by resource type (case-insensitive)'),
+      limit: {
+        type: 'number',
+        description: 'Maximum number of requests to return (default: 50)',
+      },
+      sinceMs: {
+        type: 'number',
+        description: 'Return only requests newer than N milliseconds ago',
+      },
+      urlContains: {
+        type: 'string',
+        description: 'Filter requests by URL substring (case-insensitive)',
+      },
+      method: {
+        type: 'string',
+        description: 'Filter by HTTP method (GET, POST, etc., case-insensitive)',
+      },
+      status: {
+        type: 'number',
+        description: 'Filter by exact HTTP status code',
+      },
+      statusMin: {
+        type: 'number',
+        description: 'Filter by minimum HTTP status code',
+      },
+      statusMax: {
+        type: 'number',
+        description: 'Filter by maximum HTTP status code',
+      },
+      isXHR: {
+        type: 'boolean',
+        description: 'Filter by XHR/fetch requests only',
+      },
+      resourceType: {
+        type: 'string',
+        description: 'Filter by resource type (case-insensitive)',
+      },
+      sortBy: {
+        type: 'string',
+        enum: ['timestamp', 'duration', 'status'],
+        description: 'Sort requests by field (default: timestamp descending)',
+      },
+      detail: {
+        type: 'string',
+        enum: ['summary', 'min', 'full'],
+        description:
+          'Output detail level: summary (default), min (compact JSON), full (includes headers)',
+      },
     },
   },
 };
@@ -50,56 +71,21 @@ export const listNetworkRequestsTool = {
 export const getNetworkRequestTool = {
   name: 'get_network_request',
   description:
-    'Get detailed information about a specific network request by URL. ' +
-    'You can get all requests by calling list_network_requests first. ' +
-    'NOTE: Detailed request/response data may be limited in current BiDi MVP.',
+    'Get detailed information about a specific network request. ' +
+    'Use the ID from list_network_requests for reliable lookup. ' +
+    'URL lookup is available as fallback but may fail if multiple requests share the same URL.',
   inputSchema: {
     type: 'object' as const,
     properties: {
-      url: z.string().describe('The URL of the request to get details for.'),
+      id: {
+        type: 'string',
+        description: 'The request ID from list_network_requests (recommended)',
+      },
+      url: {
+        type: 'string',
+        description: 'The URL of the request (fallback, may match multiple requests)',
+      },
     },
-    required: ['url'],
-  },
-};
-
-export const startNetworkMonitoringTool = {
-  name: 'start_network_monitoring',
-  description:
-    'Start monitoring network requests for the currently selected page. ' +
-    'This must be called before list_network_requests will return data. ' +
-    'For precise measurements, start monitoring before navigation and stop it after page load. ' +
-    'Network monitoring will continue until stopped or page is navigated.',
-  inputSchema: {
-    type: 'object' as const,
-    properties: {
-      clearFirst: z
-        .boolean()
-        .optional()
-        .describe('Clear existing network requests before starting (default: true)'),
-    },
-  },
-};
-
-export const stopNetworkMonitoringTool = {
-  name: 'stop_network_monitoring',
-  description:
-    'Stop monitoring network requests for the currently selected page. ' +
-    'Clears all collected network request data.',
-  inputSchema: {
-    type: 'object' as const,
-    properties: {},
-  },
-};
-
-export const clearNetworkRequestsTool = {
-  name: 'clear_network_requests',
-  description:
-    'Clear all collected network requests from the buffer. ' +
-    'Use this to start fresh measurements or when starting a new test. ' +
-    'Alternatively, use start_network_monitoring with clearFirst=true.',
-  inputSchema: {
-    type: 'object' as const,
-    properties: {},
   },
 };
 
@@ -107,8 +93,8 @@ export const clearNetworkRequestsTool = {
 export async function handleListNetworkRequests(args: unknown): Promise<McpToolResponse> {
   try {
     const {
-      pageSize,
-      pageIdx,
+      limit = 50,
+      sinceMs,
       urlContains,
       method,
       status,
@@ -116,23 +102,32 @@ export async function handleListNetworkRequests(args: unknown): Promise<McpToolR
       statusMax,
       isXHR,
       resourceType,
-    } =
-      (args as {
-        pageSize?: number;
-        pageIdx?: number;
-        urlContains?: string;
-        method?: string;
-        status?: number;
-        statusMin?: number;
-        statusMax?: number;
-        isXHR?: boolean;
-        resourceType?: string;
-      }) || {};
+      sortBy = 'timestamp',
+      detail = 'summary',
+    } = (args as {
+      limit?: number;
+      sinceMs?: number;
+      urlContains?: string;
+      method?: string;
+      status?: number;
+      statusMin?: number;
+      statusMax?: number;
+      isXHR?: boolean;
+      resourceType?: string;
+      sortBy?: 'timestamp' | 'duration' | 'status';
+      detail?: 'summary' | 'min' | 'full';
+    }) || {};
 
     const { getFirefox } = await import('../index.js');
     const firefox = await getFirefox();
 
     let requests = await firefox.getNetworkRequests();
+
+    // Apply time filter
+    if (sinceMs !== undefined) {
+      const cutoffTime = Date.now() - sinceMs;
+      requests = requests.filter((req) => req.timestamp && req.timestamp >= cutoffTime);
+    }
 
     // Apply filters
     if (urlContains) {
@@ -166,43 +161,75 @@ export async function handleListNetworkRequests(args: unknown): Promise<McpToolR
       requests = requests.filter((req) => req.resourceType?.toLowerCase() === typeLower);
     }
 
-    // Apply pagination if requested
-    let paginatedRequests = requests;
-    let hasMore = false;
-
-    if (pageSize !== undefined) {
-      const pageIndex = pageIdx || 0;
-      const start = pageIndex * pageSize;
-      const end = start + pageSize;
-
-      paginatedRequests = requests.slice(start, end);
-      hasMore = end < requests.length;
+    // Sort requests
+    if (sortBy === 'timestamp') {
+      requests.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+    } else if (sortBy === 'duration') {
+      requests.sort((a, b) => (b.timings?.duration || 0) - (a.timings?.duration || 0));
+    } else if (sortBy === 'status') {
+      requests.sort((a, b) => (a.status || 0) - (b.status || 0));
     }
 
-    // Format requests for response
-    const formattedRequests = paginatedRequests.map((req) => {
-      const statusInfo = req.status
-        ? `[${req.status}${req.statusText ? ' ' + req.statusText : ''}]`
-        : '[pending]';
-      return `${req.method} ${req.url} ${statusInfo}${req.isXHR ? ' (XHR)' : ''}`;
-    });
+    // Apply limit
+    const limitedRequests = requests.slice(0, limit);
+    const hasMore = requests.length > limit;
 
-    const summary = [
-      `Found ${requests.length} network request(s)`,
-      pageSize !== undefined
-        ? `Showing page ${pageIdx || 0} (${paginatedRequests.length} requests)${hasMore ? ', more available' : ''}`
-        : '',
-      '',
-      'Network Requests:',
-      ...formattedRequests,
-      '',
-      'NOTE: Current BiDi MVP network monitoring has limitations. Some request details may not be available.',
-      'Use get_network_request to get more details about a specific request.',
-    ]
-      .filter(Boolean)
-      .join('\n');
+    // Format output based on detail level
+    if (detail === 'summary') {
+      const formattedRequests = limitedRequests.map((req) => {
+        const statusInfo = req.status
+          ? `[${req.status}${req.statusText ? ' ' + req.statusText : ''}]`
+          : '[pending]';
+        return `${req.id} | ${req.method} ${req.url} ${statusInfo}${req.isXHR ? ' (XHR)' : ''}`;
+      });
 
-    return successResponse(summary);
+      const summary = [
+        `Found ${requests.length} network request(s)${hasMore ? ` (showing first ${limit})` : ''}`,
+        '',
+        'Network Requests:',
+        ...formattedRequests,
+        '',
+        'TIP: Use the request ID (first column) with get_network_request for full details.',
+      ].join('\n');
+
+      return successResponse(summary);
+    } else if (detail === 'min') {
+      // Compact JSON
+      const minData = limitedRequests.map((req) => ({
+        id: req.id,
+        url: req.url,
+        method: req.method,
+        status: req.status,
+        statusText: req.statusText,
+        resourceType: req.resourceType,
+        isXHR: req.isXHR,
+        duration: req.timings?.duration,
+      }));
+
+      return successResponse(
+        `Found ${requests.length} requests${hasMore ? ` (showing first ${limit})` : ''}\n\n` +
+          JSON.stringify(minData, null, 2)
+      );
+    } else {
+      // Full JSON including headers
+      const fullData = limitedRequests.map((req) => ({
+        id: req.id,
+        url: req.url,
+        method: req.method,
+        status: req.status,
+        statusText: req.statusText,
+        resourceType: req.resourceType,
+        isXHR: req.isXHR,
+        timings: req.timings || null,
+        requestHeaders: req.requestHeaders || null,
+        responseHeaders: req.responseHeaders || null,
+      }));
+
+      return successResponse(
+        `Found ${requests.length} requests${hasMore ? ` (showing first ${limit})` : ''}\n\n` +
+          JSON.stringify(fullData, null, 2)
+      );
+    }
   } catch (error) {
     return errorResponse(
       `Failed to list network requests: ${error instanceof Error ? error.message : String(error)}`
@@ -212,109 +239,78 @@ export async function handleListNetworkRequests(args: unknown): Promise<McpToolR
 
 export async function handleGetNetworkRequest(args: unknown): Promise<McpToolResponse> {
   try {
-    const { url } = args as { url: string };
+    const { id, url } = args as { id?: string; url?: string };
 
-    if (!url || typeof url !== 'string') {
-      throw new Error('url parameter is required and must be a string');
+    if (!id && !url) {
+      return errorResponse(
+        'Either "id" or "url" parameter is required.\n\n' +
+          'TIP: Call list_network_requests first and use the returned ID for reliable lookup.'
+      );
     }
 
     const { getFirefox } = await import('../index.js');
     const firefox = await getFirefox();
 
     const requests = await firefox.getNetworkRequests();
-    const request = requests.find((req) => req.url === url);
+    let request = null;
 
-    if (!request) {
-      return errorResponse(
-        `No network request found with URL: ${url}\n\n` +
-          `Available URLs:\n${requests.map((r) => `- ${r.url}`).join('\n')}`
-      );
+    // Primary path: lookup by ID
+    if (id) {
+      request = requests.find((req) => req.id === id);
+      if (!request) {
+        return errorResponse(
+          `No network request found with ID: ${id}\n\n` +
+            'TIP: The request may have been cleared. Call list_network_requests to see available requests.'
+        );
+      }
+    } else if (url) {
+      // Fallback: lookup by URL (with collision detection)
+      const matches = requests.filter((req) => req.url === url);
+
+      if (matches.length === 0) {
+        return errorResponse(
+          `No network request found with URL: ${url}\n\n` +
+            'TIP: Use list_network_requests to see available requests.'
+        );
+      }
+
+      if (matches.length > 1) {
+        const matchInfo = matches
+          .map((req) => `  - ID: ${req.id} | ${req.method} [${req.status || 'pending'}]`)
+          .join('\n');
+        return errorResponse(
+          `Multiple requests (${matches.length}) found with URL: ${url}\n\n` +
+            'Please use one of these IDs with the "id" parameter:\n' +
+            matchInfo
+        );
+      }
+
+      request = matches[0];
     }
 
-    // Format request details
-    const details = [
-      `Network Request Details:`,
-      `URL: ${request.url}`,
-      `Method: ${request.method}`,
-      request.status !== undefined ? `Status: ${request.status}` : '',
-      request.statusText !== undefined ? `Status Text: ${request.statusText}` : '',
-      request.timestamp !== undefined
-        ? `Timestamp: ${new Date(request.timestamp).toISOString()}`
-        : '',
-      request.resourceType !== undefined ? `Resource Type: ${request.resourceType}` : '',
-      request.isXHR !== undefined ? `Is XHR: ${request.isXHR}` : '',
-      '',
-      'NOTE: Current BiDi MVP has limited support for detailed request/response data.',
-      'Request and response headers/body may not be available in this implementation.',
-    ]
-      .filter(Boolean)
-      .join('\n');
+    if (!request) {
+      return errorResponse('Request not found');
+    }
 
-    return successResponse(details);
+    // Format request details as JSON
+    const details = {
+      id: request.id,
+      url: request.url,
+      method: request.method,
+      status: request.status ?? null,
+      statusText: request.statusText ?? null,
+      resourceType: request.resourceType ?? null,
+      isXHR: request.isXHR ?? false,
+      timestamp: request.timestamp ?? null,
+      timings: request.timings ?? null,
+      requestHeaders: request.requestHeaders ?? null,
+      responseHeaders: request.responseHeaders ?? null,
+    };
+
+    return successResponse('Network Request Details:\n\n' + JSON.stringify(details, null, 2));
   } catch (error) {
     return errorResponse(
       `Failed to get network request: ${error instanceof Error ? error.message : String(error)}`
-    );
-  }
-}
-
-export async function handleStartNetworkMonitoring(args: unknown): Promise<McpToolResponse> {
-  try {
-    const { clearFirst } = (args as { clearFirst?: boolean }) || {};
-    const shouldClear = clearFirst ?? true; // Default to true
-
-    const { getFirefox } = await import('../index.js');
-    const firefox = await getFirefox();
-
-    // Clear existing requests if requested
-    if (shouldClear) {
-      firefox.clearNetworkRequests();
-    }
-
-    await firefox.startNetworkMonitoring();
-    return successResponse(
-      `Network monitoring started for the current page${shouldClear ? ' (buffer cleared)' : ''}.\n\n` +
-        'All network requests will now be recorded until monitoring is stopped or page is navigated.\n' +
-        'Use list_network_requests to see collected requests.'
-    );
-  } catch (error) {
-    return errorResponse(
-      `Failed to start network monitoring: ${error instanceof Error ? error.message : String(error)}\n\n` +
-        'NOTE: Network monitoring may not be supported in all Firefox versions or configurations.'
-    );
-  }
-}
-
-export async function handleStopNetworkMonitoring(_args: unknown): Promise<McpToolResponse> {
-  try {
-    const { getFirefox } = await import('../index.js');
-    const firefox = await getFirefox();
-
-    await firefox.stopNetworkMonitoring();
-    firefox.clearNetworkRequests();
-    return successResponse('Network monitoring stopped and all collected request data cleared.');
-  } catch (error) {
-    return errorResponse(
-      `Failed to stop network monitoring: ${error instanceof Error ? error.message : String(error)}`
-    );
-  }
-}
-
-export async function handleClearNetworkRequests(_args: unknown): Promise<McpToolResponse> {
-  try {
-    const { getFirefox } = await import('../index.js');
-    const firefox = await getFirefox();
-
-    const count = (await firefox.getNetworkRequests()).length;
-    firefox.clearNetworkRequests();
-
-    return successResponse(
-      `Cleared ${count} network request(s) from buffer.\n\n` +
-        'You can now start fresh measurements. Network monitoring is still active if previously started.'
-    );
-  } catch (error) {
-    return errorResponse(
-      `Failed to clear network requests: ${error instanceof Error ? error.message : String(error)}`
     );
   }
 }

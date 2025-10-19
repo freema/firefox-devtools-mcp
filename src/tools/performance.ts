@@ -1,9 +1,8 @@
 /**
- * Performance monitoring tools for Firefox DevTools MCP
- * MVP implementation with Navigation Timing API
+ * Performance monitoring tools (not exported - see docs/future-features.md)
+ * Kept for reference: limitations and alternatives documented within
  */
 
-import { z } from 'zod';
 import { successResponse, errorResponse } from '../utils/response-helpers.js';
 import type { McpToolResponse } from '../types/common.js';
 
@@ -12,8 +11,8 @@ export const performanceGetMetricsTool = {
   name: 'performance_get_metrics',
   description:
     'Get performance metrics for the currently selected page using Navigation Timing API. ' +
-    'NOTE: This is a basic MVP implementation. Full performance profiling (like Chrome DevTools) ' +
-    'is not available via WebDriver BiDi. Use Firefox DevTools UI for advanced profiling.',
+    'Full performance profiling is not available via WebDriver BiDi. ' +
+    'Use Firefox DevTools UI for advanced profiling.',
   inputSchema: {
     type: 'object' as const,
     properties: {},
@@ -29,10 +28,13 @@ export const performanceStartTraceTool = {
   inputSchema: {
     type: 'object' as const,
     properties: {
-      categories: z
-        .array(z.string())
-        .optional()
-        .describe('Trace categories (not used in Firefox - for API compatibility only)'),
+      categories: {
+        type: 'array',
+        items: {
+          type: 'string',
+        },
+        description: 'Trace categories (not used in Firefox - for API compatibility only)',
+      },
     },
   },
 };

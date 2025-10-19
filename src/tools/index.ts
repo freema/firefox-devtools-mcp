@@ -5,13 +5,11 @@
 // Pages tools
 export {
   listPagesTool,
-  refreshPagesTool,
   newPageTool,
   navigatePageTool,
   selectPageTool,
   closePageTool,
   handleListPages,
-  handleRefreshPages,
   handleNewPage,
   handleNavigatePage,
   handleSelectPage,
@@ -33,25 +31,9 @@ export {
 export {
   listNetworkRequestsTool,
   getNetworkRequestTool,
-  startNetworkMonitoringTool,
-  stopNetworkMonitoringTool,
-  clearNetworkRequestsTool,
   handleListNetworkRequests,
   handleGetNetworkRequest,
-  handleStartNetworkMonitoring,
-  handleStopNetworkMonitoring,
-  handleClearNetworkRequests,
 } from './network.js';
-
-// Performance tools
-export {
-  performanceGetMetricsTool,
-  performanceStartTraceTool,
-  performanceStopTraceTool,
-  handlePerformanceGetMetrics,
-  handlePerformanceStartTrace,
-  handlePerformanceStopTrace,
-} from './performance.js';
 
 // Snapshot tools
 export {

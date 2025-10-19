@@ -287,16 +287,12 @@ Firefox Browser (BiDi enabled)
 
 ### 10. Network Monitoring ✅
 
-**`startNetworkMonitoring()`**
-- Zapne sběr network requestů
-- Vrací: Promise<void>
+Aktuální přístup: Always‑on capture (návrh změny) – sběr síťových událostí běží trvale po `connect()`, relevanci dat řídíme přes nástroj `list_network_requests` (filtry `sinceMs`, `limit`, `sortBy`, …). Jednotlivé requesty mají stabilní `id` (BiDi request id), které lze použít v `get_network_request` pro stažení detailu.
 
-**`stopNetworkMonitoring()`**
-- Vypne sběr
-- Vrací: Promise<void>
+API (klientská vrstva):
 
 **`getNetworkRequests()`**
-- Získá zachycené requesty
+- Vrátí zachycené requesty (od posledního čistění bufferu při navigaci, pokud je auto‑clear zapnut)
 - Vrací: Promise<NetworkRecord[]>
   - `id: string`
   - `url: string`
@@ -307,13 +303,14 @@ Firefox Browser (BiDi enabled)
   - `responseHeaders?: Record<string, string>`
   - `timings?: {requestTime, responseTime, duration}`
 
-**`clearNetworkRequests()`**
-- Vyčistí network buffer
-- Vrací: void
+Pozn.: Dřívější start/stop/clear nástroje budou odstraněny z MCP vrstvy (viz tasks/NETWORK-03-...).
 
 ## MCP Tools (Budoucí implementace)
 
 Následující MCP tools budou vystaveny přes `src/index.ts` MCP server:
+
+Poznámka k `inputSchema`:
+- Všechny MCP nástroje musí používat čisté JSON Schema (serializovatelné), ne přímo Zod instance. Validaci lze interně ponechat, ale schema publikovat v JSON podobě (viz tasks/SCHEMA-01-json-schema-unification.md).
 
 ### Plánované Tools
 
@@ -349,10 +346,10 @@ Následující MCP tools budou vystaveny přes `src/index.ts` MCP server:
    - `get_console_logs` - Console messages
 
 6. **Network & Performance**
-   - `start_network_monitor` - Zapnout monitoring
-   - `stop_network_monitor` - Vypnout monitoring
-   - `get_network_requests` - Získat requesty
-   - `get_performance_metrics` - Performance API (future)
+   - `list_network_requests` - Vylistovat requesty (filtry, stabilní `id`, možnost detailního výstupu)
+   - `get_network_request` - Detail požadavku podle `id`
+   - (odstranit) `start_network_monitor` / `stop_network_monitor` / `clear_network_requests`
+   - (odstranit) `get_performance_metrics`, `performance_start_trace`, `performance_stop_trace` (viz tasks/PERFORMANCE-01-...)
 
 7. **Screenshots**
    - `take_screenshot` - Page nebo element screenshot
@@ -524,7 +521,7 @@ firefoxOptions.enableBidi();
 1. **Element caching** - UID → WebElement cache
 2. **Staleness detection** - Snapshot ID validation
 3. **Lazy event subscription** - BiDi events pouze při connect
-4. **Selective network monitoring** - Start/stop control
+4. **Always‑on network capture** - Filtry (`sinceMs`, `limit`) místo start/stop
 5. **Efficient selectors** - CSS primary, XPath fallback
 
 ### Resource Cleanup
@@ -564,6 +561,7 @@ firefox-devtools-mcp/
 - **Formatter:** Prettier
 - **Types:** Strict TypeScript (`exactOptionalPropertyTypes: true`)
 - **Testing:** Vitest + manual E2E scripts
+ - **Comment Style:** English only; concise, accurate, and durable (no internal task numbers). User‑facing caveats belong in docs, not tool descriptions. See tasks/CODE-COMMENTS-01-review-and-cleanup.md.
 
 ## Roadmap
 
@@ -597,6 +595,10 @@ firefox-devtools-mcp/
 - [ ] Wait conditions (element present, visible, etc.)
 - [ ] Keyboard shortcuts simulation
 - [ ] Mouse wheel scroll
+ - [ ] Overhaul síťových nástrojů (NETWORK-01/02/03)
+ - [ ] Sjednocení `inputSchema` na čisté JSON Schema (SCHEMA-01)
+ - [ ] Odstranění performance nástrojů z MCP (PERFORMANCE-01)
+ - [ ] Vylepšit `take_snapshot` (SNAPSHOT-01)
 
 #### Medium-term
 - [ ] Performance metrics (Performance API wrapper)

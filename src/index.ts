@@ -78,39 +78,30 @@ const toolHandlers = new Map<
   string,
   (input: unknown) => Promise<{ content: Array<{ type: string; text: string }>; isError?: boolean }>
 >([
-  // Page management (task 06)
+  // Pages
   ['list_pages', tools.handleListPages],
-  ['refresh_pages', tools.handleRefreshPages],
   ['new_page', tools.handleNewPage],
   ['navigate_page', tools.handleNavigatePage],
   ['select_page', tools.handleSelectPage],
   ['close_page', tools.handleClosePage],
 
-  // Script evaluation (task 08) - DISABLED (see docs/future-features.md)
+  // Script evaluation - DISABLED (see docs/future-features.md)
   // ['evaluate_script', tools.handleEvaluateScript],
 
-  // Console (task 08)
+  // Console
   ['list_console_messages', tools.handleListConsoleMessages],
   ['clear_console_messages', tools.handleClearConsoleMessages],
 
-  // Network (task 09)
+  // Network
   ['list_network_requests', tools.handleListNetworkRequests],
   ['get_network_request', tools.handleGetNetworkRequest],
-  ['start_network_monitoring', tools.handleStartNetworkMonitoring],
-  ['stop_network_monitoring', tools.handleStopNetworkMonitoring],
-  ['clear_network_requests', tools.handleClearNetworkRequests],
 
-  // Performance (task 09)
-  ['performance_get_metrics', tools.handlePerformanceGetMetrics],
-  ['performance_start_trace', tools.handlePerformanceStartTrace],
-  ['performance_stop_trace', tools.handlePerformanceStopTrace],
-
-  // Snapshot (task 29)
+  // Snapshot
   ['take_snapshot', tools.handleTakeSnapshot],
   ['resolve_uid_to_selector', tools.handleResolveUidToSelector],
   ['clear_snapshot', tools.handleClearSnapshot],
 
-  // Input actions (task 30)
+  // Input
   ['click_by_uid', tools.handleClickByUid],
   ['hover_by_uid', tools.handleHoverByUid],
   ['fill_by_uid', tools.handleFillByUid],
@@ -118,11 +109,11 @@ const toolHandlers = new Map<
   ['fill_form_by_uid', tools.handleFillFormByUid],
   ['upload_file_by_uid', tools.handleUploadFileByUid],
 
-  // Screenshot (task 31)
+  // Screenshot
   ['screenshot_page', tools.handleScreenshotPage],
   ['screenshot_by_uid', tools.handleScreenshotByUid],
 
-  // Utilities (task 31)
+  // Utilities
   ['accept_dialog', tools.handleAcceptDialog],
   ['dismiss_dialog', tools.handleDismissDialog],
   ['navigate_history', tools.handleNavigateHistory],
@@ -131,39 +122,30 @@ const toolHandlers = new Map<
 
 // All tool definitions
 const allTools = [
-  // Navigation tools
+  // Pages
   tools.listPagesTool,
-  tools.refreshPagesTool,
   tools.newPageTool,
   tools.navigatePageTool,
   tools.selectPageTool,
   tools.closePageTool,
 
-  // Script tools - DISABLED (see docs/future-features.md)
+  // Script evaluation - DISABLED (see docs/future-features.md)
   // tools.evaluateScriptTool,
 
-  // Console tools
+  // Console
   tools.listConsoleMessagesTool,
   tools.clearConsoleMessagesTool,
 
-  // Network tools
+  // Network
   tools.listNetworkRequestsTool,
   tools.getNetworkRequestTool,
-  tools.startNetworkMonitoringTool,
-  tools.stopNetworkMonitoringTool,
-  tools.clearNetworkRequestsTool,
 
-  // Performance tools
-  tools.performanceGetMetricsTool,
-  tools.performanceStartTraceTool,
-  tools.performanceStopTraceTool,
-
-  // Snapshot tools
+  // Snapshot
   tools.takeSnapshotTool,
   tools.resolveUidToSelectorTool,
   tools.clearSnapshotTool,
 
-  // Input tools
+  // Input
   tools.clickByUidTool,
   tools.hoverByUidTool,
   tools.fillByUidTool,
@@ -171,11 +153,11 @@ const allTools = [
   tools.fillFormByUidTool,
   tools.uploadFileByUidTool,
 
-  // Screenshot tools
+  // Screenshot
   tools.screenshotPageTool,
   tools.screenshotByUidTool,
 
-  // Utility tools
+  // Utilities
   tools.acceptDialogTool,
   tools.dismissDialogTool,
   tools.navigateHistoryTool,

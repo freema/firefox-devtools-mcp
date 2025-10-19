@@ -1,6 +1,5 @@
 /**
- * Console tools
- * Full implementation in task 08
+ * Console tools for MCP
  */
 
 import { successResponse, errorResponse } from '../utils/response-helpers.js';
