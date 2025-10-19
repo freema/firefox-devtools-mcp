@@ -38,18 +38,17 @@ jobs:
       - name: Type check
         run: npm run typecheck
 
-      - name: Test
-        run: npm run test:run
+      - name: Test with coverage
+        run: npm run test:coverage
 
       - name: Build
         run: npm run build
 
-      - name: Upload coverage
-        if: matrix.node-version == 20 && hashFiles('coverage/lcov.info') != ''
-        uses: codecov/codecov-action@v4
+      - name: Upload coverage reports to Codecov
+        if: matrix.node-version == 20
+        uses: codecov/codecov-action@v5
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
-          files: ./coverage/lcov.info
           fail_ci_if_error: false
 
       - name: Upload artifacts
