@@ -1,13 +1,13 @@
 **Firefox DevTools MCP – TODO Roadmap**
 
-Tento adresář obsahuje rozpracované úkoly k vývoji nového MCP serveru pro Firefox DevTools. Implementace se bude držet struktury a praxe jako v `old/mcp_gsheet` a funkční parity (kde dává smysl) s `old/mcp_dev_tool_chrome`.
+This folder contains work items for the Firefox DevTools MCP server. Implementation follows the structure and practices used in `old/mcp_gsheet` and (where it makes sense) aims for parity with `old/mcp_dev_tool_chrome`.
 
 - Kompletní specifikace (původní návrh) byla přesunuta do: `tasks/99-specification.md`
  - Aktuální analýza MCP nástrojů a návrhy zjednodušení: `tasks/tools-analysis.md`
 
 Stav práce budeme řídit přes checklist níže. Každý bod odkazuje na samostatný úkol s detaily, akceptačními kritérii, referencemi a ukázkovými snippetami (ilustrační, ne finální kód).
 
-Roadmapa
+Roadmap
 
 - [x] 00 – Výzkum a architektura: přístup k Firefoxu, parity s Chrome, struktura projektu (`tasks/00-architecture-research.md`)
 - [x] 01 – Projektový scaffold (TypeScript, tsup, eslint, prettier, vitest, scripts) (`tasks/01-project-scaffold.md`)
@@ -45,7 +45,7 @@ Roadmapa
  - [x] 33 – MCP tools: Síťové nástroje – filtry + čištění (`tasks/33-mcp-tools-network-refactor.md`)
 - [x] 34 – MCP tools: Console + Pages drobný refaktor (`tasks/34-mcp-tools-console-and-pages-refactor.md`)
 
-Nové prioritní úkoly (overhaul)
+New priority items (overhaul)
 
 - [x] NETWORK-01 – Přepracovat `list_network_requests` (čisté JSON Schema, stabilní `id`, detailní JSON výstup) — tasks/NETWORK-01-overhaul-list_network_requests.md
 - [x] NETWORK-02 – Redesign `get_network_request` (primárně podle `id`, strukturovaný detail) — tasks/NETWORK-02-redesign-get_network_request.md
@@ -57,39 +57,46 @@ Nové prioritní úkoly (overhaul)
 - [x] CODE-COMMENTS-01 – Review and cleanup of code comments (English only, accurate, no internal task refs) — tasks/CODE-COMMENTS-01-review-and-cleanup.md
 - [x] TOOLS-PROMPTS-01 – Improve MCP tool descriptions for better agent-friendliness and consistency — tasks/TOOLS-PROMPTS-01-improvements.md
 
-Poznámky
+Upcoming work
 
-- V ukázkových snippetech odkazujeme na existující implementace v `old/`. Nepíšeme finální kód, snippety slouží jen k ilustraci a jako „most“ k hotovým souborům.
-- Struktura, tooling a skripty se mají co nejvíce držet `old/mcp_gsheet`.
-- Při definici tools zachovávejme názvy a semantics z `old/mcp_dev_tool_chrome`, kde to dává smysl (lepší přenositelnost promptů). Pokud Firefox neumí 1:1 funkci, uvést odchylky v tasku.
+- [ ] RELEASE-01 – Versioning and bundle strategy (keep < 1.0; bundle stamp) — tasks/RELEASE-01-versioning-and-bundle.md
+- [ ] TASKS-01 – Tasks folder English migration — tasks/TASKS-01-english-migration.md
+- [ ] ACTIONS-01 – Google Actions outline (Firefox tools only; gsheet is inspiration) — tasks/ACTIONS-01-google-actions-outline.md
+- [ ] ACTIONS-02 – Actions mapping for Firefox tools — tasks/ACTIONS-02-actions-mapping-firefox-tools.md
 
-Proces a kontrola kvality
+Notes
 
-- Úkoly plň postupně dle pořadí (00 → 12). Nepřeskakovat, pokud to není výslovně domluveno.
-- Po dokončení každého úkolu spusť `task check`.
-  - `task check` provede automatický ESLint fix a TypeScript typecheck (formát a přesnou skladbu úloh držíme v Taskfile podle vzoru `old/mcp_gsheet`).
-- Po každém úkolu ulož záznam pro code review do souboru `tasks/CR-<ID>.md`.
-  - Příklad: `tasks/CR-06.md` nebo `tasks/CR-06-tools-pages-and-navigation.md`.
-  - Doporučená osnova CR záznamu:
+- Code snippets reference existing implementations in `old/`. They are illustrative, not final.
+- Structure, tooling, and scripts should follow `old/mcp_gsheet` where possible.
+- For MCP tool naming/semantics, keep alignment with `old/mcp_dev_tool_chrome` where it improves prompt reuse. Document deviations explicitly where Firefox differs.
+
+Process and quality control
+
+- Work through tasks in sequence unless agreed otherwise.
+- After each task, run `task check`.
+  - `task check` performs ESLint fixes and TypeScript typecheck (see Taskfile in `old/mcp_gsheet` for the pattern).
+- After each task, add a code review note in `tasks/CR-<ID>.md`.
+  - Example: `tasks/CR-06.md` or `tasks/CR-06-tools-pages-and-navigation.md`.
+  - Recommended CR outline:
 
 ```md
-# Code Review – <ID> <název úkolu>
+# Code Review – <ID> <task title>
 
-Datum: YYYY-MM-DD
+Date: YYYY-MM-DD
 
-Co bylo provedeno
-- Krátký souhrn změn a důvodů
-- Dotčené části (soubory/oblast)
+What was done
+- Short summary of changes and reasoning
+- Impacted areas (files/modules)
 
-Rozhodnutí a dopady
-- Důležitá rozhodnutí (např. naming, chování CLI, defaulty)
-- Známá omezení nebo technické dluhy
+Decisions and impact
+- Important decisions (naming, CLI behavior, defaults)
+- Known limitations or tech debt
 
-Reference
-- Odkazy do `old/mcp_gsheet` a `old/mcp_dev_tool_chrome` (konkrétní soubory)
+References
+- Links to `old/mcp_gsheet` and `old/mcp_dev_tool_chrome` (specific files)
 
-Další kroky
-- Navazující task/y nebo testy
+Next steps
+- Follow‑up tasks/tests
 ```
 
 - Rozšiřuj `.gitignore` podle potřeby (např. `dist/`, `node_modules/`, `coverage/`, `*.log`, `.env`, dočasné soubory, artefakty Dockeru, atd.). Vycházej ze vzoru v `old/mcp_gsheet/.gitignore`.

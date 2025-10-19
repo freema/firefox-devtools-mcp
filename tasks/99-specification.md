@@ -358,6 +358,20 @@ Poznámka k `inputSchema`:
    - `handle_dialog` - Accept/dismiss dialog
    - `resize_viewport` - Změna velikosti
 
+---
+
+## Release and Versioning (RELEASE-01)
+
+- Use semver in the 0.x range until the public API is stable.
+- Injected snapshot bundle includes a simple version marker that is logged on load.
+- Align Node.js runtime requirement with `package.json engines` (>=20).
+
+## Google Actions (ACTIONS-01/02)
+
+- Prepare Google Actions mapping for our Firefox tools. Use `old/mcp_gsheet` as inspiration only (style and structure), do not integrate Google Sheets.
+- Keep action surface minimal and English‑only; inputs use plain JSON Schema.
+
+
 9. **Storage (future)**
    - `get_cookies` - Získat cookies
    - `set_cookie` - Nastavit cookie
