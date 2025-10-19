@@ -68,6 +68,7 @@ Release 0.2.0 (2025-10-19)
 - [x] ACTIONS-02 – GitHub Actions workflows implementation (ci, pr-check, publish, release) — tasks/ACTIONS-02-github-actions-implementation.md
 - [x] VERSION-01 – Version synchronization (npm version lifecycle hook + version-check.yml + docs/release-process.md) — scripts/sync-version.js, .github/workflows/version-check.yml
 - [x] CODECOV-01 – Codecov integration (coverage tracking + PR comments + badges) — .codecov.yml, vitest.config.ts, README.md
+- [x] TESTS-01 – Smoke tests (fix CI "no test files" error) — tests/smoke.test.ts
 
 Upcoming work
 
