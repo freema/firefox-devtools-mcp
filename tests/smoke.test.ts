@@ -16,7 +16,7 @@ describe('Smoke Tests', () => {
 
     it('should have valid server version', () => {
       expect(SERVER_VERSION).toMatch(/^\d+\.\d+\.\d+/);
-      expect(SERVER_VERSION).toBe('0.2.0');
+      expect(SERVER_VERSION).toBe('0.2.1');
     });
   });
 
