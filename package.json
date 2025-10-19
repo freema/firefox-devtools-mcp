@@ -1,6 +1,6 @@
 {
   "name": "firefox-devtools-mcp",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Model Context Protocol (MCP) server for Firefox DevTools automation",
   "author": "freema",
   "license": "MIT",
@@ -34,8 +34,7 @@
     "test:tools": "node scripts/test-bidi-devtools.js",
     "test:input": "node scripts/test-input-tools.js",
     "test:screenshot": "node scripts/test-screenshot.js",
-    "test:dialog": "node scripts/test-dialog.js",
-    "version": "node scripts/sync-version.js && git add src/config/constants.ts"
+    "test:dialog": "node scripts/test-dialog.js"
   },
   "keywords": [
     "mcp",
