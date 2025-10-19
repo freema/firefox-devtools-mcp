@@ -2,7 +2,7 @@
   "name": "firefox-devtools-mcp",
   "version": "0.1.0",
   "description": "Model Context Protocol (MCP) server for Firefox DevTools automation",
-  "author": "graslt",
+  "author": "freema",
   "license": "MIT",
   "type": "module",
   "main": "dist/index.js",
@@ -39,14 +39,20 @@
   },
   "keywords": [
     "mcp",
+    "mcp-server",
     "model-context-protocol",
     "firefox",
-    "devtools",
+    "firefox-devtools",
     "browser-automation",
-    "rdp",
-    "remote-debugging",
+    "webdriver-bidi",
+    "selenium",
+    "devtools",
+    "browser-testing",
+    "web-automation",
     "claude",
-    "ai"
+    "claude-ai",
+    "ai-agent",
+    "llm"
   ],
   "engines": {
     "node": ">=20.19.0"
@@ -85,12 +91,12 @@
   ],
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/graslt/firefox-devtools-mcp.git"
+    "url": "git+https://github.com/freema/firefox-devtools-mcp.git"
   },
   "bugs": {
-    "url": "https://github.com/graslt/firefox-devtools-mcp/issues"
+    "url": "https://github.com/freema/firefox-devtools-mcp/issues"
   },
-  "homepage": "https://github.com/graslt/firefox-devtools-mcp#readme",
+  "homepage": "https://github.com/freema/firefox-devtools-mcp#readme",
   "publishConfig": {
     "access": "public"
   }
