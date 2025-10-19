@@ -1,0 +1,54 @@
+# Codecov configuration for firefox-devtools-mcp
+# https://docs.codecov.com/docs/codecov-yaml
+
+# Coverage targets
+coverage:
+  precision: 2
+  round: down
+  range: 70..100
+
+  status:
+    # Overall project coverage
+    project:
+      default:
+        target: 70%
+        threshold: 2%
+        if_ci_failed: error
+
+    # PR diff coverage (only new code)
+    patch:
+      default:
+        target: 70%
+        threshold: 5%
+        if_ci_failed: error
+
+# Comment settings for PRs
+comment:
+  layout: "reach,diff,flags,tree,footer"
+  behavior: default
+  require_changes: false
+  require_base: false
+  require_head: true
+
+# Ignore patterns (paths not included in coverage)
+ignore:
+  - "node_modules/**/*"
+  - "dist/**/*"
+  - "coverage/**/*"
+  - "tests/**/*"
+  - "scripts/**/*"
+  - "**/*.d.ts"
+  - "**/*.config.*"
+  - "**/*.test.ts"
+  - "old/**/*"
+  - "tasks/**/*"
+  - "docs/**/*"
+
+# Flags for different test suites (future use)
+# flags:
+#   unit:
+#     paths:
+#       - src/
+#   integration:
+#     paths:
+#       - src/

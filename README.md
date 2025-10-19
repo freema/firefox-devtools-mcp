@@ -1,104 +1,126 @@
-# firefox-devtools-mcp
+# Firefox DevTools MCP
 
-Model Context Protocol server for Firefox DevTools — enables AI assistants to inspect and control Firefox via the native Remote Debugging Protocol (RDP), without extra browser downloads.
+[![npm version](https://badge.fury.io/js/firefox-devtools-mcp.svg)](https://www.npmjs.com/package/firefox-devtools-mcp)
+[![CI](https://github.com/freema/firefox-devtools-mcp/workflows/CI/badge.svg)](https://github.com/freema/firefox-devtools-mcp/actions/workflows/ci.yml)
+[![codecov](https://codecov.io/gh/freema/firefox-devtools-mcp/branch/main/graph/badge.svg)](https://codecov.io/gh/freema/firefox-devtools-mcp)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-## ⚠️ Version 0.2.0 - Breaking Changes
+Model Context Protocol server for automating Firefox via WebDriver BiDi (through Selenium WebDriver). Works with Claude Code, Claude Desktop, Cursor, Cline and other MCP clients.
 
-**Firefox 100+ now required.** Legacy fallbacks and screenshot functionality have been removed for a simpler, more maintainable codebase.
-
-📖 **[Read the full migration guide →](./BREAKING_CHANGES.md)**
+Repository: https://github.com/freema/firefox-devtools-mcp
 
 ## Requirements
 
-- **Node.js**: v20.19 or newer (latest maintenance LTS version)
-- **Firefox**: 100+ (auto-detected or specify with `--firefox-path`)
+- Node.js ≥ 20.19.0
+- Firefox 100+ installed (auto‑detected, or pass `--firefox-path`)
 
-## Key Features
+## Install and use with Claude Code (npx)
 
-- **Firefox‑only**: uses your system Firefox (no Playwright/Puppeteer browser bundles)
-- **Auto‑launch**: with required DevTools prefs and ephemeral profile (`user.js`)
-- **Modern RDP**: uses watcher/targets API (Firefox 100+)
-  - `getWatcher` → `watchTargets(frame)` → `target-available-form`
-  - Extracts `consoleActor`/`threadActor` from target form
-- **JS-based navigation**: uses `window.location.href` and `window.open()` for reliability
-- **Robust transport**: byte-precise RDP framing with length-prefixed JSON packets
+Recommended: use npx so you always run the latest published version from npm.
 
-## Documentation
-
-- Architecture and protocol notes: `docs/firefox-client.md`
-- Breaking changes: `BREAKING_CHANGES.md`
-
-## Quick Start
-
-### 1) Build
+Option A — Claude Code CLI
 
 ```bash
-npm run build
+claude mcp add firefox-devtools npx firefox-devtools-mcp@latest
 ```
 
-### 2) Register with Claude Code
-
-**Option A: Using `claude mcp` command (Recommended)**
+Pass options either as args or env vars. Examples:
 
 ```bash
-# Build first
-npm run build
+# Headless + viewport via args
+claude mcp add firefox-devtools npx firefox-devtools-mcp@latest -- --headless --viewport 1280x720
 
-# Add to Claude Code
-claude mcp add firefox-devtools node /absolute/path/to/firefox-devtools-mcp/dist/index.js
-
-# Or with options
-claude mcp add firefox-devtools node /absolute/path/to/firefox-devtools-mcp/dist/index.js --headless=false --viewport=1280x720
+# Or via environment variables
+claude mcp add firefox-devtools npx firefox-devtools-mcp@latest \
+  --env START_URL=https://example.com \
+  --env FIREFOX_HEADLESS=true
 ```
 
-**Option B: Using setup script**
+Option B — Edit Claude Code settings JSON
 
-```bash
-npm run setup
-# Select option 2 (Claude Code)
-```
-
-**Option C: Manual configuration**
-
-Add to `~/Library/Application Support/Claude/Code/mcp_settings.json` (macOS):
+Add to your Claude Code config file:
+- macOS: `~/Library/Application Support/Claude/Code/mcp_settings.json`
+- Linux: `~/.config/claude/code/mcp_settings.json`
+- Windows: `%APPDATA%\Claude\Code\mcp_settings.json`
 
 ```json
 {
   "mcpServers": {
     "firefox-devtools": {
-      "command": "node",
-      "args": [
-        "/absolute/path/to/firefox-devtools-mcp/dist/index.js",
-        "--headless=false",
-        "--viewport=1280x720"
-      ]
+      "command": "npx",
+      "args": ["-y", "firefox-devtools-mcp@latest", "--headless", "--viewport", "1280x720"],
+      "env": {
+        "START_URL": "about:home"
+      }
     }
   }
 }
 ```
 
-On Linux: `~/.config/claude/code/mcp_settings.json`
-On Windows: `%APPDATA%\Claude\Code\mcp_settings.json`
-
-### 3) Test in Claude Code
-
-After registering, test with prompts like:
-
-- "List all open pages in Firefox"
-- "Take a screenshot of the current page"
-- "Navigate to https://example.com"
-- "Click the button with text 'Submit'"
-
-### 4) Run standalone tests (optional)
+Option C — Helper script (local dev build)
 
 ```bash
-node scripts/test-bidi-devtools.js   # Comprehensive test
-node scripts/test-input-tools.js     # Input tools test
-node scripts/demo-server.js          # Demo server for testing
+npm run setup
+# Choose Claude Code; the script saves JSON to the right path
 ```
 
-## Tips
+## Try it with MCP Inspector
 
-- If Firefox isn't auto‑detected, pass a path: `--firefox-path "/Applications/Firefox.app/Contents/MacOS/firefox"`
-- For headless mode: `--headless=true`
-- Custom viewport: `--viewport=1920x1080`
+```bash
+npx @modelcontextprotocol/inspector npx firefox-devtools-mcp@latest --start-url https://example.com --headless
+```
+
+Then call tools like:
+- `list_pages`, `select_page`, `navigate_page`
+- `take_snapshot` then `click_by_uid` / `fill_by_uid`
+- `list_network_requests` (always‑on capture), `get_network_request`
+- `screenshot_page`, `list_console_messages`
+
+## CLI options
+
+You can pass flags or environment variables (names on the right):
+
+- `--firefox-path` — absolute path to Firefox binary
+- `--headless` — run without UI (`FIREFOX_HEADLESS=true`)
+- `--viewport 1280x720` — initial window size
+- `--profile-path` — use a specific Firefox profile
+- `--firefox-arg` — extra Firefox arguments (repeatable)
+- `--start-url` — open this URL on start (`START_URL`)
+- `--accept-insecure-certs` — ignore TLS errors (`ACCEPT_INSECURE_CERTS=true`)
+
+## Tool overview
+
+- Pages: list/new/navigate/select/close
+- Snapshot/UID: take/resolve/clear
+- Input: click/hover/fill/drag/upload/form fill
+- Network: list/get (ID‑first, filters, always‑on capture)
+- Console: list/clear
+- Screenshot: page/by uid
+- Utilities: accept/dismiss dialog, history back/forward, set viewport
+
+## Local development
+
+```bash
+npm install
+npm run build
+
+# Run with Inspector against local build
+npx @modelcontextprotocol/inspector node dist/index.js --headless --viewport 1280x720
+
+# Or run in dev with hot reload
+npm run inspector:dev
+```
+
+## Troubleshooting
+
+- Firefox not found: pass `--firefox-path "/Applications/Firefox.app/Contents/MacOS/firefox"` (macOS) or the correct path on your OS.
+- First run is slow: Selenium sets up the BiDi session; subsequent runs are faster.
+- Stale UIDs after navigation: take a fresh snapshot (`take_snapshot`) before using UID tools.
+
+## Versioning
+
+- Pre‑1.0 API: versions start at `0.x`. Use `@latest` with npx for the newest release.
+
+## CI and Release
+
+- GitHub Actions for CI, Release, and npm publish are included. See docs/ci-and-release.md for details and required secrets.

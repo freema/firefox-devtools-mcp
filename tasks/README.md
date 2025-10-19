@@ -57,12 +57,21 @@ New priority items (overhaul)
 - [x] CODE-COMMENTS-01 – Review and cleanup of code comments (English only, accurate, no internal task refs) — tasks/CODE-COMMENTS-01-review-and-cleanup.md
 - [x] TOOLS-PROMPTS-01 – Improve MCP tool descriptions for better agent-friendliness and consistency — tasks/TOOLS-PROMPTS-01-improvements.md
 
+Release 0.2.0 (2025-10-19)
+
+- [x] RELEASE-01 – Node.js version guard (>=20) + SERVER_VERSION 0.2.0 + bundle logging — tasks/CR-0.2.0-release-enhancements.md
+- [x] SNAPSHOT-01 – Parameters (includeText, maxDepth) + clean output (no empty strings) — tasks/CR-0.2.0-release-enhancements.md
+- [x] NETWORK-01/02 – Add format parameter (text/json) to network tools — tasks/CR-0.2.0-release-enhancements.md
+- [x] CONSOLE-01 – Add filters (textContains, source) + format parameter — tasks/CR-0.2.0-release-enhancements.md
+- [x] EVENTS-01 – Memory protection (TTL 5min + max 1000 items) for console/network buffers — tasks/CR-0.2.0-release-enhancements.md
+- [x] ACTIONS-01 – GitHub Actions CI/CD outline — tasks/ACTIONS-01-github-actions-outline.md
+- [x] ACTIONS-02 – GitHub Actions workflows implementation (ci, pr-check, publish, release) — tasks/ACTIONS-02-github-actions-implementation.md
+- [x] VERSION-01 – Version synchronization (npm version lifecycle hook + version-check.yml + docs/release-process.md) — scripts/sync-version.js, .github/workflows/version-check.yml
+- [x] CODECOV-01 – Codecov integration (coverage tracking + PR comments + badges) — .codecov.yml, vitest.config.ts, README.md
+
 Upcoming work
 
-- [ ] RELEASE-01 – Versioning and bundle strategy (keep < 1.0; bundle stamp) — tasks/RELEASE-01-versioning-and-bundle.md
 - [ ] TASKS-01 – Tasks folder English migration — tasks/TASKS-01-english-migration.md
-- [ ] ACTIONS-01 – Google Actions outline (Firefox tools only; gsheet is inspiration) — tasks/ACTIONS-01-google-actions-outline.md
-- [ ] ACTIONS-02 – Actions mapping for Firefox tools — tasks/ACTIONS-02-actions-mapping-firefox-tools.md
 
 Notes
 
