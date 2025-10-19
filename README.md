@@ -4,7 +4,7 @@
 [![CI](https://github.com/freema/firefox-devtools-mcp/workflows/CI/badge.svg)](https://github.com/freema/firefox-devtools-mcp/actions/workflows/ci.yml)
 [![codecov](https://codecov.io/gh/freema/firefox-devtools-mcp/branch/main/graph/badge.svg)](https://codecov.io/gh/freema/firefox-devtools-mcp)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-<a href="https://glama.ai/mcp/servers/@freema/firefox-devtools-mcp"><img src="https://glama.ai/mcp/servers/@freema/firefox-devtools-mcp/badge" height="75" alt="Glama"></a>
+<a href="https://glama.ai/mcp/servers/@freema/firefox-devtools-mcp"><img src="https://glama.ai/mcp/servers/@freema/firefox-devtools-mcp/badge" height="200" alt="Glama"></a>
 
 Model Context Protocol server for automating Firefox via WebDriver BiDi (through Selenium WebDriver). Works with Claude Code, Claude Desktop, Cursor, Cline and other MCP clients.
 
