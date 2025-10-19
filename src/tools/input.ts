@@ -6,12 +6,6 @@
 import { successResponse, errorResponse } from '../utils/response-helpers.js';
 import type { McpToolResponse } from '../types/common.js';
 
-// Common prompt text for all UID-based actions
-const COMMON_UID_WARNING =
-  'These actions require a valid UID from the latest snapshot. ' +
-  'After navigation or significant DOM changes, always call take_snapshot first. ' +
-  'On staleness errors, retry: take_snapshot → action.';
-
 /**
  * Transform UID resolution errors into friendly messages
  */
@@ -38,9 +32,7 @@ function handleUidError(error: Error, uid: string): Error {
 export const clickByUidTool = {
   name: 'click_by_uid',
   description:
-    'Click an element by its UID from a snapshot. ' +
-    'Supports both single and double clicks.\n\n' +
-    COMMON_UID_WARNING,
+    'Click an element identified by its UID. Supports double-click via dblClick=true. TIP: Take a fresh snapshot if the UID becomes stale.',
   inputSchema: {
     type: 'object',
     properties: {
@@ -60,9 +52,7 @@ export const clickByUidTool = {
 export const hoverByUidTool = {
   name: 'hover_by_uid',
   description:
-    'Hover over an element by its UID from a snapshot. ' +
-    'Useful for triggering hover states, tooltips, or dropdown menus.\n\n' +
-    COMMON_UID_WARNING,
+    'Hover over an element identified by its UID. TIP: Take a fresh snapshot if the UID becomes stale.',
   inputSchema: {
     type: 'object',
     properties: {
@@ -78,10 +68,7 @@ export const hoverByUidTool = {
 export const fillByUidTool = {
   name: 'fill_by_uid',
   description:
-    'Fill an input field by its UID from a snapshot. ' +
-    'Works with text inputs, textareas, and similar form elements.\n\n' +
-    'IMPORTANT: Keep values short and safe. Avoid inserting large strings.\n\n' +
-    COMMON_UID_WARNING,
+    'Fill a text input or textarea identified by its UID. Keep values short and safe. TIP: Take a fresh snapshot if the UID becomes stale.',
   inputSchema: {
     type: 'object',
     properties: {
@@ -101,10 +88,7 @@ export const fillByUidTool = {
 export const dragByUidToUidTool = {
   name: 'drag_by_uid_to_uid',
   description:
-    'Drag an element from one UID to another UID using JavaScript drag events (fallback implementation).\n\n' +
-    'WARNING: Some libraries with custom drag-and-drop may not work with this approach. ' +
-    'If the action fails, consider alternative interactions (click + input).\n\n' +
-    COMMON_UID_WARNING,
+    'Simulate HTML5 drag-and-drop from one UID to another using JS drag events. May not work with all custom libraries.',
   inputSchema: {
     type: 'object',
     properties: {
@@ -123,11 +107,7 @@ export const dragByUidToUidTool = {
 
 export const fillFormByUidTool = {
   name: 'fill_form_by_uid',
-  description:
-    'Fill multiple form fields at once using their UIDs. ' +
-    'Useful for completing forms efficiently.\n\n' +
-    'TIP: Use smaller batches for easier debugging if something goes wrong.\n\n' +
-    COMMON_UID_WARNING,
+  description: 'Fill multiple form fields in one call using an array of {uid, value} pairs.',
   inputSchema: {
     type: 'object',
     properties: {
@@ -157,12 +137,7 @@ export const fillFormByUidTool = {
 export const uploadFileByUidTool = {
   name: 'upload_file_by_uid',
   description:
-    'Upload a file to an <input type="file"> element by its UID.\n\n' +
-    'REQUIREMENTS:\n' +
-    '- The UID must point to an <input type="file"> element\n' +
-    '- The filePath must be a local path accessible by the server\n' +
-    '- The element must not be hidden in a way that prevents interaction\n\n' +
-    COMMON_UID_WARNING,
+    'Upload a file into an <input type="file"> element identified by its UID. The file path must be accessible to the server.',
   inputSchema: {
     type: 'object',
     properties: {

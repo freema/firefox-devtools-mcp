@@ -112,19 +112,23 @@ Capture and expose request/response bodies for network requests:
 
 **Implementation Location:** `src/firefox/events/network.ts`
 
-### Performance Profiling
+### Advanced Performance Profiling
 
 **Status:** Planned
 **Priority:** Low
+**Note:** Basic performance metrics are available via Navigation Timing API (not exposed as MCP tools)
 
-Full performance profiling support:
+Full performance profiling support would include:
 
 - CPU profiling
 - Memory snapshots
 - FPS monitoring
 - Long task detection
+- Custom performance marks and measures
 
-**Implementation Location:** `src/tools/performance.ts`
+**Reason for deferral:** WebDriver BiDi does not currently provide advanced profiling APIs. Use Firefox DevTools UI Performance panel for advanced profiling.
+
+**Previous implementation:** Performance tools were removed in PERFORMANCE-01 task due to limited BiDi support and complexity for minimal value.
 
 ---
 

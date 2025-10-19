@@ -9,9 +9,7 @@ import type { McpToolResponse } from '../types/common.js';
 export const listPagesTool = {
   name: 'list_pages',
   description:
-    'Get a list of pages open in Firefox. ' +
-    'Shows page index, title, URL, and indicates which page is currently selected. ' +
-    'This always returns the current state (automatically refreshes the page list).',
+    'List all open tabs with index, title, and URL. The currently selected tab is marked. Use the index with select_page.',
   inputSchema: {
     type: 'object',
     properties: {},
@@ -20,7 +18,8 @@ export const listPagesTool = {
 
 export const newPageTool = {
   name: 'new_page',
-  description: 'Creates a new page and navigates to URL',
+  description:
+    'Open a new tab and navigate it to the provided URL. Returns the new tab index in the response.',
   inputSchema: {
     type: 'object',
     properties: {
@@ -35,7 +34,7 @@ export const newPageTool = {
 
 export const navigatePageTool = {
   name: 'navigate_page',
-  description: 'Navigates the currently selected page to a URL',
+  description: 'Navigate the currently selected tab to the provided URL.',
   inputSchema: {
     type: 'object',
     properties: {
@@ -51,9 +50,7 @@ export const navigatePageTool = {
 export const selectPageTool = {
   name: 'select_page',
   description:
-    'Select a page as context for future tool calls. ' +
-    'You can select by index (recommended - call list_pages first), by URL pattern, or by title pattern. ' +
-    'If multiple parameters provided, pageIdx takes priority.',
+    'Select the active tab by index (preferred), or by matching URL/title. Index takes precedence when multiple parameters are provided.',
   inputSchema: {
     type: 'object',
     properties: {
@@ -82,7 +79,7 @@ export const selectPageTool = {
 
 export const closePageTool = {
   name: 'close_page',
-  description: 'Closes the page by its index',
+  description: 'Close the tab at the given index. Use list_pages to find valid indices.',
   inputSchema: {
     type: 'object',
     properties: {

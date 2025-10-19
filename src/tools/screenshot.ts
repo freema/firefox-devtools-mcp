@@ -9,10 +9,7 @@ import type { McpToolResponse } from '../types/common.js';
 export const screenshotPageTool = {
   name: 'screenshot_page',
   description:
-    'Capture a PNG screenshot of the entire current page (returns base64-encoded PNG).\n\n' +
-    'NOTE: Use for final visual verification, not for structural inspection. ' +
-    'For structured page analysis, use take_snapshot instead.\n\n' +
-    'The output is base64-encoded PNG data without the data:image/png;base64, prefix.',
+    'Capture a PNG screenshot of the current page and return it as a base64 string (without data: prefix). TIP: Use for visual verification rather than structural inspection.',
   inputSchema: {
     type: 'object',
     properties: {},
@@ -22,10 +19,7 @@ export const screenshotPageTool = {
 export const screenshotByUidTool = {
   name: 'screenshot_by_uid',
   description:
-    'Capture a PNG screenshot of a specific element by its UID (returns base64-encoded PNG).\n\n' +
-    'IMPORTANT: Requires a valid UID from take_snapshot. ' +
-    'On staleness errors, call take_snapshot first to get fresh UIDs.\n\n' +
-    'The output is base64-encoded PNG data without the data:image/png;base64, prefix.',
+    'Capture a PNG screenshot of a specific element by UID and return it as a base64 string (without data: prefix). TIP: Take a fresh snapshot if the UID is stale.',
   inputSchema: {
     type: 'object',
     properties: {

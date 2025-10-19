@@ -55,6 +55,7 @@ Nové prioritní úkoly (overhaul)
 - [x] SNAPSHOT-01 – Vyčistit výstup `take_snapshot` + doplnit návod „co dál" + parametrizace — tasks/SNAPSHOT-01-clean-snapshot-output-and-guidance.md
 - [x] PAGES – Odstranit `refresh_pages` (duplicitní s `list_pages`) — viz tasks/tools-analysis.md
 - [x] CODE-COMMENTS-01 – Review and cleanup of code comments (English only, accurate, no internal task refs) — tasks/CODE-COMMENTS-01-review-and-cleanup.md
+- [x] TOOLS-PROMPTS-01 – Improve MCP tool descriptions for better agent-friendliness and consistency — tasks/TOOLS-PROMPTS-01-improvements.md
 
 Poznámky
 

@@ -8,10 +8,7 @@ import type { McpToolResponse } from '../types/common.js';
 export const evaluateScriptTool = {
   name: 'evaluate_script',
   description:
-    'Evaluate a JavaScript function inside the currently selected page. Returns the response as JSON so returned values have to be JSON-serializable.\n\n' +
-    'IMPORTANT: Provide a JavaScript function or arrow function (e.g., `() => document.title` or `(el) => el.innerText`).\n' +
-    'If passing UIDs via args, ensure you have a fresh snapshot. On "stale UID" errors, call take_snapshot first.\n' +
-    'Avoid side-effects and long scripts - this tool is for reading values, not complex DOM manipulation.',
+    'Execute a JavaScript function in the selected tab and return its JSON-serializable result. Use with caution; prefer snapshot+UID tools for interactions. This tool may be disabled by default.',
   inputSchema: {
     type: 'object',
     properties: {

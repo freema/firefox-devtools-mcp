@@ -10,10 +10,7 @@ import type { McpToolResponse } from '../types/common.js';
 export const listNetworkRequestsTool = {
   name: 'list_network_requests',
   description:
-    'List network requests for the currently selected page. ' +
-    'Network monitoring is always active. ' +
-    'Use filters to narrow results and the detail parameter to control output verbosity. ' +
-    'Each request includes a stable "id" field - use this id with get_network_request for full details.',
+    'List recent network requests across all tabs. Network capture is always on. Use filters (limit, sinceMs, urlContains, method, status, resourceType) and detail (summary|min|full) to control output. Each entry includes a stable id for use with get_network_request.',
   inputSchema: {
     type: 'object' as const,
     properties: {
@@ -71,9 +68,7 @@ export const listNetworkRequestsTool = {
 export const getNetworkRequestTool = {
   name: 'get_network_request',
   description:
-    'Get detailed information about a specific network request. ' +
-    'Use the ID from list_network_requests for reliable lookup. ' +
-    'URL lookup is available as fallback but may fail if multiple requests share the same URL.',
+    'Get detailed information about a network request by id (recommended). URL lookup is available as a fallback but may match multiple requests.',
   inputSchema: {
     type: 'object' as const,
     properties: {

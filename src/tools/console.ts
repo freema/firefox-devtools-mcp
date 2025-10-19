@@ -8,8 +8,7 @@ import type { McpToolResponse } from '../types/common.js';
 export const listConsoleMessagesTool = {
   name: 'list_console_messages',
   description:
-    'List all console messages for the currently selected page since the last navigation. ' +
-    'Use filters (level/limit/sinceMs) to narrow results and save context - helps find relevant logs faster.',
+    'List console messages for the selected tab since the last navigation. Use filters (level, limit, sinceMs) to focus on recent and relevant logs.',
   inputSchema: {
     type: 'object',
     properties: {
@@ -33,8 +32,7 @@ export const listConsoleMessagesTool = {
 export const clearConsoleMessagesTool = {
   name: 'clear_console_messages',
   description:
-    'Clear all collected console messages from the buffer. ' +
-    'Use this before a new measurement or action to ensure output is relevant.',
+    'Clear the collected console messages. TIP: Clear before a new measurement to keep output focused.',
   inputSchema: {
     type: 'object',
     properties: {},

@@ -11,11 +11,7 @@ const MAX_SNAPSHOT_LINES = 100;
 export const takeSnapshotTool = {
   name: 'take_snapshot',
   description:
-    'Take a textual snapshot of the current page including unique UIDs for elements. ' +
-    'Always work with the latest snapshot. The snapshot is truncated for readability; use UIDs for further work.\n\n' +
-    'IMPORTANT: Use only when the page changes or when UIDs become stale. ' +
-    "Don't assume old UIDs are valid after navigation. " +
-    'After navigation, always take a fresh snapshot before using UID-based tools.',
+    'Capture a textual page snapshot with stable UIDs for elements. Always take a fresh snapshot after navigation or major DOM changes. TIP: Use the UIDs with click_by_uid / fill_by_uid / hover_by_uid. The output may be truncated for readability.',
   inputSchema: {
     type: 'object',
     properties: {
@@ -34,9 +30,7 @@ export const takeSnapshotTool = {
 export const resolveUidToSelectorTool = {
   name: 'resolve_uid_to_selector',
   description:
-    'Convert a UID to a CSS selector (for debugging/inspection). ' +
-    'Not needed for regular UID-based actions - use UIDs directly.\n\n' +
-    'WARNING: Throws error for stale UIDs. If this fails, call take_snapshot first to get fresh UIDs.',
+    'Resolve a UID to a CSS selector (debugging aid). Fails on stale UIDs—take a fresh snapshot first.',
   inputSchema: {
     type: 'object',
     properties: {
@@ -52,9 +46,7 @@ export const resolveUidToSelectorTool = {
 export const clearSnapshotTool = {
   name: 'clear_snapshot',
   description:
-    'Clear the UID/snapshot cache. ' +
-    'After the next UID-dependent action, take a new snapshot. ' +
-    'Note: Navigation automatically invalidates snapshots, so this is rarely needed.',
+    'Clear the snapshot/UID cache. Usually not needed, as navigation invalidates snapshots automatically.',
   inputSchema: {
     type: 'object',
     properties: {},

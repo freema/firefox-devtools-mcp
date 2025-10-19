@@ -9,10 +9,7 @@ import type { McpToolResponse } from '../types/common.js';
 export const acceptDialogTool = {
   name: 'accept_dialog',
   description:
-    'Accept a browser dialog (alert, confirm, or prompt). ' +
-    'Use shortly after triggering a dialog.\n\n' +
-    'For prompt dialogs, optionally provide text to enter.\n\n' +
-    'Returns friendly error if no dialog is active.',
+    'Accept the active browser dialog (alert/confirm/prompt). For prompts, you may provide promptText. Returns an error if no dialog is open.',
   inputSchema: {
     type: 'object',
     properties: {
@@ -27,9 +24,7 @@ export const acceptDialogTool = {
 export const dismissDialogTool = {
   name: 'dismiss_dialog',
   description:
-    'Dismiss/cancel a browser dialog (alert, confirm, or prompt). ' +
-    'Use shortly after triggering a dialog.\n\n' +
-    'Returns friendly error if no dialog is active.',
+    'Dismiss the active browser dialog (alert/confirm/prompt). Returns an error if no dialog is open.',
   inputSchema: {
     type: 'object',
     properties: {},
@@ -40,10 +35,7 @@ export const dismissDialogTool = {
 export const navigateHistoryTool = {
   name: 'navigate_history',
   description:
-    'Navigate browser history (back or forward). ' +
-    'Use only if the page has history available.\n\n' +
-    'IMPORTANT: After navigation, UIDs become stale. ' +
-    'Take a new snapshot before using UID-based actions.',
+    "Navigate the selected tab's history back or forward. NOTE: After navigation, UIDs from previous snapshots are stale—take a new snapshot before UID-based actions.",
   inputSchema: {
     type: 'object',
     properties: {
@@ -61,9 +53,7 @@ export const navigateHistoryTool = {
 export const setViewportSizeTool = {
   name: 'set_viewport_size',
   description:
-    'Set the browser viewport size (width x height in pixels).\n\n' +
-    'NOTE: Some modes (headless) may limit precise sizing. ' +
-    'The actual viewport may differ slightly from the requested size.',
+    'Set the browser viewport size (width x height in pixels). In some modes (e.g., headless), the actual size may vary slightly.',
   inputSchema: {
     type: 'object',
     properties: {

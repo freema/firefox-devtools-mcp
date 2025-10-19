@@ -53,8 +53,7 @@
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.17.1",
     "ws": "^8.18.3",
-    "yargs": "^17.7.2",
-    "zod": "^3.22.4"
+    "yargs": "^17.7.2"
   },
   "devDependencies": {
     "@types/node": "^24.1.0",
