@@ -21,7 +21,15 @@ export const takeSnapshotTool = {
       },
       includeAttributes: {
         type: 'boolean',
-        description: 'Include detailed ARIA attributes in output (default: false)',
+        description: 'Include detailed ARIA and computed attributes in output (default: false)',
+      },
+      includeText: {
+        type: 'boolean',
+        description: 'Include text content in output (default: true)',
+      },
+      maxDepth: {
+        type: 'number',
+        description: 'Maximum depth of tree to include (default: unlimited)',
       },
     },
   },
@@ -56,28 +64,36 @@ export const clearSnapshotTool = {
 // Handlers
 export async function handleTakeSnapshot(args: unknown): Promise<McpToolResponse> {
   try {
-    const { maxLines = MAX_SNAPSHOT_LINES, includeAttributes = false } =
-      (args as {
-        maxLines?: number;
-        includeAttributes?: boolean;
-      }) || {};
+    const {
+      maxLines = MAX_SNAPSHOT_LINES,
+      includeAttributes = false,
+      includeText = true,
+      maxDepth,
+    } = (args as {
+      maxLines?: number;
+      includeAttributes?: boolean;
+      includeText?: boolean;
+      maxDepth?: number;
+    }) || {};
 
     const { getFirefox } = await import('../index.js');
     const firefox = await getFirefox();
 
     const snapshot = await firefox.takeSnapshot();
 
-    // Get snapshot text (truncated if needed)
-    let lines = snapshot.text.split('\n');
-
-    // Filter out detailed ARIA attributes if includeAttributes is false
-    if (!includeAttributes) {
-      lines = lines.map((line) => {
-        // Simple heuristic: remove excessive attribute details (keep uid, role, name, basic props)
-        // This is a basic implementation - could be more sophisticated
-        return line;
-      });
+    // Import formatter to apply custom options
+    const { formatSnapshotTree } = await import('../firefox/snapshot/formatter.js');
+    const options: any = {
+      includeAttributes,
+      includeText,
+    };
+    if (maxDepth !== undefined) {
+      options.maxDepth = maxDepth;
     }
+    const formattedText = formatSnapshotTree(snapshot.json.root, 0, options);
+
+    // Get snapshot text (truncated if needed)
+    const lines = formattedText.split('\n');
 
     const truncated = lines.length > maxLines;
     const displayLines = truncated ? lines.slice(0, maxLines) : lines;

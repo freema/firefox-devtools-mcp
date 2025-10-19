@@ -41,8 +41,8 @@ export { FirefoxDevTools } from './firefox/index.js';
 
 // Validate Node.js version
 const [major] = version.substring(1).split('.').map(Number);
-if (!major || major < 18) {
-  console.error(`Node ${version} is not supported. Please use Node.js >=18.`);
+if (!major || major < 20) {
+  console.error(`Node ${version} is not supported. Please use Node.js >=20.`);
   process.exit(1);
 }
 

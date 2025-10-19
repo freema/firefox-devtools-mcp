@@ -3,7 +3,7 @@
  * Provides network request inspection capabilities
  */
 
-import { successResponse, errorResponse } from '../utils/response-helpers.js';
+import { successResponse, errorResponse, jsonResponse } from '../utils/response-helpers.js';
 import type { McpToolResponse } from '../types/common.js';
 
 // Tool definitions
@@ -61,6 +61,11 @@ export const listNetworkRequestsTool = {
         description:
           'Output detail level: summary (default), min (compact JSON), full (includes headers)',
       },
+      format: {
+        type: 'string',
+        enum: ['text', 'json'],
+        description: 'Output format: text (default, human-readable) or json (structured data)',
+      },
     },
   },
 };
@@ -79,6 +84,11 @@ export const getNetworkRequestTool = {
       url: {
         type: 'string',
         description: 'The URL of the request (fallback, may match multiple requests)',
+      },
+      format: {
+        type: 'string',
+        enum: ['text', 'json'],
+        description: 'Output format: text (default) or json (structured data)',
       },
     },
   },
@@ -99,6 +109,7 @@ export async function handleListNetworkRequests(args: unknown): Promise<McpToolR
       resourceType,
       sortBy = 'timestamp',
       detail = 'summary',
+      format = 'text',
     } = (args as {
       limit?: number;
       sinceMs?: number;
@@ -111,6 +122,7 @@ export async function handleListNetworkRequests(args: unknown): Promise<McpToolR
       resourceType?: string;
       sortBy?: 'timestamp' | 'duration' | 'status';
       detail?: 'summary' | 'min' | 'full';
+      format?: 'text' | 'json';
     }) || {};
 
     const { getFirefox } = await import('../index.js');
@@ -169,7 +181,47 @@ export async function handleListNetworkRequests(args: unknown): Promise<McpToolR
     const limitedRequests = requests.slice(0, limit);
     const hasMore = requests.length > limit;
 
-    // Format output based on detail level
+    // Format output based on detail level and format
+    if (format === 'json') {
+      // JSON format - return structured data based on detail level
+      const responseData: any = {
+        total: requests.length,
+        showing: limitedRequests.length,
+        hasMore,
+        requests: [],
+      };
+
+      if (detail === 'summary' || detail === 'min') {
+        responseData.requests = limitedRequests.map((req) => ({
+          id: req.id,
+          url: req.url,
+          method: req.method,
+          status: req.status,
+          statusText: req.statusText,
+          resourceType: req.resourceType,
+          isXHR: req.isXHR,
+          duration: req.timings?.duration,
+        }));
+      } else {
+        // Full detail
+        responseData.requests = limitedRequests.map((req) => ({
+          id: req.id,
+          url: req.url,
+          method: req.method,
+          status: req.status,
+          statusText: req.statusText,
+          resourceType: req.resourceType,
+          isXHR: req.isXHR,
+          timings: req.timings || null,
+          requestHeaders: req.requestHeaders || null,
+          responseHeaders: req.responseHeaders || null,
+        }));
+      }
+
+      return jsonResponse(responseData);
+    }
+
+    // Text format (default)
     if (detail === 'summary') {
       const formattedRequests = limitedRequests.map((req) => {
         const statusInfo = req.status
@@ -234,7 +286,11 @@ export async function handleListNetworkRequests(args: unknown): Promise<McpToolR
 
 export async function handleGetNetworkRequest(args: unknown): Promise<McpToolResponse> {
   try {
-    const { id, url } = args as { id?: string; url?: string };
+    const {
+      id,
+      url,
+      format = 'text',
+    } = args as { id?: string; url?: string; format?: 'text' | 'json' };
 
     if (!id && !url) {
       return errorResponse(
@@ -287,7 +343,7 @@ export async function handleGetNetworkRequest(args: unknown): Promise<McpToolRes
       return errorResponse('Request not found');
     }
 
-    // Format request details as JSON
+    // Format request details
     const details = {
       id: request.id,
       url: request.url,
@@ -301,6 +357,10 @@ export async function handleGetNetworkRequest(args: unknown): Promise<McpToolRes
       requestHeaders: request.requestHeaders ?? null,
       responseHeaders: request.responseHeaders ?? null,
     };
+
+    if (format === 'json') {
+      return jsonResponse(details);
+    }
 
     return successResponse('Network Request Details:\n\n' + JSON.stringify(details, null, 2));
   } catch (error) {

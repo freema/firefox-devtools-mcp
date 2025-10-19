@@ -1,79 +1,79 @@
 # Code Review – NETWORK-03: Always-on network capture
 
-Datum: 2025-10-19
+Date: 2025-10-19
 
-## Co bylo provedeno
+## What Was Done
 
-Zjednodušení UX tím, že sběr síťových událostí běží trvale ("always-on") a odstranění manuálních control nástrojů:
+Simplified UX by keeping network capture always on and removing manual control tools:
 
-- **Always-on monitoring** (src/firefox/events/network.ts:156-159):
-  - `this.enabled = true` automaticky po úspěšném `subscribe()`
-  - Monitoring začíná okamžitě po inicializaci, žádná další akce není nutná
-  - Aktualizovaný log message: "monitoring enabled by default"
-- **Odstranění control tools** (src/tools/network.ts, src/tools/index.ts, src/index.ts):
-  - Odstraněny definice: `startNetworkMonitoringTool`, `stopNetworkMonitoringTool`, `clearNetworkRequestsTool`
-  - Odstraněny handlery: `handleStartNetworkMonitoring`, `handleStopNetworkMonitoring`, `handleClearNetworkRequests`
-  - Odstraněny exporty z `src/tools/index.ts`
-  - Odstraněny registrace z `src/index.ts` (toolHandlers map a allTools array)
-- **Aktualizované descriptions**:
-  - `list_network_requests`: odstraněna zmínka "must start monitoring first"
-  - Nová formulace: "Network monitoring is always active"
+- Always-on monitoring (src/firefox/events/network.ts:156-159):
+  - `this.enabled = true` automatically after `subscribe()`
+  - Monitoring starts immediately after initialization; no extra action required
+  - Updated log message: “monitoring enabled by default”
+- Removed control tools (src/tools/network.ts, src/tools/index.ts, src/index.ts):
+  - Removed tool definitions: `startNetworkMonitoringTool`, `stopNetworkMonitoringTool`, `clearNetworkRequestsTool`
+  - Removed handlers: `handleStartNetworkMonitoring`, `handleStopNetworkMonitoring`, `handleClearNetworkRequests`
+  - Removed exports in `src/tools/index.ts`
+  - Removed registrations from `src/index.ts` (toolHandlers/allTools)
+- Updated descriptions:
+  - `list_network_requests` no longer mentions “must start monitoring first”
+  - New phrasing: “Network monitoring is always active”
 
-## Rozhodnutí a dopady
+## Decisions and Impact
 
-### Zjednodušení API
-**Před:**
+### API simplification
+Before:
 ```
 1. start_network_monitoring
-2. {akce v browseru}
+2. {do something in the browser}
 3. list_network_requests
 4. stop_network_monitoring
 ```
 
-**Po:**
+After:
 ```
-1. {akce v browseru}
-2. list_network_requests (s filtry: sinceMs, limit)
+1. {do something in the browser}
+2. list_network_requests (filters: sinceMs, limit)
 ```
 
-Redukce kroků z 4 na 2 výrazně zlepšuje UX pro MCP agenty.
+This reduces steps from 4 to 2 and improves agent UX.
 
-### Filtering místo clear
-- Místo manuálního `clear_network_requests` používáme `sinceMs` filter
-- Příklad: `sinceMs: 5000` vrátí pouze požadavky z posledních 5 sekund
-- Výhoda: zachována historie, filtrování je flexibilnější
+### Filtering instead of clear
+- Replace manual `clear_network_requests` with `sinceMs` filter
+- Example: `sinceMs: 5000` returns only the last 5 seconds of requests
+- Benefit: history preserved, filtering is more flexible
 
 ### Auto-clear on navigate
-- `autoClearOnNavigate: false` v NetworkEvents je zachováno (src/firefox/index.ts:56-59)
-- Buffer se automaticky nečistí při navigaci (zachování dat napříč navigacemi)
-- Uživatelé mohou filtrovat pomocí `sinceMs` pokud potřebují fresh data
+- `autoClearOnNavigate: false` in NetworkEvents remains (src/firefox/index.ts:56-59)
+- Buffer is not automatically cleared on navigation (data preserved across navigations)
+- Users can filter with `sinceMs` for fresh data
 
-### Paměťové úniky
-- Buffer může narůst při dlouhém běhu
-- Mitigace: `limit` parameter (default 50) v `list_network_requests`
-- Budoucí: zvážit maxBuffer size nebo TTL pro staré requesty
+### Memory growth
+- Buffer can grow during long sessions
+- Mitigation: `limit` parameter (default 50) in `list_network_requests`
+- Future: consider max buffer size or TTL
 
 ### Breaking change
-- **API break**: existující MCP klienty používající `start/stop/clear` přestanou fungovat
-- Justifikace: always-on je lepší UX, control tools byly těžkopádné
-- Migrace: odstranit `start_network_monitoring` calls, použít `sinceMs` filter místo `clear`
+- API break: clients relying on start/stop/clear will fail
+- Justification: always-on provides better UX; control tools were clunky
+- Migration: remove `start_network_monitoring` calls; use `sinceMs` instead of clear
 
-## Reference
+## References
 
-### Dotčené soubory
-- `src/firefox/events/network.ts` - enabled = true by default
-- `src/tools/network.ts` - odstranění tool definitions a handlers
-- `src/tools/index.ts` - odstranění exportů
-- `src/index.ts` - odstranění registrací
-- `tasks/NETWORK-03-always-on-network-capture-and-remove-start-stop-clear.md` - task specifikace
+### Touched files
+- `src/firefox/events/network.ts` – enabled by default
+- `src/tools/network.ts` – removed tool definitions/handlers
+- `src/tools/index.ts` – removed exports
+- `src/index.ts` – removed registrations
+- `tasks/NETWORK-03-always-on-network-capture-and-remove-start-stop-clear.md` – task spec
 
-### Související změny
-- NETWORK-01: `sinceMs` filter nahrazuje nutnost manuálního clear
-- Celková simplifikace network API
+### Related changes
+- NETWORK-01: `sinceMs` replaces manual clear
+- Overall simplification of the network API
 
-## Další kroky
+## Next Steps
 
-- Monitorovat paměťové nároky při dlouhém běhu (možná přidat maxBufferSize)
-- Dokumentovat breaking change v CHANGELOG/docs
-- Zvážit přidání internal TTL pro auto-expiraci starých požadavků
-- Otestovat s dlouho běžícími sessions
+- Monitor memory usage in long sessions (possibly add maxBufferSize)
+- Document the breaking change in CHANGELOG/docs
+- Consider internal TTL for auto-expiration of old requests
+- Test with long-running sessions

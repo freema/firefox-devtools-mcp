@@ -1,62 +1,62 @@
-# Code Review – NETWORK-01: Přepracovat list_network_requests
+# Code Review – NETWORK-01: Overhaul list_network_requests
 
-Datum: 2025-10-19
+Date: 2025-10-19
 
-## Co bylo provedeno
+## What Was Done
 
-Přepracován nástroj `list_network_requests` na MCP-přátelský nástroj s čistým JSON Schema a zlepšenou funkcionalitou:
+Reworked `list_network_requests` into an MCP-friendly tool with clean JSON Schema and improved functionality:
 
-- **Čisté JSON Schema**: Odstraněn Zod z `inputSchema` (src/tools/network.ts:11-69)
-  - Všechny vlastnosti jsou nyní čisté JSON Schema objekty
-  - Odstraněn import `zod` z network.ts:6
-- **Nové parametry**:
-  - `limit` (number, default 50) - nahrazuje pageSize/pageIdx
-  - `sinceMs` (number) - filtrování podle času
-  - `sortBy` (enum: timestamp/duration/status) - řazení výsledků
-  - `detail` (enum: summary/min/full) - úroveň detailů výstupu
-- **Vylepšený handler** (src/tools/network.ts:87-235):
-  - Časové filtrování přes `sinceMs`
-  - Flexibilní řazení podle `sortBy` (default: timestamp desc)
-  - Tři úrovně výstupu podle `detail`:
-    - `summary`: Textový výpis s ID v prvním sloupci
-    - `min`: Kompaktní JSON bez headerů
-    - `full`: Plný JSON včetně requestHeaders/responseHeaders
-  - Stabilní `id` field je vždy součástí výstupu
-- **Aktualizovaný popis**: Odstraněna zmínka o nutnosti spustit monitoring (nyní always-on)
+- Clean JSON Schema (src/tools/network.ts:11-69)
+  - All properties are plain JSON Schema objects
+  - Removed `zod` import from network.ts:6
+- New parameters:
+  - `limit` (number, default 50) – replaces pageSize/pageIdx
+  - `sinceMs` (number) – time-based filtering
+  - `sortBy` (enum: timestamp/duration/status) – result ordering
+  - `detail` (enum: summary/min/full) – output verbosity
+- Improved handler (src/tools/network.ts:87-235):
+  - Time filter via `sinceMs`
+  - Flexible sorting via `sortBy` (default: timestamp desc)
+  - Three output levels based on `detail`:
+    - `summary`: text lines with ID in the first column
+    - `min`: compact JSON (no headers)
+    - `full`: full JSON including requestHeaders/responseHeaders
+  - Stable `id` field included in every entry
+- Updated description: no longer mentions starting monitoring (always-on now)
 
-## Rozhodnutí a dopady
+## Decisions and Impact
 
-### Naming a API design
-- `limit` místo `pageSize` + `pageIdx` - jednodušší API pro MCP agenty
-- `detail` parametr pro kontrolu verbosity - umožňuje agentům optimalizovat context usage
-- Stabilní `id` v každé položce - umožňuje spolehlivé navázání přes `get_network_request`
+### Naming and API design
+- `limit` instead of `pageSize` + `pageIdx` – simpler API for MCP agents
+- `detail` controls verbosity – lets agents optimize context usage
+- Stable `id` in every row – enables reliable follow-up with `get_network_request`
 
-### Výstup
-- Summary formát: `{id} | {method} {url} {status}` - jasné a parsovatelné
-- JSON formáty (min/full): strukturovaný výstup pro programovou zpracovatelnost
-- TIP message odkazuje na `get_network_request` s ID
+### Output
+- Summary format: `{id} | {method} {url} {status}` – easy to read and parse
+- JSON formats (min/full): structured output for programmatic use
+- TIP message points to `get_network_request` with ID
 
-### Defaulty
-- `limit: 50` - rozumný default pro většinu use casů
-- `sortBy: 'timestamp'` descending - nejnovější požadavky první
-- `detail: 'summary'` - stručný výstup jako default
+### Defaults
+- `limit: 50` – reasonable default
+- `sortBy: 'timestamp'` descending – newest requests first
+- `detail: 'summary'` – concise by default
 
-### Chybějící funkce (vedlejší efekt)
-- Odstranění page-based paginace (pageSize/pageIdx) - může být problém pro velmi velké seznamy
-- Kompenzace: limit + sinceMs + filtry poskytují dostačující kontrolu
+### Removed functionality (trade-off)
+- Page-based pagination removed (pageSize/pageIdx) – could be limiting for very large sets
+- Mitigation: `limit` + `sinceMs` + filters provide sufficient control
 
-## Reference
+## References
 
-### Dotčené soubory
-- `src/tools/network.ts` - tool definition a handler
-- `tasks/NETWORK-01-overhaul-list_network_requests.md` - task specifikace
+### Touched files
+- `src/tools/network.ts` – tool definition and handler
+- `tasks/NETWORK-01-overhaul-list_network_requests.md` – task spec
 
-### Související změny
-- NETWORK-03: Always-on monitoring (odstraněna nutnost start/stop)
-- NETWORK-02: get_network_request nyní přijímá ID
+### Related changes
+- NETWORK-03: Always-on monitoring (no start/stop tools)
+- NETWORK-02: `get_network_request` now prefers ID
 
-## Další kroky
+## Next Steps
 
-- Otestovat s reálnými workflowy (např. Claude Code MCP client)
-- Zvážit přidání `offset` parametru pro pokročilé stránkování (pokud se ukáže potřebné)
-- Dokumentovat v README/tool reference formáty výstupu podle `detail` parametru
+- Test with real workflows (e.g., MCP Inspector / clients)
+- Consider adding an `offset` parameter if advanced paging is needed
+- Document summary/min/full formats in README/tool reference

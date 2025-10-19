@@ -6,6 +6,10 @@ import type { WebDriver } from 'selenium-webdriver';
 import type { ConsoleMessage } from '../types.js';
 import { logDebug } from '../../utils/logger.js';
 
+// Memory protection constants
+const MAX_CONSOLE_MESSAGES = 1000; // Maximum number of messages to keep
+const CONSOLE_TTL_MS = 5 * 60 * 1000; // 5 minutes TTL for old messages
+
 export interface ConsoleEventsOptions {
   /** Callback triggered on navigation events (for auto-clear) */
   onNavigate?: () => void;
@@ -93,6 +97,7 @@ export class ConsoleEvents {
    * Get all collected console messages
    */
   getMessages(): ConsoleMessage[] {
+    this.cleanupOldMessages();
     return [...this.consoleMessages];
   }
 
@@ -101,5 +106,27 @@ export class ConsoleEvents {
    */
   clearMessages(): void {
     this.consoleMessages = [];
+  }
+
+  /**
+   * Remove old messages based on TTL and buffer size limit
+   */
+  private cleanupOldMessages(): void {
+    const now = Date.now();
+    const cutoffTime = now - CONSOLE_TTL_MS;
+
+    // Remove messages older than TTL
+    this.consoleMessages = this.consoleMessages.filter(
+      (msg) => msg.timestamp && msg.timestamp >= cutoffTime
+    );
+
+    // Enforce max buffer size (keep most recent messages)
+    if (this.consoleMessages.length > MAX_CONSOLE_MESSAGES) {
+      const excess = this.consoleMessages.length - MAX_CONSOLE_MESSAGES;
+      this.consoleMessages.splice(0, excess);
+      logDebug(
+        `Console buffer limit reached: removed ${excess} oldest message(s) (max: ${MAX_CONSOLE_MESSAGES})`
+      );
+    }
   }
 }

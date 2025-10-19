@@ -11,9 +11,28 @@ import type { SnapshotNode } from './types.js';
 const MAX_ATTR_LENGTH = 50;
 
 /**
+ * Formatting options
+ */
+export interface FormatOptions {
+  includeAttributes?: boolean;
+  includeText?: boolean;
+  maxDepth?: number;
+}
+
+/**
  * Format snapshot tree as human-readable text
  */
-export function formatSnapshotTree(node: SnapshotNode, depth = 0): string {
+export function formatSnapshotTree(
+  node: SnapshotNode,
+  depth = 0,
+  options: FormatOptions = {}
+): string {
+  const { includeAttributes = true, includeText = true, maxDepth } = options;
+
+  // Check max depth
+  if (maxDepth !== undefined && depth >= maxDepth) {
+    return '';
+  }
   const indent = '  '.repeat(depth);
   const attrs: string[] = [];
 
@@ -24,11 +43,9 @@ export function formatSnapshotTree(node: SnapshotNode, depth = 0): string {
   const role = node.role || node.tag;
   attrs.push(role);
 
-  // Name (in quotes)
+  // Name (in quotes) - only if exists
   if (node.name) {
     attrs.push(`"${truncate(node.name, MAX_ATTR_LENGTH)}"`);
-  } else {
-    attrs.push('""');
   }
 
   // Tag (for debugging)
@@ -51,13 +68,13 @@ export function formatSnapshotTree(node: SnapshotNode, depth = 0): string {
     attrs.push(`src="${truncate(node.src, MAX_ATTR_LENGTH)}"`);
   }
 
-  // Text
-  if (node.text) {
+  // Text (controlled by includeText option)
+  if (includeText && node.text) {
     attrs.push(`text="${truncate(node.text, MAX_ATTR_LENGTH)}"`);
   }
 
-  // ARIA attributes
-  if (node.aria) {
+  // ARIA attributes (controlled by includeAttributes option)
+  if (includeAttributes && node.aria) {
     // Boolean states
     if (node.aria.disabled) {
       attrs.push('disabled');
@@ -104,8 +121,8 @@ export function formatSnapshotTree(node: SnapshotNode, depth = 0): string {
     }
   }
 
-  // Computed properties
-  if (node.computed) {
+  // Computed properties (controlled by includeAttributes option)
+  if (includeAttributes && node.computed) {
     if (node.computed.focusable) {
       attrs.push('focusable');
     }
@@ -134,9 +151,9 @@ export function formatSnapshotTree(node: SnapshotNode, depth = 0): string {
 
   let result = indent + attrs.join(' ') + '\n';
 
-  // Format children
+  // Format children (pass options recursively)
   for (const child of node.children) {
-    result += formatSnapshotTree(child, depth + 1);
+    result += formatSnapshotTree(child, depth + 1, options);
   }
 
   return result;

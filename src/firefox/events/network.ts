@@ -5,6 +5,10 @@
 import type { WebDriver } from 'selenium-webdriver';
 import { logDebug } from '../../utils/logger.js';
 
+// Memory protection constants
+const MAX_NETWORK_REQUESTS = 1000; // Maximum number of requests to keep
+const NETWORK_TTL_MS = 5 * 60 * 1000; // 5 minutes TTL for old requests
+
 export interface NetworkEventsOptions {
   /** Callback triggered on navigation events (for auto-clear) */
   onNavigate?: () => void;
@@ -180,6 +184,7 @@ export class NetworkEvents {
    * Get all collected network requests
    */
   getRequests(): any[] {
+    this.cleanupOldRequests();
     return Array.from(this.networkRecords.values());
   }
 
@@ -190,6 +195,52 @@ export class NetworkEvents {
     this.networkRecords.clear();
     this.requestStartTimes.clear();
     logDebug('Network requests cleared');
+  }
+
+  /**
+   * Remove old requests based on TTL and buffer size limit
+   */
+  private cleanupOldRequests(): void {
+    const now = Date.now();
+    const cutoffTime = now - NETWORK_TTL_MS;
+
+    // Remove requests older than TTL
+    const entriesToRemove: string[] = [];
+    for (const [id, record] of this.networkRecords.entries()) {
+      if (record.timestamp && record.timestamp < cutoffTime) {
+        entriesToRemove.push(id);
+      }
+    }
+
+    for (const id of entriesToRemove) {
+      this.networkRecords.delete(id);
+      this.requestStartTimes.delete(id);
+    }
+
+    // Enforce max buffer size (keep most recent requests)
+    if (this.networkRecords.size > MAX_NETWORK_REQUESTS) {
+      const excess = this.networkRecords.size - MAX_NETWORK_REQUESTS;
+
+      // Sort by timestamp (oldest first) and remove oldest
+      const sorted = Array.from(this.networkRecords.entries()).sort((a, b) => {
+        const timeA = a[1].timestamp || 0;
+        const timeB = b[1].timestamp || 0;
+        return timeA - timeB;
+      });
+
+      for (let i = 0; i < excess; i++) {
+        const entry = sorted[i];
+        if (entry) {
+          const [id] = entry;
+          this.networkRecords.delete(id);
+          this.requestStartTimes.delete(id);
+        }
+      }
+
+      logDebug(
+        `Network buffer limit reached: removed ${excess} oldest request(s) (max: ${MAX_NETWORK_REQUESTS})`
+      );
+    }
   }
 
   /**

@@ -1,28 +1,28 @@
-# Code Review – PAGES: Odstranit refresh_pages (duplicitní s list_pages)
+# Code Review – PAGES: Remove refresh_pages (duplicate of list_pages)
 
-Datum: 2025-10-19
+Date: 2025-10-19
 
-## Co bylo provedeno
+## What Was Done
 
-Odstranění redundantního nástroje `refresh_pages`, který byl duplikátem `list_pages`:
+Removed redundant `refresh_pages`, which duplicated `list_pages`:
 
-- **Odstranění tool definition** (src/tools/pages.ts:21-31):
-  - Odstraněna definice `refreshPagesTool`
-  - Aktualizován popis `listPagesTool` - nyní explicitně uvádí, že vždy automaticky refreshuje
-- **Odstranění handleru** (src/tools/pages.ts:151-164):
-  - Odstraněn `handleRefreshPages` handler
-  - Zachován `handleListPages` (který již volal `refreshTabs()`)
-- **Odstranění exportů** (src/tools/index.ts:6-17):
-  - Odstraněny exporty: `refreshPagesTool`, `handleRefreshPages`
-- **Odstranění registrací** (src/index.ts):
-  - Odstraněn handler mapping z `toolHandlers` Map (řádek 83)
-  - Odstraněna tool definition z `allTools` array (řádek 127)
+- Removed tool definition (src/tools/pages.ts:21-31):
+  - Deleted `refreshPagesTool`
+  - Updated `listPagesTool` description to state it always refreshes
+- Removed handler (src/tools/pages.ts:151-164):
+  - Deleted `handleRefreshPages`
+  - Kept `handleListPages` (already calls `refreshTabs()`)
+- Removed exports (src/tools/index.ts:6-17):
+  - Deleted `refreshPagesTool`, `handleRefreshPages` exports
+- Removed registrations (src/index.ts):
+  - Deleted handler mapping from `toolHandlers` (line 83)
+  - Deleted tool entry from `allTools` (line 127)
 
-## Rozhodnutí a dopady
+## Decisions and Impact
 
-### Analýza redundance
+### Redundancy analysis
 
-**handleListPages** (zachován):
+Kept – handleListPages:
 ```typescript
 await firefox.refreshTabs();
 const tabs = firefox.getTabs();
@@ -30,7 +30,7 @@ const selectedIdx = firefox.getSelectedTabIdx();
 return formatPageList(tabs, selectedIdx);
 ```
 
-**handleRefreshPages** (odstraněn):
+Removed – handleRefreshPages:
 ```typescript
 await firefox.refreshTabs();
 const tabs = firefox.getTabs();
@@ -38,52 +38,48 @@ const selectedIdx = firefox.getSelectedTabIdx();
 return '🔄 Page list refreshed.\n\n' + formatPageList(tabs, selectedIdx);
 ```
 
-**Rozdíl**: Pouze prefix "🔄 Page list refreshed" - funkčně identické.
+Only difference: the "refreshed" prefix; functionally identical.
 
-### API zjednodušení
+### API simplification
 
-**Před:**
+Before:
 ```
 1. navigate_page (URL)
-2. refresh_pages       ← redundantní krok
+2. refresh_pages       ← redundant
 3. list_pages
 ```
 
-**Po:**
+After:
 ```
 1. navigate_page (URL)
-2. list_pages          ← automaticky refreshuje
+2. list_pages          ← automatically refreshes
 ```
 
-Snížení kroků z 3 na 2, čistší API.
+Fewer steps (3 → 2), cleaner API.
 
-### Aktualizace dokumentace
+### Docs update
 
-`listPagesTool.description` nyní jasně uvádí:
-> "Shows page index, title, URL, and indicates which page is currently selected. **This always returns the current state (automatically refreshes the page list).**"
-
-Agenti mají jasno, že nepotřebují samostatný refresh.
+`listPagesTool.description` now explicitly says it returns the current state and refreshes automatically.
 
 ### Breaking change
-- **API break**: Klienty používající `refresh_pages` přestanou fungovat
-- **Justifikace**: 100% duplicita s `list_pages`, žádná ztráta funkcionality
-- **Migrace**: Nahradit `refresh_pages` za `list_pages` (1:1 replacement)
+- API break: clients calling `refresh_pages` will fail
+- Justification: 100% duplicate of `list_pages`
+- Migration: replace `refresh_pages` with `list_pages` (1:1)
 
-## Reference
+## References
 
-### Dotčené soubory
-- `src/tools/pages.ts` - odstranění tool definition a handleru
-- `src/tools/index.ts` - odstranění exportů
-- `src/index.ts` - odstranění registrací
+### Touched files
+- `src/tools/pages.ts` – removed definition/handler
+- `src/tools/index.ts` – removed exports
+- `src/index.ts` – removed registrations
 
-### Související změny
-- Doporučení z tools-analysis.md (řádky 31-34)
-- Konzistence se zjednodušením API (podobně jako NETWORK-03 - always-on monitoring)
+### Related
+- Recommendation from tools-analysis.md
+- Consistent with API simplification (similar to NETWORK-03 always-on)
 
-## Další kroky
+## Next Steps
 
-- Dokumentovat breaking change v CHANGELOG
-- Aktualizovat README/příklady, pokud používají `refresh_pages`
-- Zvážit podobné simplifikace u ostatních tools (odstranit redundance)
-- Monitorovat feedback od uživatelů na zjednodušené API
-
+- Document the breaking change in CHANGELOG
+- Update README/examples if they reference `refresh_pages`
+- Consider similar simplifications for other tools
+- Monitor user feedback on the simplified API

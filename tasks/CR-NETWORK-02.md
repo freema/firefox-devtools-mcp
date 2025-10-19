@@ -1,34 +1,34 @@
 # Code Review – NETWORK-02: Redesign get_network_request
 
-Datum: 2025-10-19
+Date: 2025-10-19
 
-## Co bylo provedeno
+## What Was Done
 
-Redesign nástroje `get_network_request` pro stabilní lookup podle ID s fallback na URL:
+Redesigned `get_network_request` for stable ID-based lookup with a URL fallback:
 
-- **Čisté JSON Schema** (src/tools/network.ts:71-89):
-  - Primární parametr `id` (string) - doporučený způsob lookup
-  - Volitelný parametr `url` (string) - fallback s detekcí kolizí
-  - Žádný required parametr - jeden z nich musí být poskytnut (validace v handleru)
-- **Nový handler** (src/tools/network.ts:243-321):
-  - Primární cesta: lookup podle `id`
-  - Fallback cesta: lookup podle `url` s detekcí multiple matches
-  - Kolize handling: pokud URL matchuje více požadavků, vrátí seznam ID s nabídkou volby
-  - Strukturovaný JSON výstup s všemi dostupnými poli
-- **Aktualizovaný popis**:
-  - Jasně komunikuje preferenci ID lookup
-  - Vysvětluje riziko URL fallbacku (multiple matches)
-  - Odstraněny zbytečné disclaimery ("BiDi MVP...")
+- Clean JSON Schema (src/tools/network.ts:71-89):
+  - Primary `id` (string) – recommended lookup
+  - Optional `url` (string) – fallback with collision detection
+  - Neither is required in schema; handler validates that at least one is provided
+- New handler (src/tools/network.ts:243-321):
+  - Primary path: lookup by `id`
+  - Fallback path: lookup by `url` with multiple-match detection
+  - Collision handling: when multiple requests match the URL, return a list of IDs to choose from
+  - Structured JSON output including all available fields
+- Updated description:
+  - Clearly recommends ID lookup
+  - Explains risks of URL fallback (multiple matches)
+  - Removes unnecessary disclaimers
 
-## Rozhodnutí a dopady
+## Decisions and Impact
 
 ### API design
-- **ID-first approach**: Primární lookup podle `id` je spolehlivý a jednoznačný
-- **URL jako fallback**: Zachována zpětná kompatibilita, ale s jasným varováním
-- **Chybové stavy**: Explicitní error messages s TIP návody na řešení
+- ID-first approach is reliable and unambiguous
+- URL fallback keeps backward compatibility but warns about collisions
+- Error cases: explicit messages with tips to resolve
 
-### Kolize handling
-Pokud URL matchuje více požadavků:
+### Collision handling
+When a URL matches multiple requests:
 ```
 Multiple requests (3) found with URL: https://example.com/api/data
 
@@ -37,30 +37,30 @@ Please use one of these IDs with the "id" parameter:
   - ID: req-456 | POST [201]
   - ID: req-789 | GET [304]
 ```
-Uživatel dostane jasný seznam a může zvolit správný request podle ID.
+The user gets a clear list and can select by ID.
 
-### Výstup
-- Konzistentní JSON formát (stejný shape jako v `list_network_requests` full detail)
-- Všechna pole explicitně `null` pokud nejsou dostupná (ne `undefined`)
-- Čitelné jako text, snadno parsovatelné programově
+### Output
+- Consistent JSON shape (same as `list_network_requests` full detail)
+- Fields are `null` when not available (not `undefined`)
+- Readable as text, easy to parse programmatically
 
-### Vazba na list_network_requests
-- `list_network_requests` nyní vrací `id` field ve všech výstupech
-- Description explicitně instruuje: "Use the ID from list_network_requests"
-- Vytváří spolehlivý pattern: list → get detail
+### Relation to list_network_requests
+- `list_network_requests` now returns `id` in every entry
+- Description explicitly says: “Use the ID from list_network_requests”
+- Establishes a reliable pattern: list → get detail
 
-## Reference
+## References
 
-### Dotčené soubory
-- `src/tools/network.ts` - tool definition a handler (get_network_request)
-- `tasks/NETWORK-02-redesign-get_network_request.md` - task specifikace
+### Touched files
+- `src/tools/network.ts` – tool definition and handler (get_network_request)
+- `tasks/NETWORK-02-redesign-get_network_request.md` – task spec
 
-### Související změny
-- NETWORK-01: list_network_requests nyní vrací stabilní `id` field
-- Vazba: ID z list → vstup do get
+### Related changes
+- NETWORK-01: `list_network_requests` includes a stable `id` field
+- Binding: ID from list → input to get
 
-## Další kroky
+## Next Steps
 
-- Dokumentovat recommended workflow: `list_network_requests` → použít ID → `get_network_request`
-- Zvážit přidání `index` parametru jako další fallback (např. "get request #3")
-- Otestovat kolize detection s reálnými scénáři (např. polling endpoints)
+- Document recommended workflow: `list_network_requests` → use ID → `get_network_request`
+- Consider adding an `index` parameter as another fallback (e.g., “get request #3”)
+- Test collision handling with real scenarios (e.g., polling endpoints)

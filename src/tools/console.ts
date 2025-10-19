@@ -2,13 +2,13 @@
  * Console tools for MCP
  */
 
-import { successResponse, errorResponse } from '../utils/response-helpers.js';
+import { successResponse, errorResponse, jsonResponse } from '../utils/response-helpers.js';
 import type { McpToolResponse } from '../types/common.js';
 
 export const listConsoleMessagesTool = {
   name: 'list_console_messages',
   description:
-    'List console messages for the selected tab since the last navigation. Use filters (level, limit, sinceMs) to focus on recent and relevant logs.',
+    'List console messages for the selected tab since the last navigation. Use filters (level, limit, sinceMs, textContains, source) to focus on recent and relevant logs.',
   inputSchema: {
     type: 'object',
     properties: {
@@ -24,6 +24,19 @@ export const listConsoleMessagesTool = {
       sinceMs: {
         type: 'number',
         description: 'Only show messages from the last N milliseconds (filters by timestamp)',
+      },
+      textContains: {
+        type: 'string',
+        description: 'Filter messages by text content (case-insensitive substring match)',
+      },
+      source: {
+        type: 'string',
+        description: 'Filter messages by source (e.g., "console-api", "javascript", "network")',
+      },
+      format: {
+        type: 'string',
+        enum: ['text', 'json'],
+        description: 'Output format: text (default, human-readable) or json (structured data)',
       },
     },
   },
@@ -51,12 +64,21 @@ const DEFAULT_LIMIT = 50;
 
 export async function handleListConsoleMessages(args: unknown): Promise<McpToolResponse> {
   try {
-    const { level, limit, sinceMs } =
-      (args as {
-        level?: string;
-        limit?: number;
-        sinceMs?: number;
-      }) || {};
+    const {
+      level,
+      limit,
+      sinceMs,
+      textContains,
+      source,
+      format = 'text',
+    } = (args as {
+      level?: string;
+      limit?: number;
+      sinceMs?: number;
+      textContains?: string;
+      source?: string;
+      format?: 'text' | 'json';
+    }) || {};
 
     const { getFirefox } = await import('../index.js');
     const firefox = await getFirefox();
@@ -74,6 +96,15 @@ export async function handleListConsoleMessages(args: unknown): Promise<McpToolR
       messages = messages.filter((msg) => msg.timestamp && msg.timestamp >= cutoffTime);
     }
 
+    if (textContains) {
+      const textLower = textContains.toLowerCase();
+      messages = messages.filter((msg) => msg.text.toLowerCase().includes(textLower));
+    }
+
+    if (source) {
+      messages = messages.filter((msg) => msg.source?.toLowerCase() === source.toLowerCase());
+    }
+
     // Apply limit
     const maxLimit = limit ?? DEFAULT_LIMIT;
     const filteredCount = messages.length;
@@ -81,10 +112,65 @@ export async function handleListConsoleMessages(args: unknown): Promise<McpToolR
     messages = messages.slice(0, maxLimit);
 
     if (messages.length === 0) {
+      const filterInfo = [];
+      if (level) {
+        filterInfo.push(`level=${level}`);
+      }
+      if (sinceMs) {
+        filterInfo.push(`sinceMs=${sinceMs}`);
+      }
+      if (textContains) {
+        filterInfo.push(`textContains="${textContains}"`);
+      }
+      if (source) {
+        filterInfo.push(`source="${source}"`);
+      }
+
+      if (format === 'json') {
+        return jsonResponse({
+          total: totalCount,
+          filtered: 0,
+          showing: 0,
+          filters: filterInfo.length > 0 ? filterInfo.join(', ') : null,
+          messages: [],
+        });
+      }
+
       return successResponse(
         `No console messages found matching filters.\n` +
-          `Total messages: ${totalCount}${level ? `, Level filter: ${level}` : ''}${sinceMs ? `, Time filter: last ${sinceMs}ms` : ''}`
+          `Total messages: ${totalCount}${filterInfo.length > 0 ? `, Filters: ${filterInfo.join(', ')}` : ''}`
       );
+    }
+
+    // JSON format
+    if (format === 'json') {
+      const filterInfo = [];
+      if (level) {
+        filterInfo.push(`level=${level}`);
+      }
+      if (sinceMs) {
+        filterInfo.push(`sinceMs=${sinceMs}`);
+      }
+      if (textContains) {
+        filterInfo.push(`textContains="${textContains}"`);
+      }
+      if (source) {
+        filterInfo.push(`source="${source}"`);
+      }
+
+      return jsonResponse({
+        total: totalCount,
+        filtered: filteredCount,
+        showing: messages.length,
+        hasMore: truncated,
+        filters: filterInfo.length > 0 ? filterInfo.join(', ') : null,
+        messages: messages.map((msg) => ({
+          level: msg.level,
+          text: msg.text,
+          source: msg.source || null,
+          timestamp: msg.timestamp || null,
+        })),
+      });
     }
 
     // Format messages as text
@@ -94,13 +180,19 @@ export async function handleListConsoleMessages(args: unknown): Promise<McpToolR
     }
     output += `, ${totalCount} total):\n`;
 
-    if (level || sinceMs) {
+    if (level || sinceMs || textContains || source) {
       output += `Filters:`;
       if (level) {
         output += ` level=${level}`;
       }
       if (sinceMs) {
         output += ` sinceMs=${sinceMs}`;
+      }
+      if (textContains) {
+        output += ` textContains="${textContains}"`;
+      }
+      if (source) {
+        output += ` source="${source}"`;
       }
       output += '\n';
     }

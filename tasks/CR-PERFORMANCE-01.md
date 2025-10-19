@@ -1,71 +1,63 @@
-# Code Review – PERFORMANCE-01: Odstranit performance nástroje
+# Code Review – PERFORMANCE-01: Remove performance tools
 
-Datum: 2025-10-19
+Date: 2025-10-19
 
-## Co bylo provedeno
+## What Was Done
 
-Odstranění všech performance nástrojů z veřejné sady MCP tools, protože nepřinášejí hodnotu:
+Removed all performance tools from the public MCP tool set as they provide little to no value:
 
-- **Odstranění exportů** (src/tools/index.ts:40-48):
-  - Odstraněny exporty: `performanceGetMetricsTool`, `performanceStartTraceTool`, `performanceStopTraceTool`
-  - Odstraněny exporty handlerů: `handlePerformanceGetMetrics`, `handlePerformanceStartTrace`, `handlePerformanceStopTrace`
-- **Odstranění registrací** (src/index.ts):
-  - Odstraněny handler mappings z `toolHandlers` Map (řádky 100-103)
-  - Odstraněny tool definitions z `allTools` array (řádky 150-153)
-- **Soubor performance.ts** (src/tools/performance.ts):
-  - Ponechán v repozitáři (obsahuje poznámky o omezeních BiDi)
-  - Není exportován ani registrován, takže není dostupný přes MCP
+- Removed exports in `src/tools/index.ts` (performanceGetMetricsTool, performanceStartTraceTool, performanceStopTraceTool and their handlers)
+- Removed registrations in `src/index.ts` (both toolHandlers map and allTools array)
+- Kept `src/tools/performance.ts` in the repo for reference (documents BiDi limitations); not exported nor registered
 
-## Rozhodnutí a dopady
+## Decisions and Impact
 
-### Důvody odstranění
+### Reasons for removal
 
-**1. performance_start_trace / performance_stop_trace:**
-- Vrací pouze "not supported" error message
-- BiDi nepodporuje performance tracing (na rozdíl od Chrome DevTools Protocol)
-- Pro uživatele a agenty matoucí - vypadá jako funkční tool, ale nic nedělá
+1) performance_start_trace / performance_stop_trace
+- Only return “not supported” error
+- BiDi does not support performance tracing (unlike Chrome DevTools Protocol)
+- Misleading to users/agents (appears functional, does nothing)
 
-**2. performance_get_metrics:**
-- Vrací pouze základní Navigation Timing API data
-- Pro praktické MCP scénáře málo přínosný
-- Lepší je použít Firefox DevTools UI nebo Firefox Profiler pro skutečný profiling
+2) performance_get_metrics
+- Only basic Navigation Timing API
+- Low value for common MCP scenarios
+- Prefer Firefox DevTools UI or Firefox Profiler for real profiling
 
 ### API surface reduction
-**Před:**
-- 3 performance tools (všechny non-functional nebo low-value)
-- Celkem ~27 tools
+Before:
+- 3 performance tools (non-functional or low-value)
+- ~27 tools total
 
-**Po:**
+After:
 - 0 performance tools
-- Celkem ~24 tools
-- Čistší, srozumitelnější API pro MCP agenty
+- ~24 tools total
+- Cleaner API for MCP agents
 
 ### Breaking change
-- **API break**: Klienty používající `performance_*` tools přestanou fungovat
-- **Justifikace**: Tools byly deprecated a non-functional, minimální dopad
-- **Migrace**: Odstranit volání performance tools, použít Firefox DevTools UI pro profiling
+- API break: clients using `performance_*` will fail
+- Justification: deprecated/non-functional; minimal impact
+- Migration: remove calls to performance tools; use Firefox DevTools UI for profiling
 
-### Alternativy pro performance monitoring
-Dokumentováno v error messages a docs:
-1. Firefox DevTools Performance panel (F12 → Performance)
-2. Firefox Profiler (https://profiler.firefox.com/)
-3. Navigation Timing API (dostupné přes `evaluate_script` pokud bude potřeba)
+### Alternatives
+1) Firefox DevTools Performance panel (F12 → Performance)
+2) Firefox Profiler (https://profiler.firefox.com/)
+3) Navigation Timing API (via `evaluate_script` if needed)
 
-## Reference
+## References
 
-### Dotčené soubory
-- `src/tools/index.ts` - odstranění exportů
-- `src/index.ts` - odstranění registrací (toolHandlers a allTools)
-- `src/tools/performance.ts` - ponechán jako reference (není exportován)
+### Touched files
+- `src/tools/index.ts` – removed exports
+- `src/index.ts` – removed registrations
+- `src/tools/performance.ts` – kept for reference (not exported)
 
-### Související změny
-- SCHEMA-01: performance.ts měl Zod v inputSchema, byl opraven před odstraněním
-- Celkové zjednodušení API podle tools-analysis.md
+### Related
+- SCHEMA-01: performance.ts had Zod in inputSchema; corrected before removal
+- API simplification per tools-analysis.md
 
-## Další kroky
+## Next Steps
 
-- Dokumentovat breaking change v CHANGELOG
-- Zvážit přesun poznámek z performance.ts do `docs/future-features.md`
-- Dokumentovat alternativy pro performance monitoring v README
-- Pokud bude v budoucnu BiDi podporovat plnohodnotný profiling, můžeme tools vrátit
-
+- Document the breaking change in CHANGELOG
+- Consider moving performance notes into `docs/future-features.md`
+- Document performance alternatives in README
+- If BiDi later supports profiling, reintroduce tools

@@ -55,7 +55,8 @@ export class SnapshotManager {
         attemptedPaths.push(path);
         try {
           this.injectedScript = readFileSync(path, 'utf-8');
-          logDebug(`Loaded bundled snapshot injected script from: ${path}`);
+          const sizeKB = (this.injectedScript.length / 1024).toFixed(1);
+          logDebug(`✓ Loaded snapshot bundle: ${path.split('/').pop()} (${sizeKB} KB)`);
           return this.injectedScript;
         } catch {
           // Try next path
