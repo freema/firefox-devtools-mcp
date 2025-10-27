@@ -1,6 +1,6 @@
 {
   "name": "firefox-devtools-mcp",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "description": "Model Context Protocol (MCP) server for Firefox DevTools automation",
   "author": "freema",
   "license": "MIT",
@@ -58,6 +58,7 @@
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.17.1",
+    "selenium-webdriver": "^4.36.0",
     "ws": "^8.18.3",
     "yargs": "^17.7.2"
   },
@@ -76,7 +77,6 @@
     "eslint-plugin-prettier": "^5.4.0",
     "geckodriver": "^6.0.2",
     "prettier": "^3.5.3",
-    "selenium-webdriver": "^4.36.0",
     "tsup": "^8.0.0",
     "tsx": "^4.7.0",
     "typescript": "^5.3.3",
