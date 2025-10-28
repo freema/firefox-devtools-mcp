@@ -19,6 +19,8 @@ if (process.env.NODE_ENV !== 'production') {
 }
 
 import { version } from 'node:process';
+import { fileURLToPath } from 'node:url';
+import { resolve } from 'node:path';
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import {
@@ -236,7 +238,12 @@ async function main() {
 
 // Only run main() if this file is executed directly (not imported)
 // In ES modules, check if import.meta.url matches the executed file
-if (import.meta.url === `file://${process.argv[1]}`) {
+// We need to normalize both paths to handle different execution contexts (npx, node, etc.)
+const modulePath = fileURLToPath(import.meta.url);
+const scriptPath = process.argv[1] ? resolve(process.argv[1]) : '';
+const isMainModule = modulePath === scriptPath;
+
+if (isMainModule) {
   main().catch((error) => {
     logError('Fatal error in main', error);
     process.exit(1);
