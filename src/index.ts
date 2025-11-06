@@ -21,6 +21,7 @@ if (process.env.NODE_ENV !== 'production') {
 import { version } from 'node:process';
 import { fileURLToPath } from 'node:url';
 import { resolve } from 'node:path';
+import { realpathSync } from 'node:fs';
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import {
@@ -241,7 +242,17 @@ async function main() {
 // We need to normalize both paths to handle different execution contexts (npx, node, etc.)
 const modulePath = fileURLToPath(import.meta.url);
 const scriptPath = process.argv[1] ? resolve(process.argv[1]) : '';
-const isMainModule = modulePath === scriptPath;
+
+// Resolve both paths fully to handle symlinks and path normalization
+let isMainModule = false;
+try {
+  const realModulePath = realpathSync(modulePath);
+  const realScriptPath = scriptPath ? realpathSync(scriptPath) : '';
+  isMainModule = realModulePath === realScriptPath;
+} catch (error) {
+  // If realpath fails (e.g., file doesn't exist), fall back to simple comparison
+  isMainModule = modulePath === scriptPath;
+}
 
 if (isMainModule) {
   main().catch((error) => {
