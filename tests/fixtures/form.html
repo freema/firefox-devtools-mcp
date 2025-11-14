@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Form Test Page</title>
+</head>
+<body>
+    <h1>Form Test Page</h1>
+
+    <form id="testForm">
+        <div>
+            <label for="name">Name:</label>
+            <input type="text" id="name" name="name" data-testid="name-input">
+        </div>
+
+        <div>
+            <label for="email">Email:</label>
+            <input type="email" id="email" name="email" data-testid="email-input">
+        </div>
+
+        <div>
+            <label for="message">Message:</label>
+            <textarea id="message" name="message" data-testid="message-input"></textarea>
+        </div>
+
+        <div>
+            <label for="file">File:</label>
+            <input type="file" id="file" name="file" data-testid="file-input">
+        </div>
+
+        <button type="submit" id="submitBtn" data-testid="submit-button">Submit</button>
+    </form>
+
+    <div id="formResult"></div>
+
+    <script>
+        document.getElementById('testForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            const formData = new FormData(e.target);
+            const result = {
+                name: formData.get('name'),
+                email: formData.get('email'),
+                message: formData.get('message'),
+                file: formData.get('file')?.name || 'no file'
+            };
+            document.getElementById('formResult').textContent = JSON.stringify(result);
+        });
+    </script>
+</body>
+</html>

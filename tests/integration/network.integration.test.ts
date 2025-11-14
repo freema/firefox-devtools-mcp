@@ -1,0 +1,156 @@
+/**
+ * Integration tests for network monitoring
+ * Tests with real Firefox browser in headless mode
+ */
+
+import { describe, it, expect, beforeAll, afterAll } from 'vitest';
+import { createTestFirefox, closeFirefox, waitFor } from '../helpers/firefox.js';
+import type { FirefoxClient } from '@/firefox/index.js';
+import { resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const __dirname = fileURLToPath(new URL('.', import.meta.url));
+const fixturesPath = resolve(__dirname, '../fixtures');
+
+describe('Network Monitoring Integration Tests', () => {
+  let firefox: FirefoxClient;
+
+  beforeAll(async () => {
+    firefox = await createTestFirefox();
+    await firefox.startNetworkMonitoring();
+  }, 30000);
+
+  afterAll(async () => {
+    await closeFirefox(firefox);
+  });
+
+  it('should capture network requests on page load', async () => {
+    firefox.clearNetworkRequests();
+
+    const fixturePath = `file://${fixturesPath}/network.html`;
+    await firefox.navigate(fixturePath);
+
+    // Wait a bit for network request to be captured
+    await new Promise((resolve) => setTimeout(resolve, 500));
+
+    const requests = await firefox.getNetworkRequests();
+
+    // Should have at least the HTML file request
+    expect(requests.length).toBeGreaterThan(0);
+
+    // Find the HTML request
+    const htmlRequest = requests.find((req) => req.url.includes('network.html'));
+    expect(htmlRequest).toBeDefined();
+  }, 15000);
+
+  it('should capture fetch GET request', async () => {
+    const fixturePath = `file://${fixturesPath}/network.html`;
+    await firefox.navigate(fixturePath);
+
+    firefox.clearNetworkRequests();
+
+    // Take snapshot and click fetch GET button
+    const snapshot = await firefox.takeSnapshot();
+    const fetchGetBtn = snapshot.json.uidMap.find(
+      (entry) => entry.css.includes('#fetchGet') || entry.css.includes('fetchGet')
+    );
+
+    expect(fetchGetBtn).toBeDefined();
+
+    if (fetchGetBtn) {
+      await firefox.clickByUid(fetchGetBtn.uid);
+
+      // Wait for network request
+      await waitFor(async () => {
+        const requests = await firefox.getNetworkRequests();
+        return requests.some((req) => req.url.includes('jsonplaceholder'));
+      }, 10000);
+
+      const requests = await firefox.getNetworkRequests();
+      const apiRequest = requests.find((req) => req.url.includes('jsonplaceholder'));
+
+      expect(apiRequest).toBeDefined();
+      expect(apiRequest?.method).toBe('GET');
+    }
+  }, 20000);
+
+  it('should capture fetch POST request', async () => {
+    const fixturePath = `file://${fixturesPath}/network.html`;
+    await firefox.navigate(fixturePath);
+
+    firefox.clearNetworkRequests();
+
+    // Take snapshot and click fetch POST button
+    const snapshot = await firefox.takeSnapshot();
+    const fetchPostBtn = snapshot.json.uidMap.find(
+      (entry) => entry.css.includes('#fetchPost') || entry.css.includes('fetchPost')
+    );
+
+    expect(fetchPostBtn).toBeDefined();
+
+    if (fetchPostBtn) {
+      await firefox.clickByUid(fetchPostBtn.uid);
+
+      // Wait for network request
+      await waitFor(async () => {
+        const requests = await firefox.getNetworkRequests();
+        return requests.some((req) => req.method === 'POST');
+      }, 10000);
+
+      const requests = await firefox.getNetworkRequests();
+      const postRequest = requests.find((req) => req.method === 'POST');
+
+      expect(postRequest).toBeDefined();
+      expect(postRequest?.method).toBe('POST');
+      expect(postRequest?.url).toContain('jsonplaceholder');
+    }
+  }, 20000);
+
+  it('should capture XHR request', async () => {
+    const fixturePath = `file://${fixturesPath}/network.html`;
+    await firefox.navigate(fixturePath);
+
+    firefox.clearNetworkRequests();
+
+    // Take snapshot and click XHR button
+    const snapshot = await firefox.takeSnapshot();
+    const xhrBtn = snapshot.json.uidMap.find(
+      (entry) => entry.css.includes('#xhr') || entry.css.includes('data-testid="xhr')
+    );
+
+    expect(xhrBtn).toBeDefined();
+
+    if (xhrBtn) {
+      await firefox.clickByUid(xhrBtn.uid);
+
+      // Wait for network request
+      await waitFor(async () => {
+        const requests = await firefox.getNetworkRequests();
+        return requests.some((req) => req.url.includes('users/1'));
+      }, 10000);
+
+      const requests = await firefox.getNetworkRequests();
+      const xhrRequest = requests.find((req) => req.url.includes('users/1'));
+
+      expect(xhrRequest).toBeDefined();
+      expect(xhrRequest?.method).toBe('GET');
+    }
+  }, 20000);
+
+  it('should clear network requests', async () => {
+    const fixturePath = `file://${fixturesPath}/network.html`;
+    await firefox.navigate(fixturePath);
+
+    // Wait for initial page load request
+    await new Promise((resolve) => setTimeout(resolve, 500));
+
+    let requests = await firefox.getNetworkRequests();
+    expect(requests.length).toBeGreaterThan(0);
+
+    // Clear requests
+    firefox.clearNetworkRequests();
+
+    requests = await firefox.getNetworkRequests();
+    expect(requests.length).toBe(0);
+  }, 15000);
+});

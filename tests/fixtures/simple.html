@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Simple Test Page</title>
+</head>
+<body>
+    <h1 id="title">Simple Test Page</h1>
+    <p id="description">This is a simple test page for Firefox DevTools MCP.</p>
+
+    <button id="clickBtn" data-testid="click-button">Click Me</button>
+    <button id="dblClickBtn" data-testid="dblclick-button">Double Click Me</button>
+
+    <div id="result"></div>
+
+    <script>
+        document.getElementById('clickBtn').addEventListener('click', function() {
+            document.getElementById('result').textContent = 'Button clicked!';
+        });
+
+        document.getElementById('dblClickBtn').addEventListener('dblclick', function() {
+            document.getElementById('result').textContent = 'Button double-clicked!';
+        });
+    </script>
+</body>
+</html>

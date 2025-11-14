@@ -71,6 +71,7 @@ export interface SnapshotJson {
   snapshotId: number;
   timestamp: number;
   truncated?: boolean;
+  uidMap: UidEntry[];
 }
 
 /**

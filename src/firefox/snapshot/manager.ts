@@ -118,6 +118,7 @@ export class SnapshotManager {
       snapshotId,
       timestamp: Date.now(),
       truncated: result.truncated || false,
+      uidMap: result.uidMap,
     };
 
     const snapshot: Snapshot = {

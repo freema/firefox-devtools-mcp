@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Console Test Page</title>
+</head>
+<body>
+    <h1>Console Test Page</h1>
+    <p>This page logs various messages to the console.</p>
+
+    <button id="logDebug" data-testid="log-debug">Log Debug</button>
+    <button id="logInfo" data-testid="log-info">Log Info</button>
+    <button id="logWarn" data-testid="log-warn">Log Warning</button>
+    <button id="logError" data-testid="log-error">Log Error</button>
+
+    <script>
+        // Log messages on page load
+        console.debug('Debug message on load');
+        console.log('Info message on load');
+        console.warn('Warning message on load');
+        console.error('Error message on load');
+
+        // Button handlers
+        document.getElementById('logDebug').addEventListener('click', () => {
+            console.debug('Debug message from button');
+        });
+
+        document.getElementById('logInfo').addEventListener('click', () => {
+            console.log('Info message from button');
+        });
+
+        document.getElementById('logWarn').addEventListener('click', () => {
+            console.warn('Warning message from button');
+        });
+
+        document.getElementById('logError').addEventListener('click', () => {
+            console.error('Error message from button');
+        });
+    </script>
+</body>
+</html>
