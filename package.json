@@ -86,7 +86,8 @@
     "dist",
     "README.md",
     "LICENSE",
-    "scripts"
+    "scripts",
+    ".claude-plugin"
   ],
   "repository": {
     "type": "git",

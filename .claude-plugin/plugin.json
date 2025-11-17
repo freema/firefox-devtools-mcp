@@ -1,0 +1,21 @@
+{
+  "name": "firefox-devtools-mcp",
+  "description": "Firefox browser automation via WebDriver BiDi - control Firefox, take snapshots, interact with elements, monitor network requests, and capture screenshots",
+  "version": "0.3.0",
+  "author": {
+    "name": "freema"
+  },
+  "homepage": "https://github.com/freema/firefox-devtools-mcp",
+  "repository": "https://github.com/freema/firefox-devtools-mcp",
+  "license": "MIT",
+  "keywords": [
+    "firefox",
+    "browser-automation",
+    "devtools",
+    "selenium",
+    "webdriver-bidi",
+    "testing",
+    "automation",
+    "mcp-server"
+  ]
+}

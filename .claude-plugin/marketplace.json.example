@@ -1,0 +1,22 @@
+{
+  "name": "firefox-devtools-marketplace",
+  "owner": {
+    "name": "freema"
+  },
+  "metadata": {
+    "description": "Claude Code plugins for Firefox browser automation",
+    "version": "1.0.0"
+  },
+  "plugins": [
+    {
+      "name": "firefox-devtools-mcp",
+      "source": {
+        "source": "github",
+        "url": "https://github.com/freema/firefox-devtools-mcp"
+      },
+      "description": "Firefox browser automation via WebDriver BiDi - control Firefox, take snapshots, interact with elements, monitor network requests, and capture screenshots",
+      "version": "0.3.0",
+      "strict": true
+    }
+  ]
+}

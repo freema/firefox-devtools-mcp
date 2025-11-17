@@ -18,9 +18,29 @@ Repository: https://github.com/freema/firefox-devtools-mcp
 - Node.js ≥ 20.19.0
 - Firefox 100+ installed (auto‑detected, or pass `--firefox-path`)
 
-## Install and use with Claude Code (npx)
+## Install and use with Claude Code
 
-Recommended: use npx so you always run the latest published version from npm.
+### Option 1 — Via Plugin (Recommended)
+
+Install as a Claude Code plugin from a marketplace:
+
+```bash
+# If available in a marketplace (e.g., superpowers-marketplace)
+/plugin marketplace add freema/firefox-devtools-marketplace
+/plugin install firefox-devtools-mcp@firefox-devtools-marketplace
+```
+
+Or install directly from GitHub:
+
+```bash
+/plugin install github:freema/firefox-devtools-mcp
+```
+
+The plugin automatically configures the MCP server with sensible defaults (headless mode, 1280x720 viewport).
+
+### Option 2 — Via npx (Manual MCP Configuration)
+
+Use npx to always run the latest published version from npm.
 
 Option A — Claude Code CLI
 

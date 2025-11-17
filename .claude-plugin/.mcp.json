@@ -1,0 +1,16 @@
+{
+  "firefox-devtools": {
+    "command": "npx",
+    "args": [
+      "-y",
+      "firefox-devtools-mcp@latest",
+      "--headless",
+      "--viewport",
+      "1280x720"
+    ],
+    "env": {
+      "START_URL": "about:home",
+      "FIREFOX_HEADLESS": "true"
+    }
+  }
+}
