@@ -22,15 +22,7 @@ Repository: https://github.com/freema/firefox-devtools-mcp
 
 ### Option 1 — Via Plugin (Recommended)
 
-Install as a Claude Code plugin from a marketplace:
-
-```bash
-# If available in a marketplace (e.g., superpowers-marketplace)
-/plugin marketplace add freema/firefox-devtools-marketplace
-/plugin install firefox-devtools-mcp@firefox-devtools-marketplace
-```
-
-Or install directly from GitHub:
+Install as a Claude Code plugin directly from GitHub:
 
 ```bash
 /plugin install github:freema/firefox-devtools-mcp
