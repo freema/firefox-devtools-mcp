@@ -84,7 +84,9 @@ export function safeguardResponse(text: string): string {
 export function truncateHeaders(
   headers: Record<string, string> | null | undefined
 ): Record<string, string> | null {
-  if (!headers) return null;
+  if (!headers) {
+    return null;
+  }
 
   const result: Record<string, string> = {};
   let totalChars = 0;

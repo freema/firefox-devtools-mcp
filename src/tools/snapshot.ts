@@ -77,10 +77,7 @@ export async function handleTakeSnapshot(args: unknown): Promise<McpToolResponse
     }) || {};
 
     // Apply hard cap on maxLines to prevent token overflow
-    const maxLines = Math.min(
-      Math.max(1, requestedMaxLines),
-      TOKEN_LIMITS.MAX_SNAPSHOT_LINES_CAP
-    );
+    const maxLines = Math.min(Math.max(1, requestedMaxLines), TOKEN_LIMITS.MAX_SNAPSHOT_LINES_CAP);
     const wasCapped = requestedMaxLines > TOKEN_LIMITS.MAX_SNAPSHOT_LINES_CAP;
 
     const { getFirefox } = await import('../index.js');
