@@ -38,11 +38,11 @@ jobs:
       - name: Type check
         run: npm run typecheck
 
-      - name: Test with coverage
-        run: npm run test:coverage
-
       - name: Build
         run: npm run build
+
+      - name: Test with coverage
+        run: npm run test:coverage
 
       - name: Upload coverage reports to Codecov
         if: matrix.node-version == 20
