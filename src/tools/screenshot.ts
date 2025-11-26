@@ -2,7 +2,12 @@
  * Screenshot tools for visual capture
  */
 
-import { successResponse, errorResponse } from '../utils/response-helpers.js';
+import {
+  successResponse,
+  errorResponse,
+  TOKEN_LIMITS,
+  estimateTokens,
+} from '../utils/response-helpers.js';
 import type { McpToolResponse } from '../types/common.js';
 
 // Tool definitions
@@ -32,6 +37,36 @@ export const screenshotByUidTool = {
   },
 };
 
+/**
+ * Build screenshot response with size safeguards.
+ */
+function buildScreenshotResponse(base64Png: string, context: string): McpToolResponse {
+  const sizeKB = Math.round(base64Png.length / 1024);
+  const estimatedTokens = estimateTokens(base64Png);
+
+  // Check if screenshot exceeds size limit
+  if (base64Png.length > TOKEN_LIMITS.MAX_SCREENSHOT_CHARS) {
+    const truncatedData = base64Png.slice(0, TOKEN_LIMITS.MAX_SCREENSHOT_CHARS);
+    return successResponse(
+      `📸 ${context} (${sizeKB}KB)\n\n` +
+        `⚠️ Screenshot truncated (~${Math.round(estimatedTokens / 1000)}k tokens exceeds limit)\n` +
+        `Only first ${Math.round(TOKEN_LIMITS.MAX_SCREENSHOT_CHARS / 1024)}KB shown.\n` +
+        `TIP: For full screenshots, use a dedicated screenshot tool or save to file.\n\n` +
+        `Base64 PNG data (truncated):\n${truncatedData}\n\n[...truncated]`
+    );
+  }
+
+  // Add warning for large but not truncated screenshots
+  let warning = '';
+  if (base64Png.length > TOKEN_LIMITS.WARNING_THRESHOLD_CHARS) {
+    warning = `⚠️ Large screenshot (~${Math.round(estimatedTokens / 1000)}k tokens) - may fill context quickly\n\n`;
+  }
+
+  return successResponse(
+    `📸 ${context} (${sizeKB}KB)\n\n` + warning + `Base64 PNG data:\n${base64Png}`
+  );
+}
+
 // Handlers
 export async function handleScreenshotPage(_args: unknown): Promise<McpToolResponse> {
   try {
@@ -45,10 +80,7 @@ export async function handleScreenshotPage(_args: unknown): Promise<McpToolRespo
       throw new Error('Failed to capture screenshot: invalid data returned');
     }
 
-    return successResponse(
-      `📸 Page screenshot captured (${Math.round(base64Png.length / 1024)}KB)\n\n` +
-        `Base64 PNG data:\n${base64Png}`
-    );
+    return buildScreenshotResponse(base64Png, 'Page screenshot captured');
   } catch (error) {
     return errorResponse(
       new Error(
@@ -78,10 +110,7 @@ export async function handleScreenshotByUid(args: unknown): Promise<McpToolRespo
         throw new Error('Failed to capture screenshot: invalid data returned');
       }
 
-      return successResponse(
-        `📸 Element screenshot captured for UID "${uid}" (${Math.round(base64Png.length / 1024)}KB)\n\n` +
-          `Base64 PNG data:\n${base64Png}`
-      );
+      return buildScreenshotResponse(base64Png, `Element screenshot captured for UID "${uid}"`);
     } catch (error) {
       const errorMsg = (error as Error).message;
 

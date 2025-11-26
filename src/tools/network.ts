@@ -3,7 +3,12 @@
  * Provides network request inspection capabilities
  */
 
-import { successResponse, errorResponse, jsonResponse } from '../utils/response-helpers.js';
+import {
+  successResponse,
+  errorResponse,
+  jsonResponse,
+  truncateHeaders,
+} from '../utils/response-helpers.js';
 import type { McpToolResponse } from '../types/common.js';
 
 // Tool definitions
@@ -203,7 +208,7 @@ export async function handleListNetworkRequests(args: unknown): Promise<McpToolR
           duration: req.timings?.duration,
         }));
       } else {
-        // Full detail
+        // Full detail - apply header truncation to prevent token overflow
         responseData.requests = limitedRequests.map((req) => ({
           id: req.id,
           url: req.url,
@@ -213,8 +218,8 @@ export async function handleListNetworkRequests(args: unknown): Promise<McpToolR
           resourceType: req.resourceType,
           isXHR: req.isXHR,
           timings: req.timings || null,
-          requestHeaders: req.requestHeaders || null,
-          responseHeaders: req.responseHeaders || null,
+          requestHeaders: truncateHeaders(req.requestHeaders),
+          responseHeaders: truncateHeaders(req.responseHeaders),
         }));
       }
 
@@ -258,7 +263,7 @@ export async function handleListNetworkRequests(args: unknown): Promise<McpToolR
           JSON.stringify(minData, null, 2)
       );
     } else {
-      // Full JSON including headers
+      // Full JSON including headers - apply truncation to prevent token overflow
       const fullData = limitedRequests.map((req) => ({
         id: req.id,
         url: req.url,
@@ -268,8 +273,8 @@ export async function handleListNetworkRequests(args: unknown): Promise<McpToolR
         resourceType: req.resourceType,
         isXHR: req.isXHR,
         timings: req.timings || null,
-        requestHeaders: req.requestHeaders || null,
-        responseHeaders: req.responseHeaders || null,
+        requestHeaders: truncateHeaders(req.requestHeaders),
+        responseHeaders: truncateHeaders(req.responseHeaders),
       }));
 
       return successResponse(
@@ -343,7 +348,7 @@ export async function handleGetNetworkRequest(args: unknown): Promise<McpToolRes
       return errorResponse('Request not found');
     }
 
-    // Format request details
+    // Format request details - apply header truncation to prevent token overflow
     const details = {
       id: request.id,
       url: request.url,
@@ -354,8 +359,8 @@ export async function handleGetNetworkRequest(args: unknown): Promise<McpToolRes
       isXHR: request.isXHR ?? false,
       timestamp: request.timestamp ?? null,
       timings: request.timings ?? null,
-      requestHeaders: request.requestHeaders ?? null,
-      responseHeaders: request.responseHeaders ?? null,
+      requestHeaders: truncateHeaders(request.requestHeaders),
+      responseHeaders: truncateHeaders(request.responseHeaders),
     };
 
     if (format === 'json') {

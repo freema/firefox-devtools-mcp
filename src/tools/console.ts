@@ -2,7 +2,13 @@
  * Console tools for MCP
  */
 
-import { successResponse, errorResponse, jsonResponse } from '../utils/response-helpers.js';
+import {
+  successResponse,
+  errorResponse,
+  jsonResponse,
+  TOKEN_LIMITS,
+  truncateText,
+} from '../utils/response-helpers.js';
 import type { McpToolResponse } from '../types/common.js';
 
 export const listConsoleMessagesTool = {
@@ -104,6 +110,12 @@ export async function handleListConsoleMessages(args: unknown): Promise<McpToolR
     if (source) {
       messages = messages.filter((msg) => msg.source?.toLowerCase() === source.toLowerCase());
     }
+
+    // Truncate individual message texts to prevent token overflow
+    messages = messages.map((msg) => ({
+      ...msg,
+      text: truncateText(msg.text, TOKEN_LIMITS.MAX_CONSOLE_MESSAGE_CHARS, '...[truncated]'),
+    }));
 
     // Apply limit
     const maxLimit = limit ?? DEFAULT_LIMIT;
