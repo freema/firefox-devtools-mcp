@@ -43,10 +43,12 @@ export class SnapshotManager {
 
       // Try multiple potential locations
       const possiblePaths = [
-        // Production: relative to compiled dist/index.js location
-        resolve(currentDir, '../../snapshot.injected.global.js'),
-        // Alternative: relative to current working directory
+        // Production: relative to bundled dist/index.js (same directory)
+        resolve(currentDir, 'snapshot.injected.global.js'),
+        // Development: relative to current working directory
         resolve(process.cwd(), 'dist/snapshot.injected.global.js'),
+        // npx: package is in node_modules, try to find it relative to the binary
+        resolve(currentDir, '../snapshot.injected.global.js'),
       ];
 
       const attemptedPaths: string[] = [];
