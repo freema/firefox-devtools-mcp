@@ -2,10 +2,10 @@
  * Snapshot tools for DOM structure capture with UID mapping
  */
 
-import { successResponse, errorResponse } from '../utils/response-helpers.js';
+import { successResponse, errorResponse, TOKEN_LIMITS } from '../utils/response-helpers.js';
 import type { McpToolResponse } from '../types/common.js';
 
-const MAX_SNAPSHOT_LINES = 100;
+const DEFAULT_SNAPSHOT_LINES = 100;
 
 // Tool definitions
 export const takeSnapshotTool = {
@@ -65,7 +65,7 @@ export const clearSnapshotTool = {
 export async function handleTakeSnapshot(args: unknown): Promise<McpToolResponse> {
   try {
     const {
-      maxLines = MAX_SNAPSHOT_LINES,
+      maxLines: requestedMaxLines = DEFAULT_SNAPSHOT_LINES,
       includeAttributes = false,
       includeText = true,
       maxDepth,
@@ -75,6 +75,10 @@ export async function handleTakeSnapshot(args: unknown): Promise<McpToolResponse
       includeText?: boolean;
       maxDepth?: number;
     }) || {};
+
+    // Apply hard cap on maxLines to prevent token overflow
+    const maxLines = Math.min(Math.max(1, requestedMaxLines), TOKEN_LIMITS.MAX_SNAPSHOT_LINES_CAP);
+    const wasCapped = requestedMaxLines > TOKEN_LIMITS.MAX_SNAPSHOT_LINES_CAP;
 
     const { getFirefox } = await import('../index.js');
     const firefox = await getFirefox();
@@ -100,6 +104,11 @@ export async function handleTakeSnapshot(args: unknown): Promise<McpToolResponse
 
     // Build output with guidance
     let output = '📸 Snapshot taken\n\n';
+
+    // Add warning if maxLines was capped
+    if (wasCapped) {
+      output += `⚠️ maxLines capped at ${TOKEN_LIMITS.MAX_SNAPSHOT_LINES_CAP} (requested: ${requestedMaxLines}) to prevent token overflow\n\n`;
+    }
 
     // Add guidance section
     output += '═══ HOW TO USE THIS SNAPSHOT ═══\n';
