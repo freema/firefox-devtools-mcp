@@ -146,6 +146,7 @@ export class PageManagement {
     if (index >= 0 && index < handles.length) {
       await this.driver.switchTo().window(handles[index]!);
       this.setCurrentContextId(handles[index]!);
+      this.cachedSelectedIdx = index;
     }
   }
 
@@ -157,6 +158,7 @@ export class PageManagement {
     const handles = await this.driver.getAllWindowHandles();
     const newIdx = handles.length - 1;
     this.setCurrentContextId(handles[newIdx]!);
+    this.cachedSelectedIdx = newIdx;
     await this.driver.get(url);
     return newIdx;
   }
