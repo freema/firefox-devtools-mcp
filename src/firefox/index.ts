@@ -373,6 +373,26 @@ export class FirefoxClient {
     return this.core.getDriver();
   }
 
+  /**
+   * Check if Firefox is still connected and responsive
+   * Returns false if Firefox was closed or connection is broken
+   */
+  async isConnected(): Promise<boolean> {
+    return await this.core.isConnected();
+  }
+
+  /**
+   * Reset all internal state (used when Firefox is detected as closed)
+   */
+  reset(): void {
+    this.core.reset();
+    this.consoleEvents = null;
+    this.networkEvents = null;
+    this.dom = null;
+    this.pages = null;
+    this.snapshot = null;
+  }
+
   // ============================================================================
   // Cleanup
   // ============================================================================

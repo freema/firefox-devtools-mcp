@@ -38,9 +38,11 @@ import { parseArguments } from './cli.js';
 import { FirefoxDevTools } from './firefox/index.js';
 import type { FirefoxLaunchOptions } from './firefox/types.js';
 import * as tools from './tools/index.js';
+import { FirefoxDisconnectedError } from './utils/errors.js';
 
 // Export for direct usage in scripts
 export { FirefoxDevTools } from './firefox/index.js';
+export { FirefoxDisconnectedError, isDisconnectionError } from './utils/errors.js';
 
 // Validate Node.js version
 const [major] = version.substring(1).split('.').map(Number);
@@ -55,23 +57,44 @@ export const args = parseArguments(SERVER_VERSION);
 // Global context (lazy initialized on first tool call)
 let firefox: FirefoxDevTools | null = null;
 
-export async function getFirefox(): Promise<FirefoxDevTools> {
-  if (!firefox) {
-    log('Initializing Firefox DevTools connection...');
-
-    const options: FirefoxLaunchOptions = {
-      firefoxPath: args.firefoxPath ?? undefined,
-      headless: args.headless,
-      profilePath: args.profilePath ?? undefined,
-      viewport: args.viewport ?? undefined,
-      args: (args.firefoxArg as string[] | undefined) ?? undefined,
-      startUrl: args.startUrl ?? undefined,
-    };
-
-    firefox = new FirefoxDevTools(options);
-    await firefox.connect();
-    log('Firefox DevTools connection established');
+/**
+ * Reset Firefox instance (used when disconnection is detected)
+ */
+export function resetFirefox(): void {
+  if (firefox) {
+    firefox.reset();
+    firefox = null;
   }
+  log('Firefox instance reset - will reconnect on next tool call');
+}
+
+export async function getFirefox(): Promise<FirefoxDevTools> {
+  // If we have an existing instance, verify it's still connected
+  if (firefox) {
+    const isConnected = await firefox.isConnected();
+    if (!isConnected) {
+      log('Firefox connection lost - browser was closed or disconnected');
+      resetFirefox();
+      throw new FirefoxDisconnectedError('Browser was closed');
+    }
+    return firefox;
+  }
+
+  // No existing instance - create new connection
+  log('Initializing Firefox DevTools connection...');
+
+  const options: FirefoxLaunchOptions = {
+    firefoxPath: args.firefoxPath ?? undefined,
+    headless: args.headless,
+    profilePath: args.profilePath ?? undefined,
+    viewport: args.viewport ?? undefined,
+    args: (args.firefoxArg as string[] | undefined) ?? undefined,
+    startUrl: args.startUrl ?? undefined,
+  };
+
+  firefox = new FirefoxDevTools(options);
+  await firefox.connect();
+  log('Firefox DevTools connection established');
 
   return firefox;
 }
