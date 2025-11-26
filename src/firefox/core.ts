@@ -78,6 +78,35 @@ export class FirefoxCore {
   }
 
   /**
+   * Check if Firefox is still connected and responsive
+   * Returns false if Firefox was closed or connection is broken
+   */
+  async isConnected(): Promise<boolean> {
+    if (!this.driver) {
+      return false;
+    }
+
+    try {
+      // Try a simple command to check if Firefox is responsive
+      await this.driver.getWindowHandle();
+      return true;
+    } catch (error) {
+      // Any error means connection is broken
+      logDebug('Connection check failed: Firefox is not responsive');
+      return false;
+    }
+  }
+
+  /**
+   * Reset driver state (used when Firefox is detected as closed)
+   */
+  reset(): void {
+    this.driver = null;
+    this.currentContextId = null;
+    logDebug('Driver state reset');
+  }
+
+  /**
    * Get current browsing context ID
    */
   getCurrentContextId(): string | null {

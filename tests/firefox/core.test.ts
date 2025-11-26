@@ -53,4 +53,24 @@ describe('FirefoxCore', () => {
       expect(() => core.getDriver()).toThrow('Driver not connected');
     });
   });
+
+  describe('isConnected', () => {
+    it('should return false when driver is null', async () => {
+      const core = new FirefoxCore({ headless: true });
+      const connected = await core.isConnected();
+      expect(connected).toBe(false);
+    });
+  });
+
+  describe('reset', () => {
+    it('should reset driver and context to null', () => {
+      const core = new FirefoxCore({ headless: true });
+      core.setCurrentContextId('test-context');
+
+      core.reset();
+
+      expect(core.getCurrentContextId()).toBe(null);
+      expect(() => core.getDriver()).toThrow('Driver not connected');
+    });
+  });
 });
