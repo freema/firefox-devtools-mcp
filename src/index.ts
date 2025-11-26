@@ -38,7 +38,7 @@ import { parseArguments } from './cli.js';
 import { FirefoxDevTools } from './firefox/index.js';
 import type { FirefoxLaunchOptions } from './firefox/types.js';
 import * as tools from './tools/index.js';
-import { FirefoxDisconnectedError, isDisconnectionError } from './utils/errors.js';
+import { FirefoxDisconnectedError } from './utils/errors.js';
 
 // Export for direct usage in scripts
 export { FirefoxDevTools } from './firefox/index.js';
