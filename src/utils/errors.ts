@@ -4,14 +4,17 @@
 
 /**
  * Error thrown when Firefox browser is not connected or was closed
- * Provides clear instructions for the user on how to resolve the issue
+ * The message is designed to help AI assistants understand what happened
+ * and what action to take.
  */
 export class FirefoxDisconnectedError extends Error {
   constructor(reason?: string) {
     const baseMessage = 'Firefox browser is not connected';
     const instruction =
-      'The Firefox browser was closed or the connection was lost. ' +
-      'Please restart the MCP server to launch a new Firefox instance.';
+      'The Firefox browser window was closed by the user. ' +
+      'To continue browser automation, ask the user to restart the firefox-devtools-mcp server ' +
+      '(they need to restart Claude Code or the MCP connection). ' +
+      'This will launch a new Firefox instance.';
 
     const fullMessage = reason
       ? `${baseMessage}: ${reason}. ${instruction}`
