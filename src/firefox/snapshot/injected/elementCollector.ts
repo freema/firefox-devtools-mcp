@@ -20,7 +20,7 @@ const INTERACTIVE_TAGS = [
 /**
  * Semantic container tags
  */
-const SEMANTIC_TAGS = ['nav', 'main', 'section', 'article', 'header', 'footer'];
+const SEMANTIC_TAGS = ['nav', 'main', 'section', 'article', 'header', 'footer', 'form'];
 
 /**
  * Common container tags (need additional checks)
