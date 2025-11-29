@@ -7,32 +7,23 @@ import type { McpToolResponse } from '../types/common.js';
 
 export const evaluateScriptTool = {
   name: 'evaluate_script',
-  description:
-    'Execute a JavaScript function in the selected tab and return its JSON-serializable result. Use with caution; prefer snapshot+UID tools for interactions. This tool may be disabled by default.',
+  description: 'Execute JS function in page. Prefer UID tools for interactions.',
   inputSchema: {
     type: 'object',
     properties: {
       function: {
         type: 'string',
-        description: `A JavaScript function to run in the currently selected page.
-Example without arguments: \`() => {
-  return document.title
-}\` or \`async () => {
-  return await fetch("example.com")
-}\`.
-Example with arguments: \`(el) => {
-  return el.innerText;
-}\``,
+        description: 'JS function string, e.g. () => document.title',
       },
       args: {
         type: 'array',
-        description: 'An optional list of arguments to pass to the function (UIDs from snapshot).',
+        description: 'UIDs to pass as function arguments',
         items: {
           type: 'object',
           properties: {
             uid: {
               type: 'string',
-              description: 'The uid of an element on the page from the page content snapshot',
+              description: 'Element UID from snapshot',
             },
           },
           required: ['uid'],
@@ -40,8 +31,7 @@ Example with arguments: \`(el) => {
       },
       timeout: {
         type: 'number',
-        description:
-          'Optional timeout in milliseconds for script execution (default: 5000). Protection against infinite loops.',
+        description: 'Timeout in ms (default: 5000)',
       },
     },
     required: ['function'],

@@ -13,36 +13,35 @@ import type { McpToolResponse } from '../types/common.js';
 
 export const listConsoleMessagesTool = {
   name: 'list_console_messages',
-  description:
-    'List console messages for the selected tab since the last navigation. Use filters (level, limit, sinceMs, textContains, source) to focus on recent and relevant logs.',
+  description: 'List console messages. Supports filtering by level, time, text, source.',
   inputSchema: {
     type: 'object',
     properties: {
       level: {
         type: 'string',
         enum: ['debug', 'info', 'warn', 'error'],
-        description: 'Filter by console message level',
+        description: 'Filter by level',
       },
       limit: {
         type: 'number',
-        description: 'Maximum number of messages to return (default: 50)',
+        description: 'Max messages (default: 50)',
       },
       sinceMs: {
         type: 'number',
-        description: 'Only show messages from the last N milliseconds (filters by timestamp)',
+        description: 'Only last N ms',
       },
       textContains: {
         type: 'string',
-        description: 'Filter messages by text content (case-insensitive substring match)',
+        description: 'Text filter (case-insensitive)',
       },
       source: {
         type: 'string',
-        description: 'Filter messages by source (e.g., "console-api", "javascript", "network")',
+        description: 'Filter by source',
       },
       format: {
         type: 'string',
         enum: ['text', 'json'],
-        description: 'Output format: text (default, human-readable) or json (structured data)',
+        description: 'Output format (default: text)',
       },
     },
   },
@@ -50,8 +49,7 @@ export const listConsoleMessagesTool = {
 
 export const clearConsoleMessagesTool = {
   name: 'clear_console_messages',
-  description:
-    'Clear the collected console messages. TIP: Clear before a new measurement to keep output focused.',
+  description: 'Clear collected console messages.',
   inputSchema: {
     type: 'object',
     properties: {},

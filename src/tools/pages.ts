@@ -8,8 +8,7 @@ import type { McpToolResponse } from '../types/common.js';
 // Tool definitions
 export const listPagesTool = {
   name: 'list_pages',
-  description:
-    'List all open tabs with index, title, and URL. The currently selected tab is marked. Use the index with select_page.',
+  description: 'List open tabs (index, title, URL). Selected tab is marked.',
   inputSchema: {
     type: 'object',
     properties: {},
@@ -18,14 +17,13 @@ export const listPagesTool = {
 
 export const newPageTool = {
   name: 'new_page',
-  description:
-    'Open a new tab and navigate it to the provided URL. Returns the new tab index in the response.',
+  description: 'Open new tab at URL. Returns tab index.',
   inputSchema: {
     type: 'object',
     properties: {
       url: {
         type: 'string',
-        description: 'URL to load in a new page',
+        description: 'Target URL',
       },
     },
     required: ['url'],
@@ -34,13 +32,13 @@ export const newPageTool = {
 
 export const navigatePageTool = {
   name: 'navigate_page',
-  description: 'Navigate the currently selected tab to the provided URL.',
+  description: 'Navigate selected tab to URL.',
   inputSchema: {
     type: 'object',
     properties: {
       url: {
         type: 'string',
-        description: 'URL to navigate the page to',
+        description: 'Target URL',
       },
     },
     required: ['url'],
@@ -49,28 +47,21 @@ export const navigatePageTool = {
 
 export const selectPageTool = {
   name: 'select_page',
-  description:
-    'Select the active tab by index (preferred), or by matching URL/title. Index takes precedence when multiple parameters are provided.',
+  description: 'Select active tab by index, URL, or title. Index takes precedence.',
   inputSchema: {
     type: 'object',
     properties: {
       pageIdx: {
         type: 'number',
-        description:
-          'The index of the page to select (e.g., 0, 1, 2). ' +
-          'Use list_pages first to see all available page indices. Most reliable method.',
+        description: 'Tab index (0-based, most reliable)',
       },
       url: {
         type: 'string',
-        description:
-          'Select page by URL (partial match, case-insensitive). ' +
-          'Example: "github.com" will match "https://github.com/user/repo"',
+        description: 'URL substring (case-insensitive)',
       },
       title: {
         type: 'string',
-        description:
-          'Select page by title (partial match, case-insensitive). ' +
-          'Example: "Google" will match "Google Search - About"',
+        description: 'Title substring (case-insensitive)',
       },
     },
     required: [],
@@ -79,13 +70,13 @@ export const selectPageTool = {
 
 export const closePageTool = {
   name: 'close_page',
-  description: 'Close the tab at the given index. Use list_pages to find valid indices.',
+  description: 'Close tab by index.',
   inputSchema: {
     type: 'object',
     properties: {
       pageIdx: {
         type: 'number',
-        description: 'The index of the page to close',
+        description: 'Tab index to close',
       },
     },
     required: ['pageIdx'],

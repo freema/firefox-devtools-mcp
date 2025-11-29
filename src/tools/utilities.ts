@@ -8,14 +8,13 @@ import type { McpToolResponse } from '../types/common.js';
 // Tool definitions - Dialogs
 export const acceptDialogTool = {
   name: 'accept_dialog',
-  description:
-    'Accept the active browser dialog (alert/confirm/prompt). For prompts, you may provide promptText. Returns an error if no dialog is open.',
+  description: 'Accept browser dialog. Provide promptText for prompts.',
   inputSchema: {
     type: 'object',
     properties: {
       promptText: {
         type: 'string',
-        description: 'Text to enter in a prompt dialog (optional, only for prompt dialogs)',
+        description: 'Text for prompt dialogs',
       },
     },
   },
@@ -23,8 +22,7 @@ export const acceptDialogTool = {
 
 export const dismissDialogTool = {
   name: 'dismiss_dialog',
-  description:
-    'Dismiss the active browser dialog (alert/confirm/prompt). Returns an error if no dialog is open.',
+  description: 'Dismiss browser dialog.',
   inputSchema: {
     type: 'object',
     properties: {},
@@ -34,15 +32,14 @@ export const dismissDialogTool = {
 // Tool definitions - History
 export const navigateHistoryTool = {
   name: 'navigate_history',
-  description:
-    "Navigate the selected tab's history back or forward. NOTE: After navigation, UIDs from previous snapshots are stale—take a new snapshot before UID-based actions.",
+  description: 'Navigate history back/forward. UIDs become stale.',
   inputSchema: {
     type: 'object',
     properties: {
       direction: {
         type: 'string',
         enum: ['back', 'forward'],
-        description: 'Direction to navigate in history',
+        description: 'back or forward',
       },
     },
     required: ['direction'],
@@ -52,18 +49,17 @@ export const navigateHistoryTool = {
 // Tool definitions - Viewport
 export const setViewportSizeTool = {
   name: 'set_viewport_size',
-  description:
-    'Set the browser viewport size (width x height in pixels). In some modes (e.g., headless), the actual size may vary slightly.',
+  description: 'Set viewport dimensions in pixels.',
   inputSchema: {
     type: 'object',
     properties: {
       width: {
         type: 'number',
-        description: 'Viewport width in pixels',
+        description: 'Width in pixels',
       },
       height: {
         type: 'number',
-        description: 'Viewport height in pixels',
+        description: 'Height in pixels',
       },
     },
     required: ['width', 'height'],

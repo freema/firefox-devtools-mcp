@@ -31,18 +31,17 @@ function handleUidError(error: Error, uid: string): Error {
 // Tool definitions
 export const clickByUidTool = {
   name: 'click_by_uid',
-  description:
-    'Click an element identified by its UID. Supports double-click via dblClick=true. TIP: Take a fresh snapshot if the UID becomes stale.',
+  description: 'Click element by UID. Set dblClick for double-click.',
   inputSchema: {
     type: 'object',
     properties: {
       uid: {
         type: 'string',
-        description: 'The UID of the element to click',
+        description: 'Element UID from snapshot',
       },
       dblClick: {
         type: 'boolean',
-        description: 'If true, performs a double-click (default: false)',
+        description: 'Double-click (default: false)',
       },
     },
     required: ['uid'],
@@ -51,14 +50,13 @@ export const clickByUidTool = {
 
 export const hoverByUidTool = {
   name: 'hover_by_uid',
-  description:
-    'Hover over an element identified by its UID. TIP: Take a fresh snapshot if the UID becomes stale.',
+  description: 'Hover over element by UID.',
   inputSchema: {
     type: 'object',
     properties: {
       uid: {
         type: 'string',
-        description: 'The UID of the element to hover over',
+        description: 'Element UID from snapshot',
       },
     },
     required: ['uid'],
@@ -67,18 +65,17 @@ export const hoverByUidTool = {
 
 export const fillByUidTool = {
   name: 'fill_by_uid',
-  description:
-    'Fill a text input or textarea identified by its UID. Keep values short and safe. TIP: Take a fresh snapshot if the UID becomes stale.',
+  description: 'Fill text input/textarea by UID.',
   inputSchema: {
     type: 'object',
     properties: {
       uid: {
         type: 'string',
-        description: 'The UID of the input element',
+        description: 'Input element UID from snapshot',
       },
       value: {
         type: 'string',
-        description: 'The text value to fill into the input',
+        description: 'Text to fill',
       },
     },
     required: ['uid', 'value'],
@@ -87,18 +84,17 @@ export const fillByUidTool = {
 
 export const dragByUidToUidTool = {
   name: 'drag_by_uid_to_uid',
-  description:
-    'Simulate HTML5 drag-and-drop from one UID to another using JS drag events. May not work with all custom libraries.',
+  description: 'Drag element to another (HTML5 drag events).',
   inputSchema: {
     type: 'object',
     properties: {
       fromUid: {
         type: 'string',
-        description: 'The UID of the element to drag',
+        description: 'Source element UID',
       },
       toUid: {
         type: 'string',
-        description: 'The UID of the target element to drop onto',
+        description: 'Target element UID',
       },
     },
     required: ['fromUid', 'toUid'],
@@ -107,23 +103,23 @@ export const dragByUidToUidTool = {
 
 export const fillFormByUidTool = {
   name: 'fill_form_by_uid',
-  description: 'Fill multiple form fields in one call using an array of {uid, value} pairs.',
+  description: 'Fill multiple form fields at once.',
   inputSchema: {
     type: 'object',
     properties: {
       elements: {
         type: 'array',
-        description: 'Array of form field UIDs with their values',
+        description: 'Array of {uid, value} pairs',
         items: {
           type: 'object',
           properties: {
             uid: {
               type: 'string',
-              description: 'The UID of the form field',
+              description: 'Field UID',
             },
             value: {
               type: 'string',
-              description: 'The value to fill',
+              description: 'Field value',
             },
           },
           required: ['uid', 'value'],
@@ -136,18 +132,17 @@ export const fillFormByUidTool = {
 
 export const uploadFileByUidTool = {
   name: 'upload_file_by_uid',
-  description:
-    'Upload a file into an <input type="file"> element identified by its UID. The file path must be accessible to the server.',
+  description: 'Upload file to file input by UID.',
   inputSchema: {
     type: 'object',
     properties: {
       uid: {
         type: 'string',
-        description: 'The UID of the file input element',
+        description: 'File input UID from snapshot',
       },
       filePath: {
         type: 'string',
-        description: 'Local filesystem path to the file to upload',
+        description: 'Local file path',
       },
     },
     required: ['uid', 'filePath'],

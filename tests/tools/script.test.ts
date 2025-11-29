@@ -12,7 +12,7 @@ describe('Script Tools', () => {
     });
 
     it('should have valid description', () => {
-      expect(evaluateScriptTool.description).toContain('JavaScript');
+      expect(evaluateScriptTool.description).toContain('JS');
     });
 
     it('should have valid input schema', () => {
