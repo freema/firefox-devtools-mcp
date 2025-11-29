@@ -7,7 +7,7 @@ import { successResponse, errorResponse } from '../utils/response-helpers.js';
 import type { McpToolResponse } from '../types/common.js';
 
 /**
- * Transform UID resolution errors into friendly messages
+ * Transform UID resolution errors into concise messages
  */
 function handleUidError(error: Error, uid: string): Error {
   const errorMsg = error.message;
@@ -18,11 +18,7 @@ function handleUidError(error: Error, uid: string): Error {
     errorMsg.includes('UID') ||
     errorMsg.includes('not found')
   ) {
-    return new Error(
-      `UID "${uid}" is stale or invalid.\n\n` +
-        'The page may have changed since the snapshot was taken.\n' +
-        'Please call take_snapshot to get fresh UIDs and try again.'
-    );
+    return new Error(`${uid} stale/invalid. Call take_snapshot first.`);
   }
 
   return error;
@@ -163,9 +159,7 @@ export async function handleClickByUid(args: unknown): Promise<McpToolResponse> 
 
     try {
       await firefox.clickByUid(uid, dblClick);
-      return successResponse(
-        `✅ ${dblClick ? 'Double-clicked' : 'Clicked'} element with UID "${uid}"`
-      );
+      return successResponse(`✅ ${dblClick ? 'dblclick' : 'click'} ${uid}`);
     } catch (error) {
       throw handleUidError(error as Error, uid);
     }
@@ -187,7 +181,7 @@ export async function handleHoverByUid(args: unknown): Promise<McpToolResponse> 
 
     try {
       await firefox.hoverByUid(uid);
-      return successResponse(`✅ Hovered over element with UID "${uid}"`);
+      return successResponse(`✅ hover ${uid}`);
     } catch (error) {
       throw handleUidError(error as Error, uid);
     }
@@ -213,9 +207,7 @@ export async function handleFillByUid(args: unknown): Promise<McpToolResponse> {
 
     try {
       await firefox.fillByUid(uid, value);
-      return successResponse(
-        `✅ Filled element with UID "${uid}"\nValue: ${value.substring(0, 50)}${value.length > 50 ? '...' : ''}`
-      );
+      return successResponse(`✅ fill ${uid}`);
     } catch (error) {
       throw handleUidError(error as Error, uid);
     }
@@ -241,16 +233,12 @@ export async function handleDragByUidToUid(args: unknown): Promise<McpToolRespon
 
     try {
       await firefox.dragByUidToUid(fromUid, toUid);
-      return successResponse(`✅ Dragged element "${fromUid}" to "${toUid}"`);
+      return successResponse(`✅ drag ${fromUid}→${toUid}`);
     } catch (error) {
       // Check both UIDs for staleness
       const errorMsg = (error as Error).message;
       if (errorMsg.includes('stale') || errorMsg.includes('Snapshot') || errorMsg.includes('UID')) {
-        throw new Error(
-          `One or both UIDs (from: "${fromUid}", to: "${toUid}") are stale or invalid.\n\n` +
-            'The page may have changed since the snapshot was taken.\n' +
-            'Please call take_snapshot to get fresh UIDs and try again.'
-        );
+        throw new Error(`UIDs stale/invalid. Call take_snapshot first.`);
       }
       throw error;
     }
@@ -282,23 +270,11 @@ export async function handleFillFormByUid(args: unknown): Promise<McpToolRespons
 
     try {
       await firefox.fillFormByUid(elements);
-      return successResponse(
-        `✅ Filled ${elements.length} form field(s):\n` +
-          elements
-            .map(
-              (el) =>
-                `  - ${el.uid}: ${el.value.substring(0, 30)}${el.value.length > 30 ? '...' : ''}`
-            )
-            .join('\n')
-      );
+      return successResponse(`✅ filled ${elements.length} fields`);
     } catch (error) {
       const errorMsg = (error as Error).message;
       if (errorMsg.includes('stale') || errorMsg.includes('Snapshot') || errorMsg.includes('UID')) {
-        throw new Error(
-          `One or more UIDs are stale or invalid.\n\n` +
-            'The page may have changed since the snapshot was taken.\n' +
-            'Please call take_snapshot to get fresh UIDs and try again.'
-        );
+        throw new Error(`UIDs stale/invalid. Call take_snapshot first.`);
       }
       throw error;
     }
@@ -324,7 +300,7 @@ export async function handleUploadFileByUid(args: unknown): Promise<McpToolRespo
 
     try {
       await firefox.uploadFileByUid(uid, filePath);
-      return successResponse(`✅ Uploaded file to element with UID "${uid}"\nFile: ${filePath}`);
+      return successResponse(`✅ upload ${uid}`);
     } catch (error) {
       const errorMsg = (error as Error).message;
 
@@ -335,17 +311,11 @@ export async function handleUploadFileByUid(args: unknown): Promise<McpToolRespo
 
       // Check for file input specific errors
       if (errorMsg.includes('not a file input') || errorMsg.includes('type="file"')) {
-        throw new Error(
-          `Element with UID "${uid}" is not an <input type="file"> element.\n\n` +
-            'Please ensure the UID points to a file input element.'
-        );
+        throw new Error(`${uid} is not a file input`);
       }
 
       if (errorMsg.includes('hidden') || errorMsg.includes('not visible')) {
-        throw new Error(
-          `File input element with UID "${uid}" is hidden or not interactable.\n\n` +
-            'Some file inputs are hidden and cannot be directly interacted with.'
-        );
+        throw new Error(`${uid} is hidden/not interactable`);
       }
 
       throw error;

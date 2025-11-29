@@ -232,16 +232,8 @@ export async function handleListNetworkRequests(args: unknown): Promise<McpToolR
         return `${req.id} | ${req.method} ${req.url} ${statusInfo}${req.isXHR ? ' (XHR)' : ''}`;
       });
 
-      const summary = [
-        `Found ${requests.length} network request(s)${hasMore ? ` (showing first ${limit})` : ''}`,
-        '',
-        'Network Requests:',
-        ...formattedRequests,
-        '',
-        'TIP: Use the request ID (first column) with get_network_request for full details.',
-      ].join('\n');
-
-      return successResponse(summary);
+      const header = `📡 ${requests.length} requests${hasMore ? ` (limit ${limit})` : ''}\n`;
+      return successResponse(header + formattedRequests.join('\n'));
     } else if (detail === 'min') {
       // Compact JSON
       const minData = limitedRequests.map((req) => ({
@@ -256,7 +248,7 @@ export async function handleListNetworkRequests(args: unknown): Promise<McpToolR
       }));
 
       return successResponse(
-        `Found ${requests.length} requests${hasMore ? ` (showing first ${limit})` : ''}\n\n` +
+        `📡 ${requests.length} requests${hasMore ? ` (limit ${limit})` : ''}\n` +
           JSON.stringify(minData, null, 2)
       );
     } else {
@@ -275,14 +267,12 @@ export async function handleListNetworkRequests(args: unknown): Promise<McpToolR
       }));
 
       return successResponse(
-        `Found ${requests.length} requests${hasMore ? ` (showing first ${limit})` : ''}\n\n` +
+        `📡 ${requests.length} requests${hasMore ? ` (limit ${limit})` : ''}\n` +
           JSON.stringify(fullData, null, 2)
       );
     }
   } catch (error) {
-    return errorResponse(
-      `Failed to list network requests: ${error instanceof Error ? error.message : String(error)}`
-    );
+    return errorResponse(error instanceof Error ? error : new Error(String(error)));
   }
 }
 
@@ -295,10 +285,7 @@ export async function handleGetNetworkRequest(args: unknown): Promise<McpToolRes
     } = args as { id?: string; url?: string; format?: 'text' | 'json' };
 
     if (!id && !url) {
-      return errorResponse(
-        'Either "id" or "url" parameter is required.\n\n' +
-          'TIP: Call list_network_requests first and use the returned ID for reliable lookup.'
-      );
+      return errorResponse('id or url required');
     }
 
     const { getFirefox } = await import('../index.js');
@@ -311,31 +298,19 @@ export async function handleGetNetworkRequest(args: unknown): Promise<McpToolRes
     if (id) {
       request = requests.find((req) => req.id === id);
       if (!request) {
-        return errorResponse(
-          `No network request found with ID: ${id}\n\n` +
-            'TIP: The request may have been cleared. Call list_network_requests to see available requests.'
-        );
+        return errorResponse(`ID ${id} not found`);
       }
     } else if (url) {
       // Fallback: lookup by URL (with collision detection)
       const matches = requests.filter((req) => req.url === url);
 
       if (matches.length === 0) {
-        return errorResponse(
-          `No network request found with URL: ${url}\n\n` +
-            'TIP: Use list_network_requests to see available requests.'
-        );
+        return errorResponse(`URL not found: ${url}`);
       }
 
       if (matches.length > 1) {
-        const matchInfo = matches
-          .map((req) => `  - ID: ${req.id} | ${req.method} [${req.status || 'pending'}]`)
-          .join('\n');
-        return errorResponse(
-          `Multiple requests (${matches.length}) found with URL: ${url}\n\n` +
-            'Please use one of these IDs with the "id" parameter:\n' +
-            matchInfo
-        );
+        const ids = matches.map((req) => req.id).join(', ');
+        return errorResponse(`Multiple matches, use id: ${ids}`);
       }
 
       request = matches[0];
@@ -364,10 +339,8 @@ export async function handleGetNetworkRequest(args: unknown): Promise<McpToolRes
       return jsonResponse(details);
     }
 
-    return successResponse('Network Request Details:\n\n' + JSON.stringify(details, null, 2));
+    return successResponse(JSON.stringify(details, null, 2));
   } catch (error) {
-    return errorResponse(
-      `Failed to get network request: ${error instanceof Error ? error.message : String(error)}`
-    );
+    return errorResponse(error instanceof Error ? error : new Error(String(error)));
   }
 }

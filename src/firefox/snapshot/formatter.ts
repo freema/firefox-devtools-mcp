@@ -6,9 +6,9 @@
 import type { SnapshotNode } from './types.js';
 
 /**
- * Max attribute value length
+ * Max attribute value length (aggressive truncation for token efficiency)
  */
-const MAX_ATTR_LENGTH = 50;
+const MAX_ATTR_LENGTH = 30;
 
 /**
  * Formatting options
