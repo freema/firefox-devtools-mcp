@@ -13,8 +13,7 @@ import type { McpToolResponse } from '../types/common.js';
 // Tool definitions
 export const screenshotPageTool = {
   name: 'screenshot_page',
-  description:
-    'Capture a PNG screenshot of the current page and return it as a base64 string (without data: prefix). TIP: Use for visual verification rather than structural inspection.',
+  description: 'Capture page screenshot as base64 PNG.',
   inputSchema: {
     type: 'object',
     properties: {},
@@ -23,14 +22,13 @@ export const screenshotPageTool = {
 
 export const screenshotByUidTool = {
   name: 'screenshot_by_uid',
-  description:
-    'Capture a PNG screenshot of a specific element by UID and return it as a base64 string (without data: prefix). TIP: Take a fresh snapshot if the UID is stale.',
+  description: 'Capture element screenshot by UID as base64 PNG.',
   inputSchema: {
     type: 'object',
     properties: {
       uid: {
         type: 'string',
-        description: 'The UID of the element to screenshot',
+        description: 'Element UID from snapshot',
       },
     },
     required: ['uid'],

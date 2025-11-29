@@ -10,26 +10,25 @@ const DEFAULT_SNAPSHOT_LINES = 100;
 // Tool definitions
 export const takeSnapshotTool = {
   name: 'take_snapshot',
-  description:
-    'Capture a textual page snapshot with stable UIDs for elements. Always take a fresh snapshot after navigation or major DOM changes. TIP: Use the UIDs with click_by_uid / fill_by_uid / hover_by_uid. The output may be truncated for readability.',
+  description: 'Capture DOM snapshot with stable UIDs. Retake after navigation.',
   inputSchema: {
     type: 'object',
     properties: {
       maxLines: {
         type: 'number',
-        description: 'Maximum number of lines to return in output (default: 100)',
+        description: 'Max lines (default: 100)',
       },
       includeAttributes: {
         type: 'boolean',
-        description: 'Include detailed ARIA and computed attributes in output (default: false)',
+        description: 'Include ARIA attributes (default: false)',
       },
       includeText: {
         type: 'boolean',
-        description: 'Include text content in output (default: true)',
+        description: 'Include text (default: true)',
       },
       maxDepth: {
         type: 'number',
-        description: 'Maximum depth of tree to include (default: unlimited)',
+        description: 'Max tree depth',
       },
     },
   },
@@ -37,14 +36,13 @@ export const takeSnapshotTool = {
 
 export const resolveUidToSelectorTool = {
   name: 'resolve_uid_to_selector',
-  description:
-    'Resolve a UID to a CSS selector (debugging aid). Fails on stale UIDs—take a fresh snapshot first.',
+  description: 'Resolve UID to CSS selector. Fails if stale.',
   inputSchema: {
     type: 'object',
     properties: {
       uid: {
         type: 'string',
-        description: 'The UID from a snapshot to resolve',
+        description: 'UID from snapshot',
       },
     },
     required: ['uid'],
@@ -53,8 +51,7 @@ export const resolveUidToSelectorTool = {
 
 export const clearSnapshotTool = {
   name: 'clear_snapshot',
-  description:
-    'Clear the snapshot/UID cache. Usually not needed, as navigation invalidates snapshots automatically.',
+  description: 'Clear snapshot cache. Usually not needed.',
   inputSchema: {
     type: 'object',
     properties: {},

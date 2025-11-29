@@ -14,62 +14,60 @@ import type { McpToolResponse } from '../types/common.js';
 // Tool definitions
 export const listNetworkRequestsTool = {
   name: 'list_network_requests',
-  description:
-    'List recent network requests across all tabs. Network capture is always on. Use filters (limit, sinceMs, urlContains, method, status, resourceType) and detail (summary|min|full) to control output. Each entry includes a stable id for use with get_network_request.',
+  description: 'List network requests. Returns IDs for get_network_request.',
   inputSchema: {
     type: 'object' as const,
     properties: {
       limit: {
         type: 'number',
-        description: 'Maximum number of requests to return (default: 50)',
+        description: 'Max requests (default: 50)',
       },
       sinceMs: {
         type: 'number',
-        description: 'Return only requests newer than N milliseconds ago',
+        description: 'Only last N ms',
       },
       urlContains: {
         type: 'string',
-        description: 'Filter requests by URL substring (case-insensitive)',
+        description: 'URL filter (case-insensitive)',
       },
       method: {
         type: 'string',
-        description: 'Filter by HTTP method (GET, POST, etc., case-insensitive)',
+        description: 'HTTP method filter',
       },
       status: {
         type: 'number',
-        description: 'Filter by exact HTTP status code',
+        description: 'Exact status code',
       },
       statusMin: {
         type: 'number',
-        description: 'Filter by minimum HTTP status code',
+        description: 'Min status code',
       },
       statusMax: {
         type: 'number',
-        description: 'Filter by maximum HTTP status code',
+        description: 'Max status code',
       },
       isXHR: {
         type: 'boolean',
-        description: 'Filter by XHR/fetch requests only',
+        description: 'XHR/fetch only',
       },
       resourceType: {
         type: 'string',
-        description: 'Filter by resource type (case-insensitive)',
+        description: 'Resource type filter',
       },
       sortBy: {
         type: 'string',
         enum: ['timestamp', 'duration', 'status'],
-        description: 'Sort requests by field (default: timestamp descending)',
+        description: 'Sort field (default: timestamp)',
       },
       detail: {
         type: 'string',
         enum: ['summary', 'min', 'full'],
-        description:
-          'Output detail level: summary (default), min (compact JSON), full (includes headers)',
+        description: 'Detail level (default: summary)',
       },
       format: {
         type: 'string',
         enum: ['text', 'json'],
-        description: 'Output format: text (default, human-readable) or json (structured data)',
+        description: 'Output format (default: text)',
       },
     },
   },
@@ -77,23 +75,22 @@ export const listNetworkRequestsTool = {
 
 export const getNetworkRequestTool = {
   name: 'get_network_request',
-  description:
-    'Get detailed information about a network request by id (recommended). URL lookup is available as a fallback but may match multiple requests.',
+  description: 'Get request details by ID. URL lookup as fallback.',
   inputSchema: {
     type: 'object' as const,
     properties: {
       id: {
         type: 'string',
-        description: 'The request ID from list_network_requests (recommended)',
+        description: 'Request ID from list_network_requests',
       },
       url: {
         type: 'string',
-        description: 'The URL of the request (fallback, may match multiple requests)',
+        description: 'URL fallback (may match multiple)',
       },
       format: {
         type: 'string',
         enum: ['text', 'json'],
-        description: 'Output format: text (default) or json (structured data)',
+        description: 'Output format (default: text)',
       },
     },
   },
