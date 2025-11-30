@@ -76,21 +76,13 @@ export async function handleAcceptDialog(args: unknown): Promise<McpToolResponse
 
     try {
       await firefox.acceptDialog(promptText);
-      let message = '✅ Dialog accepted';
-      if (promptText) {
-        message += ` with text: "${promptText}"`;
-      }
-      return successResponse(message);
+      return successResponse(promptText ? `✅ Accepted: "${promptText}"` : '✅ Accepted');
     } catch (error) {
       const errorMsg = (error as Error).message;
 
-      // Friendly error for no active dialog
+      // Concise error for no active dialog
       if (errorMsg.includes('no such alert') || errorMsg.includes('No dialog')) {
-        throw new Error(
-          'No active dialog found.\n\n' +
-            'Dialogs must be accepted shortly after they appear. ' +
-            'Make sure a dialog is currently visible on the page.'
-        );
+        throw new Error('No active dialog');
       }
 
       throw error;
@@ -107,17 +99,13 @@ export async function handleDismissDialog(_args: unknown): Promise<McpToolRespon
 
     try {
       await firefox.dismissDialog();
-      return successResponse('✅ Dialog dismissed/cancelled');
+      return successResponse('✅ Dismissed');
     } catch (error) {
       const errorMsg = (error as Error).message;
 
-      // Friendly error for no active dialog
+      // Concise error for no active dialog
       if (errorMsg.includes('no such alert') || errorMsg.includes('No dialog')) {
-        throw new Error(
-          'No active dialog found.\n\n' +
-            'Dialogs must be dismissed shortly after they appear. ' +
-            'Make sure a dialog is currently visible on the page.'
-        );
+        throw new Error('No active dialog');
       }
 
       throw error;
@@ -145,18 +133,9 @@ export async function handleNavigateHistory(args: unknown): Promise<McpToolRespo
       await firefox.navigateForward();
     }
 
-    return successResponse(
-      `✅ Navigated ${direction} in history\n\n` +
-        '⚠️  UIDs from previous snapshots are now stale. ' +
-        'Call take_snapshot before using UID-based actions.'
-    );
+    return successResponse(`✅ ${direction}`);
   } catch (error) {
-    return errorResponse(
-      new Error(
-        `Failed to navigate ${(args as { direction: string }).direction || 'in history'}: ${(error as Error).message}\n\n` +
-          'The page may not have history in this direction available.'
-      )
-    );
+    return errorResponse(error as Error);
   }
 }
 
@@ -178,16 +157,8 @@ export async function handleSetViewportSize(args: unknown): Promise<McpToolRespo
 
     await firefox.setViewportSize(width, height);
 
-    return successResponse(
-      `✅ Viewport size set to ${width}x${height} pixels\n\n` +
-        'NOTE: Actual viewport may differ slightly in some browser modes (e.g., headless).'
-    );
+    return successResponse(`✅ ${width}x${height}`);
   } catch (error) {
-    return errorResponse(
-      new Error(
-        `Failed to set viewport size: ${(error as Error).message}\n\n` +
-          'Some browser configurations may not support precise viewport sizing.'
-      )
-    );
+    return errorResponse(error as Error);
   }
 }

@@ -218,7 +218,7 @@ export async function handleListConsoleMessages(args: unknown): Promise<McpToolR
     }
 
     if (truncated) {
-      output += `\n... ${filteredCount - messages.length} more messages (increase limit to see more)`;
+      output += `\n[+${filteredCount - messages.length} more]`;
     }
 
     return successResponse(output);
@@ -235,10 +235,7 @@ export async function handleClearConsoleMessages(_args: unknown): Promise<McpToo
     const count = (await firefox.getConsoleMessages()).length;
     firefox.clearConsoleMessages();
 
-    return successResponse(
-      `Cleared ${count} console message(s) from buffer.\n\n` +
-        'You can now capture fresh console output from new page activity.'
-    );
+    return successResponse(`✅ cleared ${count} messages`);
   } catch (error) {
     return errorResponse(error as Error);
   }

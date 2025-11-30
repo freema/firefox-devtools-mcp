@@ -99,34 +99,21 @@ export async function handleTakeSnapshot(args: unknown): Promise<McpToolResponse
     const truncated = lines.length > maxLines;
     const displayLines = truncated ? lines.slice(0, maxLines) : lines;
 
-    // Build output with guidance
-    let output = '📸 Snapshot taken\n\n';
-
-    // Add warning if maxLines was capped
+    // Build compact output
+    let output = `📸 Snapshot (id=${snapshot.json.snapshotId})`;
     if (wasCapped) {
-      output += `⚠️ maxLines capped at ${TOKEN_LIMITS.MAX_SNAPSHOT_LINES_CAP} (requested: ${requestedMaxLines}) to prevent token overflow\n\n`;
+      output += ` [maxLines capped: ${TOKEN_LIMITS.MAX_SNAPSHOT_LINES_CAP}]`;
     }
-
-    // Add guidance section
-    output += '═══ HOW TO USE THIS SNAPSHOT ═══\n';
-    output +=
-      '• To interact with elements: use click_by_uid, hover_by_uid, or fill_by_uid with the UID\n';
-    output += '• After navigation: always call take_snapshot again (UIDs become stale)\n';
-    output += '• On stale UID errors: call take_snapshot → retry your action\n';
-    output += '═════════════════════════════════\n\n';
-
-    // Add snapshot metadata
-    output += `Snapshot ID: ${snapshot.json.snapshotId}\n`;
     if (snapshot.json.truncated) {
-      output += '⚠️  Snapshot content was truncated (too many elements in DOM)\n';
+      output += ' [DOM truncated]';
     }
-    output += '\n';
+    output += '\n\n';
 
     // Add snapshot tree
     output += displayLines.join('\n');
 
     if (truncated) {
-      output += `\n\n... and ${lines.length - maxLines} more lines (use maxLines parameter to see more)`;
+      output += `\n\n[+${lines.length - maxLines} lines, use maxLines to see more]`;
     }
 
     return successResponse(output);
@@ -153,22 +140,18 @@ export async function handleResolveUidToSelector(args: unknown): Promise<McpTool
 
     try {
       const selector = firefox.resolveUidToSelector(uid);
-      return successResponse(`CSS Selector for UID "${uid}":\n\n${selector}`);
+      return successResponse(`${uid} → ${selector}`);
     } catch (error) {
       const errorMsg = (error as Error).message;
 
-      // Friendly error for stale UIDs
+      // Concise error for stale UIDs
       if (
         errorMsg.includes('stale') ||
         errorMsg.includes('Snapshot') ||
         errorMsg.includes('UID') ||
         errorMsg.includes('not found')
       ) {
-        throw new Error(
-          `UID "${uid}" is from an old snapshot or not found.\n\n` +
-            'The page structure may have changed since the snapshot was taken.\n' +
-            'Please call take_snapshot to get fresh UIDs and try again.'
-        );
+        throw new Error(`UID "${uid}" stale/invalid. Call take_snapshot first.`);
       }
 
       throw error;
@@ -185,10 +168,7 @@ export async function handleClearSnapshot(_args: unknown): Promise<McpToolRespon
 
     firefox.clearSnapshot();
 
-    return successResponse(
-      '🧹 Snapshot cache cleared.\n\n' +
-        'For the next UID-dependent action, take a fresh snapshot first.'
-    );
+    return successResponse('🧹 Snapshot cleared');
   } catch (error) {
     return errorResponse(error as Error);
   }

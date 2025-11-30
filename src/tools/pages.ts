@@ -84,27 +84,22 @@ export const closePageTool = {
 };
 
 /**
- * Format page list with consistent output
+ * Format page list compactly
  */
 function formatPageList(
   tabs: Array<{ title?: string; url?: string }>,
   selectedIdx: number
 ): string {
-  const lines: string[] = [`📄 Open pages (${tabs.length} total, selected: [${selectedIdx}]):`];
-
   if (tabs.length === 0) {
-    lines.push('  (no pages open)');
-  } else {
-    for (const tab of tabs) {
-      const idx = tabs.indexOf(tab);
-      const indicator = idx === selectedIdx ? '👉' : '  ';
-      const title = tab.title || 'Untitled';
-      const url = tab.url || 'about:blank';
-      lines.push(`${indicator} [${idx}] ${title}`);
-      lines.push(`     ${url}`);
-    }
+    return '📄 No pages';
   }
-
+  const lines: string[] = [`📄 ${tabs.length} pages (selected: ${selectedIdx})`];
+  for (const tab of tabs) {
+    const idx = tabs.indexOf(tab);
+    const marker = idx === selectedIdx ? '>' : ' ';
+    const title = (tab.title || 'Untitled').substring(0, 40);
+    lines.push(`${marker}[${idx}] ${title}`);
+  }
   return lines.join('\n');
 }
 
@@ -137,16 +132,7 @@ export async function handleNewPage(args: unknown): Promise<McpToolResponse> {
 
     const newIdx = await firefox.createNewPage(url);
 
-    // Refresh tabs to update the list
-    await firefox.refreshTabs();
-    const tabs = firefox.getTabs();
-    const newTab = tabs[newIdx];
-
-    return successResponse(
-      `✅ Created new page [${newIdx}] and navigated to: ${url}\n` +
-        `   Title: ${newTab?.title || 'Loading...'}\n` +
-        `   Total pages: ${tabs.length}`
-    );
+    return successResponse(`✅ new page [${newIdx}] → ${url}`);
   } catch (error) {
     return errorResponse(error as Error);
   }
@@ -175,9 +161,7 @@ export async function handleNavigatePage(args: unknown): Promise<McpToolResponse
 
     await firefox.navigate(url);
 
-    return successResponse(
-      `✅ Navigated page [${selectedIdx}] to: ${url}\n` + `   Previous URL: ${page.url}`
-    );
+    return successResponse(`✅ [${selectedIdx}] → ${url}`);
   } catch (error) {
     return errorResponse(error as Error);
   }
@@ -195,60 +179,41 @@ export async function handleSelectPage(args: unknown): Promise<McpToolResponse> 
     const tabs = firefox.getTabs();
 
     let selectedIdx: number;
-    let selectionMethod: string;
 
     // Priority 1: Select by index
     if (typeof pageIdx === 'number') {
       selectedIdx = pageIdx;
-      selectionMethod = 'by index';
     }
     // Priority 2: Select by URL pattern
     else if (url && typeof url === 'string') {
       const urlLower = url.toLowerCase();
       const foundIdx = tabs.findIndex((tab) => tab.url?.toLowerCase().includes(urlLower));
-
       if (foundIdx === -1) {
-        throw new Error(
-          `No page found with URL matching "${url}". Use list_pages to see all available pages.`
-        );
+        throw new Error(`No page matching URL "${url}"`);
       }
       selectedIdx = foundIdx;
-      selectionMethod = `by URL pattern "${url}"`;
     }
     // Priority 3: Select by title pattern
     else if (title && typeof title === 'string') {
       const titleLower = title.toLowerCase();
       const foundIdx = tabs.findIndex((tab) => tab.title?.toLowerCase().includes(titleLower));
-
       if (foundIdx === -1) {
-        throw new Error(
-          `No page found with title matching "${title}". Use list_pages to see all available pages.`
-        );
+        throw new Error(`No page matching title "${title}"`);
       }
       selectedIdx = foundIdx;
-      selectionMethod = `by title pattern "${title}"`;
     } else {
-      throw new Error(
-        'At least one of pageIdx, url, or title must be provided. Use list_pages to see available pages.'
-      );
+      throw new Error('Provide pageIdx, url, or title');
     }
 
     // Validate the selected index
-    const page = tabs[selectedIdx];
-    if (!page) {
-      throw new Error(
-        `Page at index ${selectedIdx} not found. Use list_pages to see valid indices.`
-      );
+    if (!tabs[selectedIdx]) {
+      throw new Error(`Page [${selectedIdx}] not found`);
     }
 
     // Select the tab
     await firefox.selectTab(selectedIdx);
 
-    return successResponse(
-      `✅ Selected page [${selectedIdx}] ${selectionMethod}\n` +
-        `   Title: ${page.title || 'Untitled'}\n` +
-        `   URL: ${page.url || 'about:blank'}`
-    );
+    return successResponse(`✅ selected [${selectedIdx}]`);
   } catch (error) {
     return errorResponse(error as Error);
   }
@@ -276,9 +241,7 @@ export async function handleClosePage(args: unknown): Promise<McpToolResponse> {
 
     await firefox.closeTab(pageIdx);
 
-    return successResponse(
-      `✅ Closed page [${pageIdx}]: ${pageToClose.title}\n   ${pageToClose.url}`
-    );
+    return successResponse(`✅ closed [${pageIdx}]`);
   } catch (error) {
     return errorResponse(error as Error);
   }
