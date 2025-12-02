@@ -128,3 +128,7 @@ npm run inspector:dev
 ## CI and Release
 
 - GitHub Actions for CI, Release, and npm publish are included. See docs/ci-and-release.md for details and required secrets.
+
+## Author
+
+Created by [Tomáš Grasl](https://www.tomasgrasl.cz/)
