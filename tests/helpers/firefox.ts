@@ -25,8 +25,13 @@ export async function createTestFirefox(options?: Partial<FirefoxLaunchOptions>)
 
 /**
  * Cleanup helper to close Firefox instance
+ * Handles the case where firefox is undefined (e.g., when beforeAll times out)
  */
-export async function closeFirefox(firefox: FirefoxClient): Promise<void> {
+export async function closeFirefox(firefox: FirefoxClient | undefined | null): Promise<void> {
+  if (!firefox) {
+    // Firefox was never initialized (e.g., beforeAll timed out)
+    return;
+  }
   try {
     await firefox.close();
   } catch (error) {
