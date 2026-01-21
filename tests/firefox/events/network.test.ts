@@ -9,23 +9,51 @@ import { describe, it, expect } from 'vitest';
 // Or sometimes as: { name: "header-name", value: "actual-value" }
 
 /**
- * Replica of the parseHeaders logic for testing
+ * Replica of the parseHeaders logic for testing (matches src/firefox/events/network.ts)
  */
 function parseHeaders(headers: any[]): Record<string, string> {
   const result: Record<string, string> = {};
 
+  const normalizeValue = (value: unknown): string | null => {
+    if (value === null || value === undefined) {
+      return null;
+    }
+    if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') {
+      return String(value);
+    }
+    if (Array.isArray(value)) {
+      const parts = value
+        .map((item) => normalizeValue(item))
+        .filter((item): item is string => !!item);
+      return parts.length > 0 ? parts.join(', ') : null;
+    }
+    if (typeof value === 'object') {
+      const obj = value as Record<string, unknown>;
+      if ('value' in obj) {
+        return normalizeValue(obj.value);
+      }
+      if ('bytes' in obj) {
+        return normalizeValue(obj.bytes);
+      }
+      try {
+        return JSON.stringify(obj);
+      } catch {
+        return null;
+      }
+    }
+    return String(value);
+  };
+
   if (Array.isArray(headers)) {
     for (const h of headers) {
-      if (h.name && h.value !== undefined) {
-        // BiDi returns header values as { type: "string", value: "actual value" }
-        const value = h.value;
-        if (typeof value === 'string') {
-          result[h.name.toLowerCase()] = value;
-        } else if (value && typeof value === 'object' && 'value' in value) {
-          result[h.name.toLowerCase()] = String(value.value);
-        } else {
-          result[h.name.toLowerCase()] = String(value);
-        }
+      const name = h?.name ? String(h.name).toLowerCase() : '';
+      if (!name) {
+        continue;
+      }
+
+      const normalizedValue = normalizeValue(h?.value);
+      if (normalizedValue !== null) {
+        result[name] = normalizedValue;
       }
     }
   }
@@ -103,11 +131,13 @@ describe('NetworkEvents Header Parsing', () => {
       expect(parseHeaders('not-an-array' as any)).toEqual({});
     });
 
-    it('should skip headers without name or value', () => {
+    it('should skip headers without name or with null/undefined value', () => {
       const headers = [
         { name: 'Valid', value: 'value' },
         { name: 'NoValue' },
         { value: 'no-name' },
+        { name: 'NullValue', value: null },
+        { name: 'UndefinedValue', value: undefined },
         { name: 'Empty', value: '' },
       ];
 
@@ -115,8 +145,66 @@ describe('NetworkEvents Header Parsing', () => {
 
       expect(result['valid']).toBe('value');
       expect(result['novalue']).toBeUndefined();
+      expect(result['nullvalue']).toBeUndefined();
+      expect(result['undefinedvalue']).toBeUndefined();
       expect(result['empty']).toBe('');
       expect(Object.keys(result)).toHaveLength(2);
+    });
+
+    it('should handle BiDi bytes format (binary data)', () => {
+      const headers = [
+        { name: 'X-Binary', value: { type: 'base64', bytes: 'SGVsbG8gV29ybGQ=' } },
+      ];
+
+      const result = parseHeaders(headers);
+
+      expect(result['x-binary']).toBe('SGVsbG8gV29ybGQ=');
+    });
+
+    it('should handle array values (multi-value headers)', () => {
+      const headers = [
+        { name: 'Set-Cookie', value: ['cookie1=value1', 'cookie2=value2'] },
+        {
+          name: 'X-Multi',
+          value: [
+            { type: 'string', value: 'first' },
+            { type: 'string', value: 'second' },
+          ],
+        },
+      ];
+
+      const result = parseHeaders(headers);
+
+      expect(result['set-cookie']).toBe('cookie1=value1, cookie2=value2');
+      expect(result['x-multi']).toBe('first, second');
+    });
+
+    it('should handle empty array values', () => {
+      const headers = [{ name: 'X-Empty-Array', value: [] }];
+
+      const result = parseHeaders(headers);
+
+      expect(result['x-empty-array']).toBeUndefined();
+    });
+
+    it('should handle unknown object format with JSON.stringify fallback', () => {
+      const headers = [{ name: 'X-Unknown', value: { foo: 'bar', baz: 123 } }];
+
+      const result = parseHeaders(headers);
+
+      expect(result['x-unknown']).toBe('{"foo":"bar","baz":123}');
+    });
+
+    it('should handle boolean values', () => {
+      const headers = [
+        { name: 'X-True', value: true },
+        { name: 'X-False', value: false },
+      ];
+
+      const result = parseHeaders(headers);
+
+      expect(result['x-true']).toBe('true');
+      expect(result['x-false']).toBe('false');
     });
 
     it('should handle numeric values in BiDi format', () => {

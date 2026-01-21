@@ -279,23 +279,50 @@ export class NetworkEvents {
 
   /**
    * Parse BiDi headers array to object
-   * BiDi headers can have value as string or as object { type: "string", value: "..." }
    */
   private parseHeaders(headers: any[]): Record<string, string> {
     const result: Record<string, string> = {};
 
+    const normalizeValue = (value: unknown): string | null => {
+      if (value === null || value === undefined) {
+        return null;
+      }
+      if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') {
+        return String(value);
+      }
+      if (Array.isArray(value)) {
+        const parts = value
+          .map((item) => normalizeValue(item))
+          .filter((item): item is string => !!item);
+        return parts.length > 0 ? parts.join(', ') : null;
+      }
+      if (typeof value === 'object') {
+        const obj = value as Record<string, unknown>;
+        if ('value' in obj) {
+          return normalizeValue(obj.value);
+        }
+        if ('bytes' in obj) {
+          return normalizeValue(obj.bytes);
+        }
+        try {
+          return JSON.stringify(obj);
+        } catch {
+          return null;
+        }
+      }
+      return String(value);
+    };
+
     if (Array.isArray(headers)) {
       for (const h of headers) {
-        if (h.name && h.value !== undefined) {
-          // BiDi returns header values as { type: "string", value: "actual value" }
-          const value = h.value;
-          if (typeof value === 'string') {
-            result[h.name.toLowerCase()] = value;
-          } else if (value && typeof value === 'object' && 'value' in value) {
-            result[h.name.toLowerCase()] = String(value.value);
-          } else {
-            result[h.name.toLowerCase()] = String(value);
-          }
+        const name = h?.name ? String(h.name).toLowerCase() : '';
+        if (!name) {
+          continue;
+        }
+
+        const normalizedValue = normalizeValue(h?.value);
+        if (normalizedValue !== null) {
+          result[name] = normalizedValue;
         }
       }
     }
