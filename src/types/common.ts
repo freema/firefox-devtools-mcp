@@ -9,17 +9,3 @@ export interface McpToolResponse {
   }>;
   isError?: boolean;
 }
-
-export interface FirefoxConfig {
-  firefoxPath?: string;
-  debugPort?: number;
-  headless?: boolean;
-  profilePath?: string;
-}
-
-export interface PageInfo {
-  id: string;
-  title: string;
-  url: string;
-  type: string;
-}

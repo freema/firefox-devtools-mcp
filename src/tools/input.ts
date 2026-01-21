@@ -4,25 +4,8 @@
  */
 
 import { successResponse, errorResponse } from '../utils/response-helpers.js';
+import { handleUidError } from '../utils/uid-helpers.js';
 import type { McpToolResponse } from '../types/common.js';
-
-/**
- * Transform UID resolution errors into concise messages
- */
-function handleUidError(error: Error, uid: string): Error {
-  const errorMsg = error.message;
-
-  if (
-    errorMsg.includes('stale') ||
-    errorMsg.includes('Snapshot') ||
-    errorMsg.includes('UID') ||
-    errorMsg.includes('not found')
-  ) {
-    return new Error(`${uid} stale/invalid. Call take_snapshot first.`);
-  }
-
-  return error;
-}
 
 // Tool definitions
 export const clickByUidTool = {

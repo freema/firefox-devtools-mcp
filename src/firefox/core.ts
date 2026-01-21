@@ -46,6 +46,10 @@ export class FirefoxCore {
       firefoxOptions.setProfile(this.options.profilePath);
     }
 
+    if (this.options.acceptInsecureCerts) {
+      firefoxOptions.setAcceptInsecureCerts(true);
+    }
+
     // Build WebDriver instance
     this.driver = await new Builder()
       .forBrowser(Browser.FIREFOX)

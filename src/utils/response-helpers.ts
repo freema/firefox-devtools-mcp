@@ -36,14 +36,6 @@ export const TOKEN_LIMITS = {
 } as const;
 
 /**
- * Estimate token count from character count.
- * Uses a conservative ratio of ~4 characters per token.
- */
-export function estimateTokens(text: string): number {
-  return Math.ceil(text.length / 4);
-}
-
-/**
  * Truncate text to a maximum length, adding truncation notice if needed.
  */
 export function truncateText(
@@ -55,27 +47,6 @@ export function truncateText(
     return text;
   }
   return text.slice(0, maxChars - suffix.length) + suffix;
-}
-
-/**
- * Truncate a response and add a warning header if it exceeds limits.
- */
-export function safeguardResponse(text: string): string {
-  const estimatedTokens = estimateTokens(text);
-
-  // Add warning if response is large
-  let result = text;
-  if (text.length > TOKEN_LIMITS.WARNING_THRESHOLD_CHARS) {
-    const warning = `⚠️ Large response (~${Math.round(estimatedTokens / 1000)}k tokens) - consider using filters to reduce output\n\n`;
-    result = warning + text;
-  }
-
-  // Hard truncate if still too large
-  if (result.length > TOKEN_LIMITS.MAX_RESPONSE_CHARS) {
-    result = truncateText(result, TOKEN_LIMITS.MAX_RESPONSE_CHARS);
-  }
-
-  return result;
 }
 
 /**

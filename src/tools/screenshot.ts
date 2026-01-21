@@ -3,6 +3,7 @@
  */
 
 import { successResponse, errorResponse, TOKEN_LIMITS } from '../utils/response-helpers.js';
+import { handleUidError } from '../utils/uid-helpers.js';
 import type { McpToolResponse } from '../types/common.js';
 
 // Tool definitions
@@ -85,19 +86,7 @@ export async function handleScreenshotByUid(args: unknown): Promise<McpToolRespo
 
       return buildScreenshotResponse(base64Png, uid);
     } catch (error) {
-      const errorMsg = (error as Error).message;
-
-      // Concise error for stale UIDs
-      if (
-        errorMsg.includes('stale') ||
-        errorMsg.includes('Snapshot') ||
-        errorMsg.includes('UID') ||
-        errorMsg.includes('not found')
-      ) {
-        throw new Error(`${uid} stale/invalid. Call take_snapshot first.`);
-      }
-
-      throw error;
+      throw handleUidError(error as Error, uid);
     }
   } catch (error) {
     return errorResponse(error as Error);

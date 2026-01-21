@@ -3,6 +3,7 @@
  */
 
 import { successResponse, errorResponse, TOKEN_LIMITS } from '../utils/response-helpers.js';
+import { handleUidError } from '../utils/uid-helpers.js';
 import type { McpToolResponse } from '../types/common.js';
 
 const DEFAULT_SNAPSHOT_LINES = 100;
@@ -142,19 +143,7 @@ export async function handleResolveUidToSelector(args: unknown): Promise<McpTool
       const selector = firefox.resolveUidToSelector(uid);
       return successResponse(`${uid} → ${selector}`);
     } catch (error) {
-      const errorMsg = (error as Error).message;
-
-      // Concise error for stale UIDs
-      if (
-        errorMsg.includes('stale') ||
-        errorMsg.includes('Snapshot') ||
-        errorMsg.includes('UID') ||
-        errorMsg.includes('not found')
-      ) {
-        throw new Error(`UID "${uid}" stale/invalid. Call take_snapshot first.`);
-      }
-
-      throw error;
+      throw handleUidError(error as Error, uid);
     }
   } catch (error) {
     return errorResponse(error as Error);

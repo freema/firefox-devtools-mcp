@@ -57,6 +57,7 @@ export interface FirefoxLaunchOptions {
   viewport?: { width: number; height: number } | undefined;
   args?: string[] | undefined;
   startUrl?: string | undefined;
+  acceptInsecureCerts?: boolean | undefined;
 }
 
 /**

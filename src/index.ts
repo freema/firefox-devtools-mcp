@@ -90,6 +90,7 @@ export async function getFirefox(): Promise<FirefoxDevTools> {
     viewport: args.viewport ?? undefined,
     args: (args.firefoxArg as string[] | undefined) ?? undefined,
     startUrl: args.startUrl ?? undefined,
+    acceptInsecureCerts: args.acceptInsecureCerts,
   };
 
   firefox = new FirefoxDevTools(options);
