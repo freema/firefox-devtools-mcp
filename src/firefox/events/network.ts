@@ -279,14 +279,23 @@ export class NetworkEvents {
 
   /**
    * Parse BiDi headers array to object
+   * BiDi headers can have value as string or as object { type: "string", value: "..." }
    */
   private parseHeaders(headers: any[]): Record<string, string> {
     const result: Record<string, string> = {};
 
     if (Array.isArray(headers)) {
       for (const h of headers) {
-        if (h.name && h.value) {
-          result[h.name.toLowerCase()] = String(h.value);
+        if (h.name && h.value !== undefined) {
+          // BiDi returns header values as { type: "string", value: "actual value" }
+          const value = h.value;
+          if (typeof value === 'string') {
+            result[h.name.toLowerCase()] = value;
+          } else if (value && typeof value === 'object' && 'value' in value) {
+            result[h.name.toLowerCase()] = String(value.value);
+          } else {
+            result[h.name.toLowerCase()] = String(value);
+          }
         }
       }
     }
