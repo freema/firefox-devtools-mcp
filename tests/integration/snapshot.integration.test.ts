@@ -4,7 +4,7 @@
  */
 
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
-import { createTestFirefox, closeFirefox } from '../helpers/firefox.js';
+import { createTestFirefox, closeFirefox, waitForElementInSnapshot, waitForPageLoad } from '../helpers/firefox.js';
 import type { FirefoxClient } from '@/firefox/index.js';
 import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -26,6 +26,7 @@ describe('Snapshot Integration Tests', () => {
   it('should take snapshot and generate UIDs', async () => {
     const fixturePath = `file://${fixturesPath}/simple.html`;
     await firefox.navigate(fixturePath);
+    await waitForPageLoad();
 
     const snapshot = await firefox.takeSnapshot();
 
@@ -41,44 +42,44 @@ describe('Snapshot Integration Tests', () => {
   it('should resolve UID to selector', async () => {
     const fixturePath = `file://${fixturesPath}/simple.html`;
     await firefox.navigate(fixturePath);
+    await waitForPageLoad();
 
-    const snapshot = await firefox.takeSnapshot();
-
-    // Find a UID from the snapshot (by id=#clickBtn)
-    const buttonUid = snapshot.json.uidMap.find(
-      (entry) => entry.css.includes('#clickBtn') || entry.css.includes('id="clickBtn"')
+    // Wait for button to appear in snapshot
+    const buttonUid = await waitForElementInSnapshot(
+      firefox,
+      (entry) => entry.css.includes('#clickBtn') || entry.css.includes('id="clickBtn"'),
+      10000
     );
 
     expect(buttonUid).toBeDefined();
 
-    if (buttonUid) {
-      const selector = firefox.resolveUidToSelector(buttonUid.uid);
-      expect(selector).toBeDefined();
-      expect(typeof selector).toBe('string');
-    }
+    const selector = firefox.resolveUidToSelector(buttonUid.uid);
+    expect(selector).toBeDefined();
+    expect(typeof selector).toBe('string');
   }, 10000);
 
   it('should click element by UID', async () => {
     const fixturePath = `file://${fixturesPath}/simple.html`;
     await firefox.navigate(fixturePath);
+    await waitForPageLoad();
 
-    const snapshot = await firefox.takeSnapshot();
-
-    // Find button UID (by id=#clickBtn)
-    const buttonUid = snapshot.json.uidMap.find(
-      (entry) => entry.css.includes('#clickBtn') || entry.css.includes('id="clickBtn"')
+    // Wait for button to appear in snapshot
+    const buttonUid = await waitForElementInSnapshot(
+      firefox,
+      (entry) => entry.css.includes('#clickBtn') || entry.css.includes('id="clickBtn"'),
+      10000
     );
+
     expect(buttonUid).toBeDefined();
 
-    if (buttonUid) {
-      // Click button - should not throw
-      await expect(firefox.clickByUid(buttonUid.uid)).resolves.not.toThrow();
-    }
+    // Click button - should not throw
+    await expect(firefox.clickByUid(buttonUid.uid)).resolves.not.toThrow();
   }, 10000);
 
   it('should detect stale UIDs after navigation', async () => {
     const fixturePath = `file://${fixturesPath}/simple.html`;
     await firefox.navigate(fixturePath);
+    await waitForPageLoad();
 
     const snapshot1 = await firefox.takeSnapshot();
     const firstUid = snapshot1.json.uidMap[0]?.uid;
@@ -87,6 +88,7 @@ describe('Snapshot Integration Tests', () => {
 
     // Navigate to different page
     await firefox.navigate(fixturePath);
+    await waitForPageLoad();
 
     // Old UID should be stale or not found
     if (firstUid) {
@@ -97,12 +99,14 @@ describe('Snapshot Integration Tests', () => {
   it('should clear snapshot cache on navigation', async () => {
     const fixturePath = `file://${fixturesPath}/simple.html`;
     await firefox.navigate(fixturePath);
+    await waitForPageLoad();
 
     const snapshot1 = await firefox.takeSnapshot();
     const snapshotId1 = snapshot1.json.snapshotId;
 
     // Navigate to same page
     await firefox.navigate(fixturePath);
+    await waitForPageLoad();
 
     const snapshot2 = await firefox.takeSnapshot();
     const snapshotId2 = snapshot2.json.snapshotId;
@@ -114,24 +118,25 @@ describe('Snapshot Integration Tests', () => {
   it('should handle double-click by UID', async () => {
     const fixturePath = `file://${fixturesPath}/simple.html`;
     await firefox.navigate(fixturePath);
+    await waitForPageLoad();
 
-    const snapshot = await firefox.takeSnapshot();
-
-    // Find double-click button UID (by id=#dblClickBtn)
-    const dblClickBtnUid = snapshot.json.uidMap.find(
-      (entry) => entry.css.includes('#dblClickBtn') || entry.css.includes('id="dblClickBtn"')
+    // Wait for double-click button to appear in snapshot
+    const dblClickBtnUid = await waitForElementInSnapshot(
+      firefox,
+      (entry) => entry.css.includes('#dblClickBtn') || entry.css.includes('id="dblClickBtn"'),
+      10000
     );
+
     expect(dblClickBtnUid).toBeDefined();
 
-    if (dblClickBtnUid) {
-      // Double-click button - should not throw
-      await expect(firefox.clickByUid(dblClickBtnUid.uid, true)).resolves.not.toThrow();
-    }
+    // Double-click button - should not throw
+    await expect(firefox.clickByUid(dblClickBtnUid.uid, true)).resolves.not.toThrow();
   }, 10000);
 
   it('should clear snapshot manually', async () => {
     const fixturePath = `file://${fixturesPath}/simple.html`;
     await firefox.navigate(fixturePath);
+    await waitForPageLoad();
 
     const snapshot = await firefox.takeSnapshot();
     const firstUid = snapshot.json.uidMap[0]?.uid;

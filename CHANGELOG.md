@@ -5,6 +5,53 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.2] - 2025-01-22
+
+### Added
+- New test helper functions for improved integration test stability:
+  - `waitForElementInSnapshot()` - actively waits for elements to appear in DOM snapshots
+  - `waitForPageLoad()` - ensures page is fully loaded before proceeding
+- 14 new comprehensive unit tests for `parseHeaders()` function covering edge cases:
+  - Numeric values (direct & BiDi format)
+  - Arrays with null/undefined items
+  - Nested objects with deep value extraction
+  - Circular reference handling
+  - Mixed arrays with primitives and objects
+  - Boolean values and bytes format
+- Global test cleanup system to prevent zombie Firefox processes
+- Signal handlers (SIGINT, SIGTERM) for graceful Firefox cleanup on test interruption
+- New npm script `test:unit` for running unit tests without Firefox dependencies
+
+### Fixed
+- **Critical**: Zombie Firefox processes no longer left running after test failures
+  - Added automatic cleanup in `tests/setup.ts` after all tests complete
+  - Added process signal handlers to ensure cleanup on Ctrl+C and crashes
+  - Prevents port conflicts and resource leaks
+- Integration test flakiness caused by race conditions:
+  - Form interaction test (hover functionality)
+  - Tab snapshot isolation test
+  - Network monitoring tests
+  - Console capture tests
+  - All snapshot tests (7 total)
+- Test parallelization conflicts by enforcing sequential execution
+
+### Changed
+- Integration tests now run sequentially instead of in parallel to avoid Firefox port conflicts
+- Vitest configuration updated with `fileParallelism: false` and `singleFork: true`
+- All integration tests refactored to use new helper functions for stability
+- Test success rate improved from 95% (with intermittent failures) to 100% consistent success
+
+### CI/CD
+- Added Firefox installation step to GitHub Actions CI workflow
+- Added unit tests to PR check workflow for faster feedback
+- Updated PR checks to include build verification
+- Integration tests now run reliably in CI environment
+
+### Test Coverage
+- Total tests: 275 (250 unit + 25 integration)
+- All tests now pass consistently (100% success rate across multiple runs)
+- Enhanced coverage for BiDi header parsing edge cases
+
 ## [0.5.1] - 2025-01-21
 
 ### Fixed
@@ -76,6 +123,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - UID-based element referencing system
 - Headless mode support
 
+[0.5.2]: https://github.com/freema/firefox-devtools-mcp/compare/v0.5.1...v0.5.2
 [0.5.1]: https://github.com/freema/firefox-devtools-mcp/compare/v0.5.0...v0.5.1
 [0.5.0]: https://github.com/freema/firefox-devtools-mcp/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/freema/firefox-devtools-mcp/compare/v0.3.0...v0.4.0

@@ -4,7 +4,7 @@
  */
 
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
-import { createTestFirefox, closeFirefox, waitFor } from '../helpers/firefox.js';
+import { createTestFirefox, closeFirefox, waitFor, waitForElementInSnapshot, waitForPageLoad } from '../helpers/firefox.js';
 import type { FirefoxClient } from '@/firefox/index.js';
 import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -29,6 +29,7 @@ describe('Network Monitoring Integration Tests', () => {
 
     const fixturePath = `file://${fixturesPath}/network.html`;
     await firefox.navigate(fixturePath);
+    await waitForPageLoad();
 
     // Wait a bit for network request to be captured
     await new Promise((resolve) => setTimeout(resolve, 500));
@@ -53,100 +54,101 @@ describe('Network Monitoring Integration Tests', () => {
   it('should capture fetch GET request', async () => {
     const fixturePath = `file://${fixturesPath}/network.html`;
     await firefox.navigate(fixturePath);
+    await waitForPageLoad();
 
     firefox.clearNetworkRequests();
 
-    // Take snapshot and click fetch GET button
-    const snapshot = await firefox.takeSnapshot();
-    const fetchGetBtn = snapshot.json.uidMap.find(
-      (entry) => entry.css.includes('#fetchGet') || entry.css.includes('fetchGet')
+    // Wait for fetch GET button to appear in snapshot
+    const fetchGetBtn = await waitForElementInSnapshot(
+      firefox,
+      (entry) => entry.css.includes('#fetchGet') || entry.css.includes('fetchGet'),
+      10000
     );
 
     expect(fetchGetBtn).toBeDefined();
 
-    if (fetchGetBtn) {
-      await firefox.clickByUid(fetchGetBtn.uid);
+    await firefox.clickByUid(fetchGetBtn.uid);
 
-      // Wait for network request
-      await waitFor(async () => {
-        const requests = await firefox.getNetworkRequests();
-        return requests.some((req) => req.url.includes('jsonplaceholder'));
-      }, 10000);
-
+    // Wait for network request
+    await waitFor(async () => {
       const requests = await firefox.getNetworkRequests();
-      const apiRequest = requests.find((req) => req.url.includes('jsonplaceholder'));
+      return requests.some((req) => req.url.includes('jsonplaceholder'));
+    }, 10000);
 
-      expect(apiRequest).toBeDefined();
-      expect(apiRequest?.method).toBe('GET');
-    }
+    const requests = await firefox.getNetworkRequests();
+    const apiRequest = requests.find((req) => req.url.includes('jsonplaceholder'));
+
+    expect(apiRequest).toBeDefined();
+    expect(apiRequest?.method).toBe('GET');
   }, 20000);
 
   it('should capture fetch POST request', async () => {
     const fixturePath = `file://${fixturesPath}/network.html`;
     await firefox.navigate(fixturePath);
+    await waitForPageLoad();
 
     firefox.clearNetworkRequests();
 
-    // Take snapshot and click fetch POST button
-    const snapshot = await firefox.takeSnapshot();
-    const fetchPostBtn = snapshot.json.uidMap.find(
-      (entry) => entry.css.includes('#fetchPost') || entry.css.includes('fetchPost')
+    // Wait for fetch POST button to appear in snapshot
+    const fetchPostBtn = await waitForElementInSnapshot(
+      firefox,
+      (entry) => entry.css.includes('#fetchPost') || entry.css.includes('fetchPost'),
+      10000
     );
 
     expect(fetchPostBtn).toBeDefined();
 
-    if (fetchPostBtn) {
-      await firefox.clickByUid(fetchPostBtn.uid);
+    await firefox.clickByUid(fetchPostBtn.uid);
 
-      // Wait for network request
-      await waitFor(async () => {
-        const requests = await firefox.getNetworkRequests();
-        return requests.some((req) => req.method === 'POST');
-      }, 10000);
-
+    // Wait for network request
+    await waitFor(async () => {
       const requests = await firefox.getNetworkRequests();
-      const postRequest = requests.find((req) => req.method === 'POST');
+      return requests.some((req) => req.method === 'POST');
+    }, 10000);
 
-      expect(postRequest).toBeDefined();
-      expect(postRequest?.method).toBe('POST');
-      expect(postRequest?.url).toContain('jsonplaceholder');
-    }
+    const requests = await firefox.getNetworkRequests();
+    const postRequest = requests.find((req) => req.method === 'POST');
+
+    expect(postRequest).toBeDefined();
+    expect(postRequest?.method).toBe('POST');
+    expect(postRequest?.url).toContain('jsonplaceholder');
   }, 20000);
 
   it('should capture XHR request', async () => {
     const fixturePath = `file://${fixturesPath}/network.html`;
     await firefox.navigate(fixturePath);
+    await waitForPageLoad();
 
     firefox.clearNetworkRequests();
 
-    // Take snapshot and click XHR button
-    const snapshot = await firefox.takeSnapshot();
-    const xhrBtn = snapshot.json.uidMap.find(
-      (entry) => entry.css.includes('#xhr') || entry.css.includes('data-testid="xhr')
+    // Wait for XHR button to appear in snapshot
+    const xhrBtn = await waitForElementInSnapshot(
+      firefox,
+      (entry) => entry.css.includes('#xhr') || entry.css.includes('data-testid="xhr'),
+      10000
     );
 
     expect(xhrBtn).toBeDefined();
 
-    if (xhrBtn) {
-      await firefox.clickByUid(xhrBtn.uid);
+    await firefox.clickByUid(xhrBtn.uid);
 
-      // Wait for network request
-      await waitFor(async () => {
-        const requests = await firefox.getNetworkRequests();
-        return requests.some((req) => req.url.includes('users/1'));
-      }, 10000);
-
+    // Wait for network request
+    await waitFor(async () => {
       const requests = await firefox.getNetworkRequests();
-      const xhrRequest = requests.find((req) => req.url.includes('users/1'));
+      return requests.some((req) => req.url.includes('users/1'));
+    }, 10000);
 
-      expect(xhrRequest).toBeDefined();
-      expect(xhrRequest?.method).toBe('GET');
-    }
+    const requests = await firefox.getNetworkRequests();
+    const xhrRequest = requests.find((req) => req.url.includes('users/1'));
+
+    expect(xhrRequest).toBeDefined();
+    expect(xhrRequest?.method).toBe('GET');
   }, 20000);
 
   it('should clear network requests', async () => {
     const fixturePath = `file://${fixturesPath}/network.html`;
     await firefox.navigate(fixturePath);
+    await waitForPageLoad();
 
     // Wait for initial page load request
     await new Promise((resolve) => setTimeout(resolve, 500));

@@ -4,7 +4,7 @@
  */
 
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
-import { createTestFirefox, closeFirefox } from '../helpers/firefox.js';
+import { createTestFirefox, closeFirefox, waitForElementInSnapshot, waitForPageLoad } from '../helpers/firefox.js';
 import type { FirefoxClient } from '@/firefox/index.js';
 import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -104,10 +104,21 @@ describe('Tab Management Integration Tests', () => {
     const formPath = `file://${fixturesPath}/form.html`;
 
     await firefox.navigate(simplePath);
+    await waitForPageLoad();
     const tab1Index = firefox.getSelectedTabIdx();
 
     const tab2Index = await firefox.createNewPage(formPath);
     await firefox.selectTab(tab2Index);
+    await waitForPageLoad();
+
+    // Wait for form elements to appear in tab 2
+    const emailElement = await waitForElementInSnapshot(
+      firefox,
+      (entry) => entry.css.includes('#email') || entry.css.includes('email'),
+      10000
+    );
+
+    expect(emailElement).toBeDefined();
 
     // Take snapshot in tab 2 (form page)
     const snapshot2 = await firefox.takeSnapshot();
@@ -119,6 +130,16 @@ describe('Tab Management Integration Tests', () => {
 
     // Switch to tab 1 (simple page)
     await firefox.selectTab(tab1Index);
+    await waitForPageLoad();
+
+    // Wait for button to appear in tab 1
+    const clickBtnElement = await waitForElementInSnapshot(
+      firefox,
+      (entry) => entry.css.includes('#clickBtn') || entry.css.includes('clickBtn'),
+      10000
+    );
+
+    expect(clickBtnElement).toBeDefined();
 
     // Take snapshot in tab 1
     const snapshot1 = await firefox.takeSnapshot();
@@ -130,7 +151,7 @@ describe('Tab Management Integration Tests', () => {
 
     // Snapshot IDs should be different
     expect(snapshot1.json.snapshotId).not.toBe(snapshot2.json.snapshotId);
-  }, 25000);
+  }, 30000);
 
   it('should get selected tab index', async () => {
     await firefox.refreshTabs();
