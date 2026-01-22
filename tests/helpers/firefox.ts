@@ -84,3 +84,37 @@ export async function retry<T>(
 
   throw lastError || new Error('Operation failed after retries');
 }
+
+/**
+ * Wait for element to appear in snapshot
+ * Takes snapshots repeatedly until element matching the predicate is found
+ */
+export async function waitForElementInSnapshot(
+  firefox: FirefoxClient,
+  predicate: (entry: { uid: string; css: string; text?: string }) => boolean,
+  timeout = 5000,
+  interval = 200
+): Promise<{ uid: string; css: string; text?: string }> {
+  const startTime = Date.now();
+
+  while (Date.now() - startTime < timeout) {
+    const snapshot = await firefox.takeSnapshot();
+    const element = snapshot.json.uidMap.find(predicate);
+
+    if (element) {
+      return element;
+    }
+
+    await new Promise((resolve) => setTimeout(resolve, interval));
+  }
+
+  throw new Error(`Timeout waiting for element in snapshot after ${timeout}ms`);
+}
+
+/**
+ * Wait for page to be fully loaded before taking snapshot
+ * Adds a small delay to ensure DOM is stable
+ */
+export async function waitForPageLoad(delayMs = 300): Promise<void> {
+  await new Promise((resolve) => setTimeout(resolve, delayMs));
+}

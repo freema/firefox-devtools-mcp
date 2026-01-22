@@ -220,5 +220,169 @@ describe('NetworkEvents Header Parsing', () => {
     it('should handle empty headers array', () => {
       expect(parseHeaders([])).toEqual({});
     });
+
+    it('should handle numeric values directly', () => {
+      const headers = [
+        { name: 'Content-Length', value: 1234 },
+        { name: 'Age', value: 42 },
+      ];
+
+      const result = parseHeaders(headers);
+
+      expect(result['content-length']).toBe('1234');
+      expect(result['age']).toBe('42');
+    });
+
+    it('should handle array with null and undefined items', () => {
+      const headers = [
+        { name: 'X-Array-Mixed', value: ['valid', null, undefined, 'another', ''] },
+      ];
+
+      const result = parseHeaders(headers);
+
+      // Empty strings, null, and undefined are all filtered out (because of !!item check)
+      expect(result['x-array-mixed']).toBe('valid, another');
+    });
+
+    it('should handle array with only null/undefined items', () => {
+      const headers = [{ name: 'X-Array-Null', value: [null, undefined] }];
+
+      const result = parseHeaders(headers);
+
+      expect(result['x-array-null']).toBeUndefined();
+    });
+
+    it('should handle nested object with value containing array', () => {
+      const headers = [
+        {
+          name: 'X-Nested',
+          value: { value: ['item1', 'item2'] },
+        },
+      ];
+
+      const result = parseHeaders(headers);
+
+      expect(result['x-nested']).toBe('item1, item2');
+    });
+
+    it('should handle nested object with bytes containing string', () => {
+      const headers = [
+        {
+          name: 'X-Bytes-Nested',
+          value: { bytes: 'base64data' },
+        },
+      ];
+
+      const result = parseHeaders(headers);
+
+      expect(result['x-bytes-nested']).toBe('base64data');
+    });
+
+    it('should handle object with circular reference that fails JSON.stringify', () => {
+      const circular: any = { foo: 'bar' };
+      circular.self = circular; // Create circular reference
+
+      const headers = [{ name: 'X-Circular', value: circular }];
+
+      const result = parseHeaders(headers);
+
+      // Should return null and skip the header
+      expect(result['x-circular']).toBeUndefined();
+    });
+
+    it('should handle header with null as entire header object', () => {
+      const headers = [
+        { name: 'Valid', value: 'test' },
+        null,
+        undefined,
+        { name: 'Another', value: 'value' },
+      ];
+
+      const result = parseHeaders(headers as any);
+
+      expect(result['valid']).toBe('test');
+      expect(result['another']).toBe('value');
+      expect(Object.keys(result)).toHaveLength(2);
+    });
+
+    it('should handle header name that needs string conversion', () => {
+      const headers = [
+        { name: 123, value: 'numeric-name' },
+        { name: true, value: 'boolean-name' },
+      ];
+
+      const result = parseHeaders(headers as any);
+
+      expect(result['123']).toBe('numeric-name');
+      expect(result['true']).toBe('boolean-name');
+    });
+
+    it('should handle object without value or bytes but with other properties', () => {
+      const headers = [
+        {
+          name: 'X-Custom-Object',
+          value: { custom: 'property', another: 123, nested: { deep: true } },
+        },
+      ];
+
+      const result = parseHeaders(headers);
+
+      expect(result['x-custom-object']).toBe('{"custom":"property","another":123,"nested":{"deep":true}}');
+    });
+
+    it('should handle deeply nested value extraction', () => {
+      const headers = [
+        {
+          name: 'X-Deep',
+          value: {
+            value: {
+              value: 'deeply-nested',
+            },
+          },
+        },
+      ];
+
+      const result = parseHeaders(headers);
+
+      expect(result['x-deep']).toBe('deeply-nested');
+    });
+
+    it('should handle array containing objects with value property', () => {
+      const headers = [
+        {
+          name: 'X-Array-Objects',
+          value: [{ value: 'first' }, { value: 'second' }, { value: 'third' }],
+        },
+      ];
+
+      const result = parseHeaders(headers);
+
+      expect(result['x-array-objects']).toBe('first, second, third');
+    });
+
+    it('should handle mixed array with primitives and objects', () => {
+      const headers = [
+        {
+          name: 'X-Mixed-Array',
+          value: ['plain', { value: 'wrapped' }, 42, true, { bytes: 'binary' }],
+        },
+      ];
+
+      const result = parseHeaders(headers);
+
+      expect(result['x-mixed-array']).toBe('plain, wrapped, 42, true, binary');
+    });
+
+    it('should handle empty string header name', () => {
+      const headers = [
+        { name: '', value: 'should-be-skipped' },
+        { name: '  ', value: 'whitespace-name' },
+      ];
+
+      const result = parseHeaders(headers);
+
+      expect(result['']).toBeUndefined();
+      expect(result['  ']).toBe('whitespace-name');
+    });
   });
 });
