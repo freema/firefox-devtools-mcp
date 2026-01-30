@@ -35,7 +35,8 @@
     "test:tools": "node scripts/test-bidi-devtools.js",
     "test:input": "node scripts/test-input-tools.js",
     "test:screenshot": "node scripts/test-screenshot.js",
-    "test:dialog": "node scripts/test-dialog.js"
+    "test:dialog": "node scripts/test-dialog.js",
+    "test:integration:win": "node scripts/run-integration-tests-windows.mjs"
   },
   "keywords": [
     "mcp",
