@@ -15,6 +15,11 @@ export const takeSnapshotTool = {
   inputSchema: {
     type: 'object',
     properties: {
+      selector: {
+        type: 'string',
+        description:
+          'CSS selector to scope snapshot (e.g. "main", "#app", "table tbody"). Starts from matched element instead of body.',
+      },
       maxLines: {
         type: 'number',
         description: 'Max lines (default: 100)',
@@ -69,18 +74,21 @@ export const clearSnapshotTool = {
  */
 export interface TakeSnapshotOptions {
   includeAll?: boolean;
+  selector?: string;
 }
 
 // Handlers
 export async function handleTakeSnapshot(args: unknown): Promise<McpToolResponse> {
   try {
     const {
+      selector,
       maxLines: requestedMaxLines = DEFAULT_SNAPSHOT_LINES,
       includeAttributes = false,
       includeText = true,
       maxDepth,
       includeAll = false,
     } = (args as {
+      selector?: string;
       maxLines?: number;
       includeAttributes?: boolean;
       includeText?: boolean;
@@ -95,7 +103,10 @@ export async function handleTakeSnapshot(args: unknown): Promise<McpToolResponse
     const { getFirefox } = await import('../index.js');
     const firefox = await getFirefox();
 
-    const snapshot = await firefox.takeSnapshot({ includeAll });
+    const snapshot = await firefox.takeSnapshot({
+      includeAll,
+      ...(selector && { selector }),
+    });
 
     // Import formatter to apply custom options
     const { formatSnapshotTree } = await import('../firefox/snapshot/formatter.js');
@@ -116,6 +127,9 @@ export async function handleTakeSnapshot(args: unknown): Promise<McpToolResponse
 
     // Build compact output
     let output = `📸 Snapshot (id=${snapshot.json.snapshotId})`;
+    if (selector) {
+      output += ` [selector: ${selector}]`;
+    }
     if (wasCapped) {
       output += ` [maxLines capped: ${TOKEN_LIMITS.MAX_SNAPSHOT_LINES_CAP}]`;
     }

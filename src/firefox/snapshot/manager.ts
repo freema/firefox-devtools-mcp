@@ -80,17 +80,21 @@ export class SnapshotManager {
    * Take a snapshot of the current page
    * Returns text and JSON with snapshotId, no DOM mutations
    * @param options.includeAll - If true, include all visible elements without filtering
+   * @param options.selector - CSS selector to scope the snapshot (starts from matched element)
    */
-  async takeSnapshot(options?: { includeAll?: boolean }): Promise<Snapshot> {
+  async takeSnapshot(options?: { includeAll?: boolean; selector?: string }): Promise<Snapshot> {
     const snapshotId = ++this.currentSnapshotId;
     const includeAll = options?.includeAll ?? false;
+    const selector = options?.selector;
     this.resolver.setSnapshotId(snapshotId);
     this.resolver.clear();
 
-    logDebug(`Taking snapshot (ID: ${snapshotId}, includeAll: ${includeAll})...`);
+    logDebug(
+      `Taking snapshot (ID: ${snapshotId}, includeAll: ${includeAll}, selector: ${selector || 'body'})...`
+    );
 
     // Execute bundled injected script
-    const result = await this.executeInjectedScript(snapshotId, includeAll);
+    const result = await this.executeInjectedScript(snapshotId, includeAll, selector);
 
     logDebug(
       `Snapshot executeScript result: hasResult=${!!result}, hasTree=${!!result?.tree}, truncated=${result?.truncated || false}`
@@ -105,6 +109,11 @@ export class SnapshotManager {
       if (result.debugLog.length > 20) {
         logDebug(`  ... and ${result.debugLog.length - 20} more`);
       }
+    }
+
+    if (result?.selectorError) {
+      logDebug(`Snapshot generation failed: ${result.selectorError}`);
+      throw new Error(result.selectorError);
     }
 
     if (!result?.tree) {
@@ -162,10 +171,12 @@ export class SnapshotManager {
    * Execute bundled injected snapshot script
    * @param snapshotId - Unique ID for this snapshot
    * @param includeAll - If true, include all visible elements without filtering
+   * @param selector - CSS selector to scope the snapshot
    */
   private async executeInjectedScript(
     snapshotId: number,
-    includeAll: boolean = false
+    includeAll: boolean = false,
+    selector?: string
   ): Promise<InjectedScriptResult> {
     const scriptSource = this.getInjectedScript();
 
@@ -183,10 +194,11 @@ export class SnapshotManager {
         }
       }
       // Call it with options
-      return window.__createSnapshot(arguments[0], { includeAll: arguments[1] });
+      return window.__createSnapshot(arguments[0], { includeAll: arguments[1], selector: arguments[2] });
       `,
       snapshotId,
-      includeAll
+      includeAll,
+      selector
     );
 
     return result;

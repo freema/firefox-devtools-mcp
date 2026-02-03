@@ -33,6 +33,7 @@ export interface TreeWalkerResult {
 export interface TreeWalkerOptions {
   includeIframes?: boolean;
   includeAll?: boolean;
+  selector?: string;
 }
 
 /**

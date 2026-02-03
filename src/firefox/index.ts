@@ -315,7 +315,7 @@ export class FirefoxClient {
   // Snapshot
   // ============================================================================
 
-  async takeSnapshot(options?: { includeAll?: boolean }): Promise<Snapshot> {
+  async takeSnapshot(options?: { includeAll?: boolean; selector?: string }): Promise<Snapshot> {
     if (!this.snapshot) {
       throw new Error('Not connected');
     }
