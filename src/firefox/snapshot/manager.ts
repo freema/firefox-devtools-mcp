@@ -79,16 +79,18 @@ export class SnapshotManager {
   /**
    * Take a snapshot of the current page
    * Returns text and JSON with snapshotId, no DOM mutations
+   * @param options.includeAll - If true, include all visible elements without filtering
    */
-  async takeSnapshot(): Promise<Snapshot> {
+  async takeSnapshot(options?: { includeAll?: boolean }): Promise<Snapshot> {
     const snapshotId = ++this.currentSnapshotId;
+    const includeAll = options?.includeAll ?? false;
     this.resolver.setSnapshotId(snapshotId);
     this.resolver.clear();
 
-    logDebug(`Taking snapshot (ID: ${snapshotId})...`);
+    logDebug(`Taking snapshot (ID: ${snapshotId}, includeAll: ${includeAll})...`);
 
     // Execute bundled injected script
-    const result = await this.executeInjectedScript(snapshotId);
+    const result = await this.executeInjectedScript(snapshotId, includeAll);
 
     logDebug(
       `Snapshot executeScript result: hasResult=${!!result}, hasTree=${!!result?.tree}, truncated=${result?.truncated || false}`
@@ -158,8 +160,13 @@ export class SnapshotManager {
 
   /**
    * Execute bundled injected snapshot script
+   * @param snapshotId - Unique ID for this snapshot
+   * @param includeAll - If true, include all visible elements without filtering
    */
-  private async executeInjectedScript(snapshotId: number): Promise<InjectedScriptResult> {
+  private async executeInjectedScript(
+    snapshotId: number,
+    includeAll: boolean = false
+  ): Promise<InjectedScriptResult> {
     const scriptSource = this.getInjectedScript();
 
     // Inject and execute the bundled script
@@ -175,10 +182,11 @@ export class SnapshotManager {
           window.__createSnapshot = __SnapshotInjected.createSnapshot;
         }
       }
-      // Call it
-      return window.__createSnapshot(arguments[0]);
+      // Call it with options
+      return window.__createSnapshot(arguments[0], { includeAll: arguments[1] });
       `,
-      snapshotId
+      snapshotId,
+      includeAll
     );
 
     return result;

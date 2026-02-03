@@ -315,11 +315,11 @@ export class FirefoxClient {
   // Snapshot
   // ============================================================================
 
-  async takeSnapshot(): Promise<Snapshot> {
+  async takeSnapshot(options?: { includeAll?: boolean }): Promise<Snapshot> {
     if (!this.snapshot) {
       throw new Error('Not connected');
     }
-    return await this.snapshot.takeSnapshot();
+    return await this.snapshot.takeSnapshot(options);
   }
 
   resolveUidToSelector(uid: string): string {

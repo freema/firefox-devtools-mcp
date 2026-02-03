@@ -28,13 +28,52 @@ const SEMANTIC_TAGS = ['nav', 'main', 'section', 'article', 'header', 'footer', 
 const CONTAINER_TAGS = ['div', 'span', 'p', 'li', 'ul', 'ol'];
 
 /**
- * Max text content length for containers
+ * Max direct text content length for containers
  */
-const MAX_TEXT_CONTENT = 500;
+const MAX_DIRECT_TEXT_CONTENT = 500;
+
+/**
+ * Get direct text content of an element (text nodes that are direct children only)
+ * This excludes text from nested elements, solving the issue where
+ * el.textContent returns ALL descendant text making wrapper divs seem to have huge content
+ */
+function getDirectTextContent(el: Element): string {
+  let text = '';
+  for (let i = 0; i < el.childNodes.length; i++) {
+    const node = el.childNodes[i];
+    if (node && node.nodeType === Node.TEXT_NODE) {
+      text += node.textContent || '';
+    }
+  }
+  return text.trim();
+}
+
+/**
+ * Check if element has any relevant interactive descendants
+ * Used to include container elements that wrap interactive content
+ */
+function hasInteractiveDescendant(el: Element): boolean {
+  // Check immediate children only (one level) to avoid performance issues
+  for (let i = 0; i < el.children.length; i++) {
+    const child = el.children[i];
+    if (!child) continue;
+    const tag = child.tagName.toLowerCase();
+    if (INTERACTIVE_TAGS.indexOf(tag) !== -1) {
+      return true;
+    }
+    if (child.hasAttribute('role')) {
+      return true;
+    }
+  }
+  return false;
+}
 
 /**
  * Check if element is relevant for snapshot
  * Filters out hidden/irrelevant elements
+ *
+ * Note: Even if this returns false, the tree walker will still
+ * traverse children to find nested relevant elements.
  */
 export function isRelevant(el: Element): boolean {
   if (!el || el.nodeType !== Node.ELEMENT_NODE) {
@@ -80,13 +119,17 @@ export function isRelevant(el: Element): boolean {
 
   // Common containers - need additional checks
   if (CONTAINER_TAGS.indexOf(tag) !== -1) {
-    // Has meaningful text?
-    const textContent = (el.textContent || '').trim();
-    if (textContent.length > 0 && textContent.length < MAX_TEXT_CONTENT) {
+    // Has direct meaningful text? (not descendant text)
+    const directText = getDirectTextContent(el);
+    if (directText.length > 0 && directText.length < MAX_DIRECT_TEXT_CONTENT) {
       return true;
     }
     // Has id or class?
     if (el.id || el.className) {
+      return true;
+    }
+    // Has immediate interactive children?
+    if (hasInteractiveDescendant(el)) {
       return true;
     }
   }

@@ -31,6 +31,11 @@ export const takeSnapshotTool = {
         type: 'number',
         description: 'Max tree depth',
       },
+      includeAll: {
+        type: 'boolean',
+        description:
+          'Include all visible elements without filtering (default: false). Use for Vue/React/Livewire apps.',
+      },
     },
   },
 };
@@ -59,6 +64,13 @@ export const clearSnapshotTool = {
   },
 };
 
+/**
+ * Options for taking a snapshot
+ */
+export interface TakeSnapshotOptions {
+  includeAll?: boolean;
+}
+
 // Handlers
 export async function handleTakeSnapshot(args: unknown): Promise<McpToolResponse> {
   try {
@@ -67,11 +79,13 @@ export async function handleTakeSnapshot(args: unknown): Promise<McpToolResponse
       includeAttributes = false,
       includeText = true,
       maxDepth,
+      includeAll = false,
     } = (args as {
       maxLines?: number;
       includeAttributes?: boolean;
       includeText?: boolean;
       maxDepth?: number;
+      includeAll?: boolean;
     }) || {};
 
     // Apply hard cap on maxLines to prevent token overflow
@@ -81,7 +95,7 @@ export async function handleTakeSnapshot(args: unknown): Promise<McpToolResponse
     const { getFirefox } = await import('../index.js');
     const firefox = await getFirefox();
 
-    const snapshot = await firefox.takeSnapshot();
+    const snapshot = await firefox.takeSnapshot({ includeAll });
 
     // Import formatter to apply custom options
     const { formatSnapshotTree } = await import('../firefox/snapshot/formatter.js');
