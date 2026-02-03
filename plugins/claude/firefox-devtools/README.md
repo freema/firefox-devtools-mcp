@@ -1,54 +1,39 @@
 # Firefox DevTools Plugin for Claude Code
 
-This plugin provides Firefox browser automation capabilities for Claude Code using WebDriver BiDi protocol.
+Automate Firefox browser via WebDriver BiDi. Navigate pages, fill forms, click elements, take screenshots, and monitor console/network activity.
 
 ## Installation
 
 ```bash
-# Via Claude Code plugin manager
-/plugin install https://github.com/freema/firefox-devtools-mcp/plugins/claude/firefox-devtools
-
-# Or test locally
-claude --plugin-dir ./plugins/claude/firefox-devtools
+claude plugin install firefox-devtools
 ```
 
-## What's included
+## What's Included
 
-### MCP Server
-Automatically connects Claude Code to the Firefox DevTools MCP server.
-
-### Skills
-- **browser-automation** - Auto-triggers when you ask about browser automation, testing, or scraping
-
-## Available tools
-
-The MCP server provides 18 tools for browser automation:
-
-| Category | Tools |
-|----------|-------|
-| Pages | `list_pages`, `new_page`, `navigate_page`, `select_page`, `close_page` |
-| Snapshots | `take_snapshot`, `resolve_uid_to_selector`, `clear_snapshot` |
-| Interactions | `click_by_uid`, `hover_by_uid`, `fill_by_uid`, `fill_form_by_uid`, `drag_by_uid_to_uid`, `upload_file_by_uid` |
-| Screenshots | `screenshot_page`, `screenshot_by_uid` |
-| Console/Network | `list_console_messages`, `clear_console_messages`, `list_network_requests`, `get_network_request` |
-| Utilities | `accept_dialog`, `dismiss_dialog`, `navigate_history`, `set_viewport_size` |
+- **MCP Server** - Connects Claude Code to Firefox automation
+- **Skills** - Auto-triggers for browser automation, testing, and scraping tasks
 
 ## Usage
 
-Once installed, ask Claude to automate Firefox:
+The plugin works automatically when you ask about browser tasks:
 
-```
-"Navigate to example.com and take a screenshot"
-"Fill out the login form and submit"
-"Check for JavaScript errors on this page"
-```
+- "Navigate to example.com and take a screenshot"
+- "Fill out the login form and submit"  
+- "Check for JavaScript errors on this page"
+- "Scrape all product prices from this page"
+
+## Key Workflow
+
+1. `take_snapshot` - Creates DOM snapshot with UIDs (e.g., `e42`)
+2. Interact using UIDs - `click_by_uid`, `fill_by_uid`, etc.
+3. Re-snapshot after DOM changes
 
 ## Requirements
 
-- Firefox 120 or later
-- Node.js 20.19.0 or later
+- Firefox 120+
+- Node.js 20.19.0+
 
 ## Links
 
-- [GitHub Repository](https://github.com/freema/firefox-devtools-mcp)
-- [npm Package](https://www.npmjs.com/package/firefox-devtools-mcp)
+- [Repository](https://github.com/freema/firefox-devtools-mcp)
+- [npm](https://www.npmjs.com/package/firefox-devtools-mcp)
