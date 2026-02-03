@@ -1,0 +1,11 @@
+{
+  "name": "firefox-devtools",
+  "description": "Firefox browser automation via WebDriver BiDi. Automate Firefox for testing, scraping, form filling, screenshots, and debugging.",
+  "version": "0.5.3",
+  "author": {
+    "name": "Tomáš Grasl",
+    "url": "https://www.tomasgrasl.cz/"
+  },
+  "repository": "https://github.com/freema/firefox-devtools-mcp",
+  "license": "MIT"
+}
