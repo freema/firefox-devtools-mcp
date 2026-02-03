@@ -9,108 +9,108 @@ repository: https://github.com/freema/firefox-devtools-mcp
 
 # Firefox DevTools MCP Skill
 
-MCP server pro automatizaci Firefox prohlížeče pomocí WebDriver BiDi protokolu.
+MCP server for Firefox browser automation using the WebDriver BiDi protocol.
 
-## Kdy použít tento skill
+## When to use this skill
 
-Tento skill je relevantní když uživatel chce:
+This skill is relevant when the user wants to:
 
-- **Automatizovat prohlížeč** - navigace, klikání, vyplňování formulářů
-- **Testovat webové stránky** - end-to-end testy, vizuální regrese
-- **Scrapovat obsah** - extrakce dat z webových stránek
-- **Debugovat** - sledování konzole, network requestů
-- **Pořizovat screenshoty** - celé stránky nebo specifických elementů
+- **Automate browser** - navigation, clicking, filling forms
+- **Test web pages** - end-to-end tests, visual regression
+- **Scrape content** - extract data from web pages
+- **Debug** - monitor console, network requests
+- **Take screenshots** - full page or specific elements
 
-## Spuštění
+## Getting started
 
 ```bash
-# Nejjednodušší způsob - vždy nejnovější verze
+# Simplest way - always latest version
 npx firefox-devtools-mcp@latest
 
-# S headless módem (bez GUI)
+# With headless mode (no GUI)
 npx firefox-devtools-mcp@latest --headless
 
-# Na specifickém portu
+# On a specific port
 npx firefox-devtools-mcp@latest --port 9222
 ```
 
-## Dostupné nástroje (18)
+## Available tools (18)
 
-### Správa stránek
+### Page management
 
-| Nástroj | Popis |
-|---------|-------|
-| `list_pages` | Seznam všech otevřených stránek/tabů |
-| `new_page` | Otevře novou prázdnou stránku |
-| `navigate_page` | Naviguje na URL (volitelně `pageId`) |
-| `select_page` | Vybere stránku jako aktivní |
-| `close_page` | Zavře stránku |
+| Tool | Description |
+|------|-------------|
+| `list_pages` | List all open pages/tabs |
+| `new_page` | Open a new blank page |
+| `navigate_page` | Navigate to URL (optionally specify `pageId`) |
+| `select_page` | Select a page as active |
+| `close_page` | Close a page |
 
-### DOM Snapshots (UID systém)
+### DOM Snapshots (UID system)
 
-| Nástroj | Popis |
-|---------|-------|
-| `take_snapshot` | Vytvoří snapshot DOM, přiřadí UID elementům |
-| `resolve_uid_to_selector` | Převede UID na CSS selektor |
-| `clear_snapshot` | Vymaže snapshot cache |
+| Tool | Description |
+|------|-------------|
+| `take_snapshot` | Create DOM snapshot, assign UIDs to elements |
+| `resolve_uid_to_selector` | Convert UID to CSS selector |
+| `clear_snapshot` | Clear snapshot cache |
 
-**Důležité:** Vždy nejprve zavolej `take_snapshot` před interakcí s elementy. UID (např. `e42`) jsou stabilní reference na DOM elementy.
+**Important:** Always call `take_snapshot` before interacting with elements. UIDs (e.g., `e42`) are stable references to DOM elements.
 
-### Interakce s elementy
+### Element interactions
 
-| Nástroj | Popis |
-|---------|-------|
-| `click_by_uid` | Klikne na element podle UID |
-| `hover_by_uid` | Nastaví hover na element |
-| `fill_by_uid` | Vyplní text do inputu/textarea |
-| `fill_form_by_uid` | Vyplní více polí formuláře najednou |
-| `drag_by_uid_to_uid` | Přetáhne element na jiný element |
-| `upload_file_by_uid` | Nahraje soubor do file inputu |
+| Tool | Description |
+|------|-------------|
+| `click_by_uid` | Click element by UID |
+| `hover_by_uid` | Hover over element |
+| `fill_by_uid` | Fill text into input/textarea |
+| `fill_form_by_uid` | Fill multiple form fields at once |
+| `drag_by_uid_to_uid` | Drag element to another element |
+| `upload_file_by_uid` | Upload file to file input |
 
-### Screenshoty
+### Screenshots
 
-| Nástroj | Popis |
-|---------|-------|
-| `screenshot_page` | Screenshot celé stránky |
-| `screenshot_by_uid` | Screenshot konkrétního elementu |
+| Tool | Description |
+|------|-------------|
+| `screenshot_page` | Screenshot entire page |
+| `screenshot_by_uid` | Screenshot specific element |
 
-### Konzole a Network
+### Console and Network
 
-| Nástroj | Popis |
-|---------|-------|
-| `list_console_messages` | Vypíše zprávy z konzole (log, error, warn) |
-| `clear_console_messages` | Vymaže cache konzole |
-| `list_network_requests` | Seznam HTTP requestů |
-| `get_network_request` | Detail konkrétního requestu |
+| Tool | Description |
+|------|-------------|
+| `list_console_messages` | List console messages (log, error, warn) |
+| `clear_console_messages` | Clear console cache |
+| `list_network_requests` | List HTTP requests |
+| `get_network_request` | Get details of specific request |
 
-### Utility
+### Utilities
 
-| Nástroj | Popis |
-|---------|-------|
-| `accept_dialog` | Potvrdí dialog (alert, confirm, prompt) |
-| `dismiss_dialog` | Zamítne dialog |
-| `navigate_history` | Navigace zpět/vpřed v historii |
-| `set_viewport_size` | Nastaví velikost viewportu |
+| Tool | Description |
+|------|-------------|
+| `accept_dialog` | Accept dialog (alert, confirm, prompt) |
+| `dismiss_dialog` | Dismiss dialog |
+| `navigate_history` | Navigate back/forward in history |
+| `set_viewport_size` | Set viewport size |
 
-## Typický workflow
+## Typical workflow
 
-### 1. Navigace a snapshot
+### 1. Navigation and snapshot
 
 ```
 1. navigate_page url="https://example.com"
 2. take_snapshot
-   → Vrátí text reprezentaci DOM s UID pro každý interaktivní element
+   → Returns text representation of DOM with UIDs for each interactive element
 ```
 
-### 2. Interakce s elementy
+### 2. Element interaction
 
 ```
-3. click_by_uid uid="e15"     # Kliknutí na tlačítko
+3. click_by_uid uid="e15"     # Click button
 4. fill_by_uid uid="e23" text="hello@example.com"
-5. take_snapshot              # Nový snapshot po změně DOM
+5. take_snapshot              # New snapshot after DOM change
 ```
 
-### 3. Formuláře
+### 3. Forms
 
 ```
 fill_form_by_uid fields=[
@@ -127,9 +127,9 @@ list_console_messages level="error"
 list_network_requests status="failed"
 ```
 
-## Příklady použití
+## Usage examples
 
-### E2E test přihlášení
+### E2E login test
 
 ```
 1. navigate_page url="https://app.example.com/login"
@@ -138,63 +138,63 @@ list_network_requests status="failed"
 4. fill_by_uid uid="e6" text="password123"
 5. click_by_uid uid="e8"  # Submit button
 6. take_snapshot
-7. screenshot_page        # Dokumentace výsledku
+7. screenshot_page        # Document result
 ```
 
-### Scraping produktů
+### Product scraping
 
 ```
 1. navigate_page url="https://shop.example.com/products"
 2. take_snapshot
-   → Parsuj výstup pro extrakci dat z elementů
+   → Parse output to extract data from elements
 3. click_by_uid uid="e42"  # Next page
 4. take_snapshot
-   → Opakuj pro další stránky
+   → Repeat for more pages
 ```
 
-### Monitoring konzole
+### Console monitoring
 
 ```
 1. navigate_page url="https://buggy-app.example.com"
 2. list_console_messages level="error"
-   → Analyzuj JavaScript chyby
+   → Analyze JavaScript errors
 3. list_network_requests status="failed"
-   → Zkontroluj selhané requesty
+   → Check failed requests
 ```
 
-## Omezení
+## Limitations
 
-- **Firefox only** - nepodporuje Chrome/Safari
-- **WebDriver BiDi** - vyžaduje Firefox 120+
-- **evaluate_script** - momentálně vypnuto z bezpečnostních důvodů
-- **Headless mód** - některé testy mohou vyžadovat viditelný prohlížeč
+- **Firefox only** - does not support Chrome/Safari
+- **WebDriver BiDi** - requires Firefox 120+
+- **evaluate_script** - currently disabled for security reasons
+- **Headless mode** - some tests may require visible browser
 
-## Řešení problémů
+## Troubleshooting
 
-### Firefox se nespustí
+### Firefox won't start
 
 ```bash
-# Zkontroluj že Firefox je nainstalovaný
+# Check Firefox is installed
 firefox --version
 
-# Zkus s explicitní cestou
+# Try with explicit path
 npx firefox-devtools-mcp@latest --firefox-path /usr/bin/firefox
 ```
 
-### Element nenalezen
+### Element not found
 
-1. Vždy zavolej `take_snapshot` před interakcí
-2. UID se mění po změnách DOM - vždy refreshni snapshot
-3. Počkej na načtení stránky před snapshotem
+1. Always call `take_snapshot` before interaction
+2. UIDs change after DOM changes - always refresh snapshot
+3. Wait for page to load before taking snapshot
 
-### Timeout chyby
+### Timeout errors
 
 ```bash
-# Zvyš timeout pro pomalé stránky
+# Increase timeout for slow pages
 npx firefox-devtools-mcp@latest --timeout 60000
 ```
 
-## Viz také
+## See also
 
 - [GitHub Repository](https://github.com/freema/firefox-devtools-mcp)
 - [MCP Protocol](https://modelcontextprotocol.io/)

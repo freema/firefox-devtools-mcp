@@ -1,33 +1,33 @@
-# RFC: Distribuce SKILL.md přímo v npm balíčcích
+# RFC: Distributing SKILL.md directly in npm packages
 
 > **Status:** Draft
-> **Autor:** Borek Bernard (@borekb)
-> **Datum:** 2026-02-03
+> **Author:** Borek Bernard (@borekb)
+> **Date:** 2026-02-03
 
-## Motivace
+## Motivation
 
-Současný workflow pro distribuci skills není ideální:
+The current workflow for distributing skills is not ideal:
 
-1. **skills.sh** - centralizovaný registr vyžaduje HTTP fetch a manuální správu
-2. **Projekt-level instalace** (`<project>/.claude/skills`) - problémy:
-   - Duplicita skills napříč projekty
-   - Nutnost commitovat skills do každého projektu
-   - Verzování skills oddělené od verzování balíčku
-3. **Globální instalace** - ošemetné z důvodu verzování a izolace
+1. **skills.sh** - centralized registry requires HTTP fetch and manual management
+2. **Project-level installation** (`<project>/.claude/skills`) - issues:
+   - Skill duplication across projects
+   - Need to commit skills into each project
+   - Skill versioning separate from package versioning
+3. **Global installation** - problematic due to versioning and isolation
 
-## Návrh: SKILL.md jako součást npm balíčku
+## Proposal: SKILL.md as part of npm package
 
-Stejně jako TypeScript typy začínaly s DefinitelyTyped a postupně se přesunuly přímo do balíčků, skills by měly být distribuovány přímo s npm balíčkem.
+Just as TypeScript types started with DefinitelyTyped and gradually moved directly into packages, skills should be distributed directly with the npm package.
 
-### Konvence
+### Convention
 
 ```
 my-package/
 ├── package.json
 ├── src/
 ├── dist/
-├── SKILL.md          # <- Hlavní skill soubor
-└── skills/           # <- Volitelně: více skill souborů
+├── SKILL.md          # <- Main skill file
+└── skills/           # <- Optional: multiple skill files
     ├── advanced.md
     └── examples.md
 ```
@@ -47,53 +47,53 @@ my-package/
 }
 ```
 
-### Výhody
+### Benefits
 
-| Aspekt | skills.sh | Projekt-level | npm balíček |
+| Aspect | skills.sh | Project-level | npm package |
 |--------|-----------|---------------|-------------|
-| Verzování | Oddělené | Oddělené | Sdílené s kódem |
-| Aktualizace | Manuální fetch | Manuální | `npm update` |
-| Offline | Ne | Ano | Ano |
-| Deduplikace | Ne | Ne | node_modules |
-| Type-safety | Ne | Ne | Možné |
-| Discovery | skills.sh | Žádné | npm search |
+| Versioning | Separate | Separate | Shared with code |
+| Updates | Manual fetch | Manual | `npm update` |
+| Offline | No | Yes | Yes |
+| Deduplication | No | No | node_modules |
+| Type-safety | No | No | Possible |
+| Discovery | skills.sh | None | npm search |
 
-### Jak by to fungovalo
+### How it would work
 
-#### 1. Autor balíčku
+#### 1. Package author
 
 ```bash
-# Při publikování balíčku
+# When publishing package
 npm publish
-# SKILL.md je automaticky součástí, pokud je v "files" v package.json
+# SKILL.md is automatically included if in "files" in package.json
 ```
 
-#### 2. Uživatel balíčku
+#### 2. Package user
 
 ```bash
-# Instalace jako dependency
+# Install as dependency
 npm install firefox-devtools-mcp
 
-# AI asistent automaticky detekuje SKILL.md v node_modules
+# AI assistant automatically detects SKILL.md in node_modules
 ```
 
-#### 3. AI asistent
+#### 3. AI assistant
 
-AI asistent (Claude Code, Cursor, atd.) by:
+AI assistant (Claude Code, Cursor, etc.) would:
 
-1. Skenoval `node_modules/*/SKILL.md` při startu
-2. Indexoval dostupné skills
-3. Použil relevantní skill na základě kontextu
+1. Scan `node_modules/*/SKILL.md` at startup
+2. Index available skills
+3. Use relevant skill based on context
 
 ```typescript
-// Pseudo-implementace v AI asistentovi
+// Pseudo-implementation in AI assistant
 async function discoverSkills(projectRoot: string): Promise<Skill[]> {
   const skills: Skill[] = [];
 
-  // 1. Hledej SKILL.md v node_modules
+  // 1. Look for SKILL.md in node_modules
   const nodeModulesSkills = await glob('node_modules/*/SKILL.md', { cwd: projectRoot });
 
-  // 2. Parsuj a indexuj
+  // 2. Parse and index
   for (const skillPath of nodeModulesSkills) {
     const content = await fs.readFile(skillPath, 'utf-8');
     const metadata = extractMetadata(content);
@@ -109,9 +109,9 @@ async function discoverSkills(projectRoot: string): Promise<Skill[]> {
 }
 ```
 
-## SKILL.md formát
+## SKILL.md format
 
-### Základní struktura
+### Basic structure
 
 ```markdown
 ---
@@ -124,98 +124,98 @@ ai-compatible: [claude-code, cursor, cline]
 
 # Firefox DevTools MCP Skill
 
-## Kdy použít
+## When to use
 
-Tento skill je relevantní když uživatel chce:
-- Automatizovat Firefox prohlížeč
-- Testovat webové stránky
-- Scrapovat obsah webových stránek
-- Interagovat s DOM elementy
+This skill is relevant when the user wants to:
+- Automate Firefox browser
+- Test web pages
+- Scrape web content
+- Interact with DOM elements
 
-## Dostupné nástroje
+## Available tools
 
-### Navigace
-- `navigate_page` - Naviguje na URL
-- `list_pages` - Vypíše otevřené stránky
-- `new_page` - Otevře novou stránku
+### Navigation
+- `navigate_page` - Navigate to URL
+- `list_pages` - List open pages
+- `new_page` - Open new page
 
-### DOM interakce
-- `take_snapshot` - Vytvoří snapshot DOM s UID elementy
-- `click_by_uid` - Klikne na element podle UID
-- `fill_by_uid` - Vyplní input podle UID
+### DOM interaction
+- `take_snapshot` - Create DOM snapshot with UID elements
+- `click_by_uid` - Click element by UID
+- `fill_by_uid` - Fill input by UID
 
-## Příklady použití
+## Usage examples
 
-### Otevření stránky a kliknutí na tlačítko
+### Open page and click button
 
-1. Nejprve naviguj na stránku:
+1. First navigate to page:
    ```
    navigate_page url="https://example.com"
    ```
 
-2. Vytvoř snapshot pro získání UID:
+2. Create snapshot to get UIDs:
    ```
    take_snapshot
    ```
 
-3. Klikni na element:
+3. Click element:
    ```
    click_by_uid uid="e42"
    ```
 
-## Omezení
+## Limitations
 
-- Vyžaduje běžící Firefox s WebDriver BiDi
-- `evaluate_script` je momentálně vypnutý z bezpečnostních důvodů
+- Requires running Firefox with WebDriver BiDi
+- `evaluate_script` is currently disabled for security reasons
 ```
 
-## Implementační plán
+## Implementation plan
 
-### Fáze 1: Konvence (nyní)
-- Definovat SKILL.md formát
-- Publikovat RFC
-- Získat feedback od komunity
+### Phase 1: Convention (now)
+- Define SKILL.md format
+- Publish RFC
+- Get community feedback
 
-### Fáze 2: Adopce (Q1 2026)
-- Přidat SKILL.md do firefox-devtools-mcp
-- Dokumentovat best practices
-- Vytvořit validátor/linter pro SKILL.md
+### Phase 2: Adoption (Q1 2026)
+- Add SKILL.md to firefox-devtools-mcp
+- Document best practices
+- Create validator/linter for SKILL.md
 
-### Fáze 3: Tooling (Q2 2026)
-- npm CLI plugin pro skill discovery
-- VS Code extension pro skill preview
-- AI asistenti implementují auto-discovery
+### Phase 3: Tooling (Q2 2026)
+- npm CLI plugin for skill discovery
+- VS Code extension for skill preview
+- AI assistants implement auto-discovery
 
-### Fáze 4: Ecosystem (Q3 2026)
-- npm.js zobrazuje skill badge
-- Searchable skill registry na npm
-- DefinitelySkilled repo pro legacy balíčky bez vlastních skills
+### Phase 4: Ecosystem (Q3 2026)
+- npm.js displays skill badge
+- Searchable skill registry on npm
+- DefinitelySkilled repo for legacy packages without own skills
 
-## Otevřené otázky
+## Open questions
 
-1. **Fallback na skills.sh?**
-   - Měl by AI asistent fallbackovat na skills.sh pokud balíček nemá SKILL.md?
+1. **Fallback to skills.sh?**
+   - Should AI assistant fall back to skills.sh if package doesn't have SKILL.md?
 
-2. **Monorepo podpora?**
-   - Jak řešit skills v monorepo s více balíčky?
+2. **Monorepo support?**
+   - How to handle skills in monorepo with multiple packages?
 
 3. **Skill versioning?**
-   - Má mít SKILL.md vlastní verzi nebo sdílet s package.json?
+   - Should SKILL.md have its own version or share with package.json?
 
 4. **Scoped packages?**
-   - `@org/package/SKILL.md` - jak řešit discovery?
+   - `@org/package/SKILL.md` - how to handle discovery?
 
 5. **Peer dependencies?**
-   - Skill může záviset na jiných skills?
+   - Can a skill depend on other skills?
 
-## Reference
+## References
 
 - [Model Context Protocol](https://modelcontextprotocol.io/)
-- [DefinitelyTyped](https://github.com/DefinitelyTyped/DefinitelyTyped) - analogie pro typy
-- [skills.sh](https://skills.sh) - současný centralizovaný registr
+- [DefinitelyTyped](https://github.com/DefinitelyTyped/DefinitelyTyped) - analogy for types
+- [skills.sh](https://skills.sh) - current centralized registry
 
 ---
 
-## Appendix: Příklad pro firefox-devtools-mcp
+## Appendix: Example for firefox-devtools-mcp
 
-Viz [SKILL.md](../SKILL.md) v rootu tohoto repozitáře pro konkrétní implementaci.
+See [SKILL.md](../SKILL.md) in the root of this repository for a concrete implementation.
