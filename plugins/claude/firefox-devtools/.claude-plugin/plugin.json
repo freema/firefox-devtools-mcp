@@ -1,0 +1,11 @@
+{
+  "name": "firefox-devtools",
+  "description": "Firefox browser automation via WebDriver BiDi. Automate Firefox, test web pages, scrape content, fill forms, click elements, take screenshots, and monitor console/network activity.",
+  "version": "0.5.3",
+  "author": {
+    "name": "freema"
+  },
+  "repository": "https://github.com/freema/firefox-devtools-mcp",
+  "homepage": "https://github.com/freema/firefox-devtools-mcp",
+  "license": "MIT"
+}

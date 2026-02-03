@@ -89,13 +89,8 @@
     "README.md",
     "LICENSE",
     "scripts",
-    "SKILL.md"
+    "plugins"
   ],
-  "skill": {
-    "main": "SKILL.md",
-    "keywords": ["browser-automation", "firefox", "mcp", "webdriver-bidi", "testing"],
-    "ai-compatible": ["claude-code", "cursor", "cline", "windsurf"]
-  },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/freema/firefox-devtools-mcp.git"
