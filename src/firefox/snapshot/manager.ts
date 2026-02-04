@@ -13,6 +13,14 @@ import { formatSnapshotTree } from './formatter.js';
 import { UidResolver } from './resolver.js';
 
 /**
+ * Options for snapshot creation
+ */
+export interface SnapshotOptions {
+  includeAll?: boolean;
+  selector?: string;
+}
+
+/**
  * Snapshot Manager
  * Uses bundled injected script for snapshot creation
  */
@@ -80,7 +88,7 @@ export class SnapshotManager {
    * Take a snapshot of the current page
    * Returns text and JSON with snapshotId, no DOM mutations
    */
-  async takeSnapshot(): Promise<Snapshot> {
+  async takeSnapshot(options?: SnapshotOptions): Promise<Snapshot> {
     const snapshotId = ++this.currentSnapshotId;
     this.resolver.setSnapshotId(snapshotId);
     this.resolver.clear();
@@ -88,7 +96,7 @@ export class SnapshotManager {
     logDebug(`Taking snapshot (ID: ${snapshotId})...`);
 
     // Execute bundled injected script
-    const result = await this.executeInjectedScript(snapshotId);
+    const result = await this.executeInjectedScript(snapshotId, options);
 
     logDebug(
       `Snapshot executeScript result: hasResult=${!!result}, hasTree=${!!result?.tree}, truncated=${result?.truncated || false}`
@@ -103,6 +111,12 @@ export class SnapshotManager {
       if (result.debugLog.length > 20) {
         logDebug(`  ... and ${result.debugLog.length - 20} more`);
       }
+    }
+
+    // Handle selector error
+    if (result?.selectorError) {
+      logDebug(`Snapshot generation failed: ${result.selectorError}`);
+      throw new Error(result.selectorError);
     }
 
     if (!result?.tree) {
@@ -159,7 +173,10 @@ export class SnapshotManager {
   /**
    * Execute bundled injected snapshot script
    */
-  private async executeInjectedScript(snapshotId: number): Promise<InjectedScriptResult> {
+  private async executeInjectedScript(
+    snapshotId: number,
+    options?: SnapshotOptions
+  ): Promise<InjectedScriptResult> {
     const scriptSource = this.getInjectedScript();
 
     // Inject and execute the bundled script
@@ -175,10 +192,11 @@ export class SnapshotManager {
           window.__createSnapshot = __SnapshotInjected.createSnapshot;
         }
       }
-      // Call it
-      return window.__createSnapshot(arguments[0]);
+      // Call it with options
+      return window.__createSnapshot(arguments[0], arguments[1]);
       `,
-      snapshotId
+      snapshotId,
+      options || {}
     );
 
     return result;

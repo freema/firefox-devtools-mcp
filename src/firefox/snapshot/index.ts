@@ -2,7 +2,7 @@
  * Snapshot module exports
  */
 
-export { SnapshotManager } from './manager.js';
+export { SnapshotManager, type SnapshotOptions } from './manager.js';
 export type {
   Snapshot,
   SnapshotNode,

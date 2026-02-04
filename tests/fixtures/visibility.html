@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Visibility Test Page</title>
+</head>
+<body>
+    <h1 id="title">Visibility Test Page</h1>
+
+    <!-- Test Case 1: Hidden parent with visible-looking children -->
+    <div id="hiddenParent" style="display:none">
+        <button id="buttonInHiddenDiv">Hidden Button</button>
+        <p id="textInHiddenDiv">Hidden Text</p>
+    </div>
+
+    <!-- Test Case 2: Various opacity values -->
+    <button id="opacity0" style="opacity: 0">Opacity 0</button>
+    <button id="opacity00" style="opacity: 0.0">Opacity 0.0</button>
+    <button id="opacity000" style="opacity: 0.00">Opacity 0.00</button>
+    <button id="opacity01" style="opacity: 0.1">Opacity 0.1</button>
+
+    <!-- Test Case 3: Nested visibility hidden -->
+    <div id="visibilityHiddenParent" style="visibility: hidden">
+        <button id="buttonInInvisibleDiv">Invisible Button</button>
+    </div>
+
+    <!-- Test Case 4: Visible elements (control group) -->
+    <button id="visibleButton">Visible Button</button>
+    <p id="visibleText">Visible Text</p>
+</body>
+</html>

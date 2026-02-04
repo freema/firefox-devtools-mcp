@@ -7,7 +7,7 @@ import { FirefoxCore } from './core.js';
 import { ConsoleEvents, NetworkEvents } from './events/index.js';
 import { DomInteractions } from './dom.js';
 import { PageManagement } from './pages.js';
-import { SnapshotManager, type Snapshot } from './snapshot/index.js';
+import { SnapshotManager, type Snapshot, type SnapshotOptions } from './snapshot/index.js';
 
 /**
  * Main Firefox Client facade
@@ -315,11 +315,11 @@ export class FirefoxClient {
   // Snapshot
   // ============================================================================
 
-  async takeSnapshot(): Promise<Snapshot> {
+  async takeSnapshot(options?: SnapshotOptions): Promise<Snapshot> {
     if (!this.snapshot) {
       throw new Error('Not connected');
     }
-    return await this.snapshot.takeSnapshot();
+    return await this.snapshot.takeSnapshot(options);
   }
 
   resolveUidToSelector(uid: string): string {

@@ -31,6 +31,15 @@ export const takeSnapshotTool = {
         type: 'number',
         description: 'Max tree depth',
       },
+      includeAll: {
+        type: 'boolean',
+        description:
+          'Include all visible elements without relevance filtering. Useful for Vue/Livewire apps (default: false)',
+      },
+      selector: {
+        type: 'string',
+        description: 'CSS selector to scope snapshot to specific element (e.g., "#app")',
+      },
     },
   },
 };
@@ -67,11 +76,15 @@ export async function handleTakeSnapshot(args: unknown): Promise<McpToolResponse
       includeAttributes = false,
       includeText = true,
       maxDepth,
+      includeAll = false,
+      selector,
     } = (args as {
       maxLines?: number;
       includeAttributes?: boolean;
       includeText?: boolean;
       maxDepth?: number;
+      includeAll?: boolean;
+      selector?: string;
     }) || {};
 
     // Apply hard cap on maxLines to prevent token overflow
@@ -81,7 +94,17 @@ export async function handleTakeSnapshot(args: unknown): Promise<McpToolResponse
     const { getFirefox } = await import('../index.js');
     const firefox = await getFirefox();
 
-    const snapshot = await firefox.takeSnapshot();
+    // Pass snapshot options to manager
+    const snapshotOptions: any = {};
+    if (includeAll) {
+      snapshotOptions.includeAll = includeAll;
+    }
+    if (selector) {
+      snapshotOptions.selector = selector;
+    }
+    const snapshot = await firefox.takeSnapshot(
+      Object.keys(snapshotOptions).length > 0 ? snapshotOptions : undefined
+    );
 
     // Import formatter to apply custom options
     const { formatSnapshotTree } = await import('../firefox/snapshot/formatter.js');
@@ -102,6 +125,12 @@ export async function handleTakeSnapshot(args: unknown): Promise<McpToolResponse
 
     // Build compact output
     let output = `📸 Snapshot (id=${snapshot.json.snapshotId})`;
+    if (selector) {
+      output += ` [selector: ${selector}]`;
+    }
+    if (includeAll) {
+      output += ' [includeAll: true]';
+    }
     if (wasCapped) {
       output += ` [maxLines capped: ${TOKEN_LIMITS.MAX_SNAPSHOT_LINES_CAP}]`;
     }
