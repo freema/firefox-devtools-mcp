@@ -146,8 +146,10 @@ export function getComputedProperties(el: Element): ComputedProperties {
   // Visible
   try {
     const style = window.getComputedStyle(el);
+    // Parse opacity as number to handle '0', '0.0', '0.00', etc.
+    const opacity = parseFloat(style.opacity);
     computed.visible =
-      style.display !== 'none' && style.visibility !== 'hidden' && style.opacity !== '0';
+      style.display !== 'none' && style.visibility !== 'hidden' && opacity !== 0 && !isNaN(opacity);
   } catch (e) {
     computed.visible = false;
   }

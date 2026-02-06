@@ -3,7 +3,7 @@
  */
 
 import type { SnapshotNode, UidEntry } from '../types.js';
-import { isRelevant } from './elementCollector.js';
+import { isRelevant, isVisible } from './elementCollector.js';
 import {
   getElementName,
   getTextContent,
@@ -19,6 +19,14 @@ const MAX_DEPTH = 10;
 const MAX_NODES = 1000;
 
 /**
+ * Tree walker options
+ */
+export interface TreeWalkerOptions {
+  includeAll?: boolean;
+  includeIframes?: boolean;
+}
+
+/**
  * Tree walker result
  */
 export interface TreeWalkerResult {
@@ -28,38 +36,106 @@ export interface TreeWalkerResult {
 }
 
 /**
+ * Internal walk result with bubble-up support
+ */
+interface WalkResult {
+  node: SnapshotNode | null;
+  relevantChildren: SnapshotNode[];
+}
+
+/**
  * Walk DOM tree and collect snapshot
  */
 export function walkTree(
   rootElement: Element,
   snapshotId: number,
-  includeIframes = true
+  options: TreeWalkerOptions = {}
 ): TreeWalkerResult {
+  const { includeAll = false, includeIframes = true } = options;
+
   let counter = 0;
   const uidMap: UidEntry[] = [];
   let truncated = false;
 
-  function walk(el: Element, depth: number): SnapshotNode | null {
+  function walk(el: Element, depth: number): WalkResult {
     // Check limits
     if (depth > MAX_DEPTH) {
       truncated = true;
-      return null;
+      return { node: null, relevantChildren: [] };
     }
 
     if (counter >= MAX_NODES) {
       truncated = true;
-      return null;
+      return { node: null, relevantChildren: [] };
     }
 
     // Check relevance (except root)
     const tag = el.tagName.toLowerCase();
     const isRoot = tag === 'body' || tag === 'html';
 
-    if (!isRoot && !isRelevant(el)) {
-      return null;
+    // Determine if element is relevant based on mode
+    let elementIsRelevant: boolean;
+    if (includeAll) {
+      // Include all mode: only check visibility
+      elementIsRelevant = isRoot || isVisible(el);
+    } else {
+      // Standard mode: use full relevance filter
+      elementIsRelevant = isRoot || isRelevant(el);
     }
 
-    // Generate UID and selectors
+    // Always walk children first (bubble-up pattern)
+    const childResults: SnapshotNode[] = [];
+
+    // Handle iframes
+    if (tag === 'iframe' && includeIframes && elementIsRelevant) {
+      try {
+        const iframe = el as HTMLIFrameElement;
+        const iframeDoc = iframe.contentDocument || iframe.contentWindow?.document;
+
+        if (iframeDoc?.body) {
+          // Same-origin iframe - traverse it
+          const iframeResult = walk(iframeDoc.body, depth + 1);
+          if (iframeResult.node) {
+            iframeResult.node.isIframe = true;
+            iframeResult.node.frameSrc = iframe.src;
+            childResults.push(iframeResult.node);
+          }
+        }
+      } catch (e) {
+        // Cross-origin error - will be handled when creating node
+      }
+    } else {
+      // Walk regular children
+      for (let i = 0; i < el.children.length; i++) {
+        if (counter >= MAX_NODES) {
+          truncated = true;
+          break;
+        }
+
+        const child = el.children[i];
+        if (!child) {
+          continue;
+        }
+
+        const childResult = walk(child, depth + 1);
+
+        if (childResult.node) {
+          // Child is relevant, include it
+          childResults.push(childResult.node);
+        } else if (childResult.relevantChildren.length > 0) {
+          // Child is not relevant but has relevant descendants - bubble them up
+          childResults.push(...childResult.relevantChildren);
+        }
+      }
+    }
+
+    // Now decide if THIS element should be included
+    if (!elementIsRelevant) {
+      // Element is not relevant, but pass up its relevant children
+      return { node: null, relevantChildren: childResults };
+    }
+
+    // Element IS relevant - create node
     const uid = `${snapshotId}_${counter++}`;
     const css = generateCssSelector(el);
     const xpath = generateXPath(el);
@@ -88,24 +164,16 @@ export function walkTree(
       ...(textAttr && { text: textAttr }),
       ...(ariaAttr && { aria: ariaAttr }),
       ...(computedAttr && { computed: computedAttr }),
-      children: [],
+      children: childResults,
     };
 
-    // Handle iframes
+    // Special handling for cross-origin iframes
     if (tag === 'iframe' && includeIframes) {
       try {
         const iframe = el as HTMLIFrameElement;
         const iframeDoc = iframe.contentDocument || iframe.contentWindow?.document;
 
-        if (iframeDoc?.body) {
-          // Same-origin iframe - traverse it
-          const iframeTree = walk(iframeDoc.body, depth + 1);
-          if (iframeTree) {
-            iframeTree.isIframe = true;
-            iframeTree.frameSrc = iframe.src;
-            node.children.push(iframeTree);
-          }
-        } else {
+        if (!iframeDoc?.body) {
           // Cross-origin or no body - placeholder
           node.isIframe = true;
           node.frameSrc = iframe.src;
@@ -117,34 +185,15 @@ export function walkTree(
         node.frameSrc = (el as HTMLIFrameElement).src;
         node.crossOrigin = true;
       }
-      return node;
     }
 
-    // Walk children
-    for (let i = 0; i < el.children.length; i++) {
-      if (counter >= MAX_NODES) {
-        truncated = true;
-        break;
-      }
-
-      const child = el.children[i];
-      if (!child) {
-        continue;
-      }
-
-      const childNode = walk(child, depth + 1);
-      if (childNode) {
-        node.children.push(childNode);
-      }
-    }
-
-    return node;
+    return { node, relevantChildren: [] };
   }
 
-  const tree = walk(rootElement, 0);
+  const result = walk(rootElement, 0);
 
   return {
-    tree,
+    tree: result.node,
     uidMap,
     truncated,
   };

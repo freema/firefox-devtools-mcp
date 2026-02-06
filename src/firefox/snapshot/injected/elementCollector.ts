@@ -28,9 +28,72 @@ const SEMANTIC_TAGS = ['nav', 'main', 'section', 'article', 'header', 'footer', 
 const CONTAINER_TAGS = ['div', 'span', 'p', 'li', 'ul', 'ol'];
 
 /**
- * Max text content length for containers
+ * Max direct text content length for containers
  */
-const MAX_TEXT_CONTENT = 500;
+const MAX_DIRECT_TEXT_CONTENT = 500;
+
+/**
+ * Check if element is visible
+ * Checks current element and all ancestors up to documentElement
+ */
+export function isVisible(el: Element): boolean {
+  if (!el || el.nodeType !== Node.ELEMENT_NODE) {
+    return false;
+  }
+
+  // Check current element and all ancestors
+  let current: Element | null = el;
+  while (current && current !== document.documentElement) {
+    try {
+      const style = window.getComputedStyle(current);
+      // Parse opacity as number to handle '0', '0.0', '0.00', etc.
+      const opacity = parseFloat(style.opacity);
+      if (
+        style.display === 'none' ||
+        style.visibility === 'hidden' ||
+        opacity === 0 ||
+        isNaN(opacity)
+      ) {
+        return false;
+      }
+    } catch (e) {
+      return false;
+    }
+    current = current.parentElement;
+  }
+
+  return true;
+}
+
+/**
+ * Get direct text content (not including descendants)
+ */
+function getDirectTextContent(el: Element): string {
+  let text = '';
+  for (let i = 0; i < el.childNodes.length; i++) {
+    const node = el.childNodes[i];
+    if (node && node.nodeType === Node.TEXT_NODE) {
+      text += node.textContent || '';
+    }
+  }
+  return text.trim();
+}
+
+/**
+ * Check if element has interactive descendants
+ */
+function hasInteractiveDescendant(el: Element): boolean {
+  for (let i = 0; i < el.children.length; i++) {
+    const child = el.children[i];
+    if (child) {
+      const tag = child.tagName.toLowerCase();
+      if (INTERACTIVE_TAGS.indexOf(tag) !== -1 || child.hasAttribute('role')) {
+        return true;
+      }
+    }
+  }
+  return false;
+}
 
 /**
  * Check if element is relevant for snapshot
@@ -42,12 +105,7 @@ export function isRelevant(el: Element): boolean {
   }
 
   // Check visibility
-  try {
-    const style = window.getComputedStyle(el);
-    if (style.display === 'none' || style.visibility === 'hidden' || style.opacity === '0') {
-      return false;
-    }
-  } catch (e) {
+  if (!isVisible(el)) {
     return false;
   }
 
@@ -80,13 +138,17 @@ export function isRelevant(el: Element): boolean {
 
   // Common containers - need additional checks
   if (CONTAINER_TAGS.indexOf(tag) !== -1) {
-    // Has meaningful text?
-    const textContent = (el.textContent || '').trim();
-    if (textContent.length > 0 && textContent.length < MAX_TEXT_CONTENT) {
+    // Has meaningful direct text (not from descendants)?
+    const directText = getDirectTextContent(el);
+    if (directText.length > 0 && directText.length < MAX_DIRECT_TEXT_CONTENT) {
       return true;
     }
     // Has id or class?
     if (el.id || el.className) {
+      return true;
+    }
+    // Has interactive descendants?
+    if (hasInteractiveDescendant(el)) {
       return true;
     }
   }

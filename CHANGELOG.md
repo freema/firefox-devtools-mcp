@@ -5,6 +5,36 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+## [0.6.1] - 2026-02-04
+
+### Added
+- **Enhanced Vue/Livewire/Alpine.js support**: New snapshot options for modern JavaScript frameworks
+  - `includeAll` parameter: Include all visible elements without relevance filtering
+  - `selector` parameter: Scope snapshot to specific DOM subtree using CSS selector
+  - Fixes [#36](https://github.com/freema/firefox-devtools-mcp/issues/36) - DOM filtering problem with Vue and Livewire applications
+- **Test fixtures**: Added new HTML fixtures for testing visibility edge cases (`visibility.html`, `selector.html`)
+
+### Changed
+- **Improved element relevance detection**:
+  - Fixed text content checking to use direct text only (excluding descendants)
+  - Added check for interactive descendants to include wrapper elements
+  - Implemented "bubble-up" pattern in tree walker to preserve nested interactive elements
+  - Elements with `v-*`, `wire:*`, `x-*` attributes and custom components are now properly captured with `includeAll=true`
+
+### Fixed
+- **Visibility checking now considers ancestor elements**: Elements inside hidden parents (e.g., `display:none`, `visibility:hidden`) are now correctly excluded from snapshots, even in `includeAll` mode
+- **Opacity parsing improved**: Fixed opacity check to properly handle various numeric formats (`0`, `0.0`, `0.00`) by parsing as float instead of string comparison
+- **CSS selector error handling**: Invalid CSS selectors now return clear error messages (`"Invalid selector syntax"`) instead of generic `"Unknown error"`
+- Interactive elements deeply nested in non-relevant wrapper divs are now correctly captured
+- Container elements with large descendant text content no longer incorrectly filtered out
+- Custom HTML elements (Vue/Livewire components) are now visible in snapshots with `includeAll=true`
+
+## [0.6.0] - 2025-12-01
+
+Released on npm, see GitHub releases for details.
+
 ## [0.5.3] - 2025-01-30
 
 ### Added
