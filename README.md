@@ -99,8 +99,20 @@ You can pass flags or environment variables (names on the right):
 - Input: click/hover/fill/drag/upload/form fill
 - Network: list/get (ID‑first, filters, always‑on capture)
 - Console: list/clear
-- Screenshot: page/by uid
+- Screenshot: page/by uid (with optional `saveTo` for CLI environments)
 - Utilities: accept/dismiss dialog, history back/forward, set viewport
+
+### Screenshot optimization for Claude Code
+
+When using screenshots in Claude Code CLI, the base64 image data can consume significant context.
+Use the `saveTo` parameter to save screenshots to disk instead:
+
+```
+screenshot_page({ saveTo: "/tmp/page.png" })
+screenshot_by_uid({ uid: "abc123", saveTo: "/tmp/element.png" })
+```
+
+The file can then be viewed with Claude Code's `Read` tool without impacting context size.
 
 ## Local development
 

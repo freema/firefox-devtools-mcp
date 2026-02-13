@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.7.0] - 2026-02-13
+
+### Added
+- **`saveTo` parameter for screenshot tools**: New optional parameter on `screenshot_page` and `screenshot_by_uid` that saves the screenshot to a local file instead of returning base64 image data in the MCP response
+  - Solves context window bloat in CLI-based MCP clients (e.g. Claude Code) where large base64 screenshots fill up the context quickly
+  - When `saveTo` is provided, returns a lightweight text response with the file path and size
+  - Automatically creates parent directories if they don't exist
+  - Follows the same pattern as Chrome DevTools MCP's `filePath` parameter
+
+### Changed
+- **Screenshot response format**: Without `saveTo`, screenshots are now returned as native MCP `image` content (`{ type: "image" }`) instead of raw base64 text. GUI clients (Claude Desktop, Cursor) render these natively.
+- Removed `buildScreenshotResponse` with its token-limit truncation — no longer needed since screenshots are either saved to file or returned as proper image content
+- Extended `McpToolResponse` type to support both `text` and `image` content items
+
 ## [0.6.1] - 2026-02-04
 
 ### Added
@@ -165,6 +179,8 @@ Released on npm, see GitHub releases for details.
 - UID-based element referencing system
 - Headless mode support
 
+[0.7.0]: https://github.com/freema/firefox-devtools-mcp/compare/v0.6.1...v0.7.0
+[0.6.1]: https://github.com/freema/firefox-devtools-mcp/compare/v0.6.0...v0.6.1
 [0.5.3]: https://github.com/freema/firefox-devtools-mcp/compare/v0.5.2...v0.5.3
 [0.5.2]: https://github.com/freema/firefox-devtools-mcp/compare/v0.5.1...v0.5.2
 [0.5.1]: https://github.com/freema/firefox-devtools-mcp/compare/v0.5.0...v0.5.1

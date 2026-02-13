@@ -2,9 +2,17 @@
  * Screenshot tools for visual capture
  */
 
-import { successResponse, errorResponse, TOKEN_LIMITS } from '../utils/response-helpers.js';
+import { writeFile, mkdir } from 'node:fs/promises';
+import { resolve, dirname } from 'node:path';
+import { successResponse, errorResponse } from '../utils/response-helpers.js';
 import { handleUidError } from '../utils/uid-helpers.js';
 import type { McpToolResponse } from '../types/common.js';
+
+const SAVE_TO_SCHEMA = {
+  type: 'string',
+  description:
+    "Optional absolute file path to save the screenshot to instead of returning it as image data in the response. Use this in CLI environments (e.g. Claude Code) to avoid filling up the context window with large base64 image data. Example: '/tmp/screenshot.png'",
+} as const;
 
 // Tool definitions
 export const screenshotPageTool = {
@@ -12,7 +20,9 @@ export const screenshotPageTool = {
   description: 'Capture page screenshot as base64 PNG.',
   inputSchema: {
     type: 'object',
-    properties: {},
+    properties: {
+      saveTo: SAVE_TO_SCHEMA,
+    },
   },
 };
 
@@ -26,31 +36,46 @@ export const screenshotByUidTool = {
         type: 'string',
         description: 'Element UID from snapshot',
       },
+      saveTo: SAVE_TO_SCHEMA,
     },
     required: ['uid'],
   },
 };
 
 /**
- * Build screenshot response with size safeguards.
+ * Save screenshot to file and return text response with path.
  */
-function buildScreenshotResponse(base64Png: string, label: string): McpToolResponse {
-  const sizeKB = Math.round(base64Png.length / 1024);
+async function saveScreenshot(base64Png: string, saveTo: string): Promise<McpToolResponse> {
+  const buffer = Buffer.from(base64Png, 'base64');
+  const resolvedPath = resolve(saveTo);
+  await mkdir(dirname(resolvedPath), { recursive: true });
+  await writeFile(resolvedPath, buffer);
 
-  // Check if screenshot exceeds size limit
-  if (base64Png.length > TOKEN_LIMITS.MAX_SCREENSHOT_CHARS) {
-    const truncatedData = base64Png.slice(0, TOKEN_LIMITS.MAX_SCREENSHOT_CHARS);
-    return successResponse(`📸 ${label} (${sizeKB}KB) [truncated]\n${truncatedData}`);
-  }
+  return successResponse(
+    `Screenshot saved to: ${resolvedPath} (${(buffer.length / 1024).toFixed(1)}KB)`
+  );
+}
 
-  // Add warning for large screenshots
-  const warn = base64Png.length > TOKEN_LIMITS.WARNING_THRESHOLD_CHARS ? ' [large]' : '';
-  return successResponse(`📸 ${label} (${sizeKB}KB)${warn}\n${base64Png}`);
+/**
+ * Return screenshot as native image content for GUI MCP clients.
+ */
+function imageResponse(base64Png: string): McpToolResponse {
+  return {
+    content: [
+      {
+        type: 'image',
+        data: base64Png,
+        mimeType: 'image/png',
+      },
+    ],
+  };
 }
 
 // Handlers
-export async function handleScreenshotPage(_args: unknown): Promise<McpToolResponse> {
+export async function handleScreenshotPage(args: unknown): Promise<McpToolResponse> {
   try {
+    const { saveTo } = (args ?? {}) as { saveTo?: string };
+
     const { getFirefox } = await import('../index.js');
     const firefox = await getFirefox();
 
@@ -60,7 +85,11 @@ export async function handleScreenshotPage(_args: unknown): Promise<McpToolRespo
       throw new Error('Invalid screenshot data');
     }
 
-    return buildScreenshotResponse(base64Png, 'page');
+    if (saveTo) {
+      return await saveScreenshot(base64Png, saveTo);
+    }
+
+    return imageResponse(base64Png);
   } catch (error) {
     return errorResponse(error as Error);
   }
@@ -68,7 +97,7 @@ export async function handleScreenshotPage(_args: unknown): Promise<McpToolRespo
 
 export async function handleScreenshotByUid(args: unknown): Promise<McpToolResponse> {
   try {
-    const { uid } = args as { uid: string };
+    const { uid, saveTo } = args as { uid: string; saveTo?: string };
 
     if (!uid || typeof uid !== 'string') {
       throw new Error('uid required');
@@ -84,7 +113,11 @@ export async function handleScreenshotByUid(args: unknown): Promise<McpToolRespo
         throw new Error('Invalid screenshot data');
       }
 
-      return buildScreenshotResponse(base64Png, uid);
+      if (saveTo) {
+        return await saveScreenshot(base64Png, saveTo);
+      }
+
+      return imageResponse(base64Png);
     } catch (error) {
       throw handleUidError(error as Error, uid);
     }
