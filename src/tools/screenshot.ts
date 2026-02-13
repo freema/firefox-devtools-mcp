@@ -11,7 +11,7 @@ import type { McpToolResponse } from '../types/common.js';
 const SAVE_TO_SCHEMA = {
   type: 'string',
   description:
-    "Optional absolute file path to save the screenshot to instead of returning it as image data in the response. Use this in CLI environments (e.g. Claude Code) to avoid filling up the context window with large base64 image data. Example: '/tmp/screenshot.png'",
+    'Optional file path to save the screenshot to instead of returning it as image data in the response.',
 } as const;
 
 // Tool definitions

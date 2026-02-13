@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.7.1] - 2026-02-13
+
+### Fixed
+- Simplified `saveTo` parameter description in screenshot tools to remove opinionated usage instructions that were influencing AI assistant behavior
+
 ## [0.7.0] - 2026-02-13
 
 ### Added
@@ -179,6 +184,7 @@ Released on npm, see GitHub releases for details.
 - UID-based element referencing system
 - Headless mode support
 
+[0.7.1]: https://github.com/freema/firefox-devtools-mcp/compare/v0.7.0...v0.7.1
 [0.7.0]: https://github.com/freema/firefox-devtools-mcp/compare/v0.6.1...v0.7.0
 [0.6.1]: https://github.com/freema/firefox-devtools-mcp/compare/v0.6.0...v0.6.1
 [0.5.3]: https://github.com/freema/firefox-devtools-mcp/compare/v0.5.2...v0.5.3
