@@ -38,6 +38,7 @@ import { parseArguments } from './cli.js';
 import { FirefoxDevTools } from './firefox/index.js';
 import type { FirefoxLaunchOptions } from './firefox/types.js';
 import * as tools from './tools/index.js';
+import type { McpToolResponse } from './types/common.js';
 import { FirefoxDisconnectedError } from './utils/errors.js';
 
 // Export for direct usage in scripts
@@ -101,10 +102,7 @@ export async function getFirefox(): Promise<FirefoxDevTools> {
 }
 
 // Tool handler mapping
-const toolHandlers = new Map<
-  string,
-  (input: unknown) => Promise<{ content: Array<{ type: string; text: string }>; isError?: boolean }>
->([
+const toolHandlers = new Map<string, (input: unknown) => Promise<McpToolResponse>>([
   // Pages
   ['list_pages', tools.handleListPages],
   ['new_page', tools.handleNewPage],
