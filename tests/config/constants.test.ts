@@ -23,7 +23,7 @@ describe('Constants', () => {
     });
 
     it('should match package.json version', () => {
-      expect(SERVER_VERSION).toBe('0.7.0');
+      expect(SERVER_VERSION).toBe('0.7.1');
     });
 
     it('should be a non-empty string', () => {
