@@ -136,9 +136,9 @@ npm run inspector:dev
   - **Solution 1** Call using `cmd` (For more info https://github.com/modelcontextprotocol/servers/issues/1082#issuecomment-2791786310)
     ```json
     "mcpServers": {
-      "chrome-devtools": {
+      "firefox-devtools": {
         "command": "cmd",
-        "args": ["/c", "npx", "-y", "chrome-devtools-mcp@latest"]
+        "args": ["/c", "npx", "-y", "firefox-devtools-mcp@latest"]
       }
     }
     ``` 
@@ -147,9 +147,9 @@ npm run inspector:dev
   - **Solution 2** Instead of another layer of shell you can write the absolute path to `npx`:
     ```json
     "mcpServers": {
-      "chrome-devtools": {
+      "firefox-devtools": {
         "command": "C:\\nvm4w\\nodejs\\npx.ps1",
-        "args": ["-y", "chrome-devtools-mcp@latest"]
+        "args": ["-y", "firefox-devtools-mcp@latest"]
       }
     }
     ```
