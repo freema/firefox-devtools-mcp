@@ -132,6 +132,27 @@ npm run inspector:dev
 - Firefox not found: pass `--firefox-path "/Applications/Firefox.app/Contents/MacOS/firefox"` (macOS) or the correct path on your OS.
 - First run is slow: Selenium sets up the BiDi session; subsequent runs are faster.
 - Stale UIDs after navigation: take a fresh snapshot (`take_snapshot`) before using UID tools.
+- Windows 10: Error during discovery for MCP server 'chrome-devtools': MCP error -32000: Connection closed
+  - **Solution 1** Call using `cmd` (For more info https://github.com/modelcontextprotocol/servers/issues/1082#issuecomment-2791786310)
+    ```json
+    "mcpServers": {
+      "chrome-devtools": {
+        "command": "cmd",
+        "args": ["/c", "npx", "-y", "chrome-devtools-mcp@latest"]
+      }
+    }
+    ``` 
+    > **The Key Change:** On Windows, running a Node.js package via `npx` often requires the `cmd /c` prefix to be executed correctly from within another process like VSCode's extension host. Therefore, `"command": "npx"` was replaced with `"command": "cmd"`, and the actual `npx` command was moved into the `"args"` array, preceded by `"/c"`. This fix allows Windows   to interpret the command correctly and launch the server.
+  
+  - **Solution 2** Instead of another layer of shell you can write the absolute path to `npx`:
+    ```json
+    "mcpServers": {
+      "chrome-devtools": {
+        "command": "C:\\nvm4w\\nodejs\\npx.ps1",
+        "args": ["-y", "chrome-devtools-mcp@latest"]
+      }
+    }
+    ```
 
 ## Versioning
 
