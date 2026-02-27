@@ -48,6 +48,18 @@ describe('Snapshot Tools', () => {
       expect(properties?.maxDepth.type).toBe('number');
     });
 
+    it('takeSnapshotTool should have includeAll property with boolean type', () => {
+      const { properties } = takeSnapshotTool.inputSchema;
+      expect(properties?.includeAll).toBeDefined();
+      expect(properties?.includeAll.type).toBe('boolean');
+    });
+
+    it('takeSnapshotTool should have selector property with string type', () => {
+      const { properties } = takeSnapshotTool.inputSchema;
+      expect(properties?.selector).toBeDefined();
+      expect(properties?.selector.type).toBe('string');
+    });
+
     it('resolveUidToSelectorTool should require uid', () => {
       const { properties, required } = resolveUidToSelectorTool.inputSchema;
       expect(properties).toBeDefined();
