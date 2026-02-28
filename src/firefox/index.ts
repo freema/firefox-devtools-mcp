@@ -45,17 +45,22 @@ export class FirefoxClient {
     };
 
     // Initialize event modules with lifecycle hooks
-    // Note: autoClearOnNavigate is false to preserve logs across all tabs
-    // Users can manually call clearConsoleMessages() if needed
-    this.consoleEvents = new ConsoleEvents(driver, {
-      onNavigate,
-      autoClearOnNavigate: false,
-    });
+    // BiDi-dependent modules (console/network events) require a full WebDriver with
+    // BiDi support. When using --connect-existing, we bypass selenium's BiDi layer
+    // so these modules are not available.
+    const hasBidi = typeof driver.getBidi === 'function';
 
-    this.networkEvents = new NetworkEvents(driver, {
-      onNavigate,
-      autoClearOnNavigate: false,
-    });
+    if (hasBidi) {
+      this.consoleEvents = new ConsoleEvents(driver, {
+        onNavigate,
+        autoClearOnNavigate: false,
+      });
+
+      this.networkEvents = new NetworkEvents(driver, {
+        onNavigate,
+        autoClearOnNavigate: false,
+      });
+    }
 
     // Initialize DOM with UID resolver callback
     this.dom = new DomInteractions(driver, (uid: string) =>
@@ -69,9 +74,12 @@ export class FirefoxClient {
     );
 
     // Subscribe to console and network events for ALL contexts (not just current)
-    // This ensures we capture logs from all tabs, not just the initial one
-    await this.consoleEvents.subscribe(undefined);
-    await this.networkEvents.subscribe(undefined);
+    if (this.consoleEvents) {
+      await this.consoleEvents.subscribe(undefined);
+    }
+    if (this.networkEvents) {
+      await this.networkEvents.subscribe(undefined);
+    }
   }
 
   // ============================================================================
