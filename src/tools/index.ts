@@ -18,6 +18,7 @@ import { module as input } from './input.js';
 import { module as network } from './network.js';
 import { module as consoleModule } from './console.js';
 import { module as screenshot } from './screenshot.js';
+import { module as downloads } from './downloads.js';
 import { module as utilities } from './utilities.js';
 import { module as management } from './firefox-management.js';
 import { module as webextension } from './webextension.js';
@@ -38,6 +39,7 @@ export const MODULES: ToolModule[] = [
   network,
   consoleModule,
   screenshot,
+  downloads,
   utilities,
   management,
   webextension,
@@ -55,6 +57,7 @@ const SLIM = ['pages', 'snapshot', 'input', 'network', 'console'];
 const BASIC = [
   ...SLIM,
   'screenshot',
+  'downloads',
   'utilities',
   'management',
   'webextension',
