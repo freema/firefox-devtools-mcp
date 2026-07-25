@@ -8,6 +8,13 @@ import { existsSync, readFileSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 
+const MOCK_HOME = join(tmpdir(), 'screenshot-test-home');
+
+vi.mock('node:os', async (importOriginal) => {
+  const os = await importOriginal<typeof import('node:os')>();
+  return { ...os, homedir: () => MOCK_HOME };
+});
+
 describe('Screenshot Tools', () => {
   describe('Tool Definitions', () => {
     it('should have correct tool names', () => {
@@ -32,7 +39,7 @@ describe('Screenshot Tools', () => {
       const { properties } = screenshotPageTool.inputSchema;
       expect(properties).toBeDefined();
       expect(properties?.saveTo).toBeDefined();
-      expect(properties?.saveTo?.type).toBe('string');
+      expect(properties?.saveTo?.type).toEqual(['boolean', 'string']);
     });
 
     it('screenshotByUidTool should require uid and have optional saveTo', () => {
@@ -40,7 +47,7 @@ describe('Screenshot Tools', () => {
       expect(properties).toBeDefined();
       expect(properties?.uid).toBeDefined();
       expect(properties?.saveTo).toBeDefined();
-      expect(properties?.saveTo?.type).toBe('string');
+      expect(properties?.saveTo?.type).toEqual(['boolean', 'string']);
       expect(required).toContain('uid');
       expect(required).not.toContain('saveTo');
     });
@@ -63,8 +70,10 @@ describe('Screenshot Tools', () => {
 
     afterEach(() => {
       vi.restoreAllMocks();
-      if (existsSync(tempDir)) {
-        rmSync(tempDir, { recursive: true, force: true });
+      for (const dir of [tempDir, MOCK_HOME]) {
+        if (existsSync(dir)) {
+          rmSync(dir, { recursive: true, force: true });
+        }
       }
     });
 
@@ -139,6 +148,17 @@ describe('Screenshot Tools', () => {
       expect(result.isError).toBeUndefined();
       expect((result.content[0] as { type: 'text'; text: string }).text).toContain(relativePath);
       expect(existsSync(relativePath)).toBe(true);
+    });
+
+    it('should save to a generated file in the default output dir when saveTo is true', async () => {
+      const { handleScreenshotPage } = await import('../../src/tools/screenshot.js');
+      const result = await handleScreenshotPage({ saveTo: true });
+
+      expect(result.isError).toBeUndefined();
+      const text = (result.content[0] as { type: 'text'; text: string }).text;
+      expect(text).toContain('Screenshot saved to:');
+      expect(text).toContain(join(MOCK_HOME, '.firefox-devtools-mcp', 'output'));
+      expect(text).toContain('screenshot-');
     });
   });
 });

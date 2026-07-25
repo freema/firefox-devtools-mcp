@@ -2,8 +2,14 @@
  * Snapshot tools for DOM structure capture with UID mapping
  */
 
-import { successResponse, errorResponse, TOKEN_LIMITS } from '../utils/response-helpers.js';
+import {
+  successResponse,
+  errorResponse,
+  TOKEN_LIMITS,
+  truncateText,
+} from '../utils/response-helpers.js';
 import { handleUidError } from '../utils/uid-helpers.js';
+import { saveOutput } from '../utils/save-output.js';
 import type { McpToolResponse } from '../types/common.js';
 
 const DEFAULT_SNAPSHOT_LINES = 100;
@@ -42,6 +48,16 @@ export const takeSnapshotTool = {
       selector: {
         type: 'string',
         description: 'CSS selector to scope snapshot to specific element (e.g., "#app")',
+      },
+      saveTo: {
+        type: ['boolean', 'string'],
+        description:
+          'Save the complete snapshot text to a file (ignores maxLines) instead of returning it inline. Pass a file path, an existing directory (generated file inside), or true (generated file under ~/.firefox-devtools-mcp/output/). Relative paths resolve against the current working directory.',
+      },
+      preview: {
+        type: 'number',
+        description:
+          'Number of characters of the saved output to return inline as a preview when saveTo is used. Omit for no preview.',
       },
     },
   },
@@ -87,6 +103,8 @@ export async function handleTakeSnapshot(args: unknown): Promise<McpToolResponse
       maxDepth,
       includeAll = false,
       selector,
+      saveTo,
+      preview,
     } = (args as {
       maxLines?: number;
       includeAttributes?: boolean;
@@ -94,6 +112,8 @@ export async function handleTakeSnapshot(args: unknown): Promise<McpToolResponse
       maxDepth?: number;
       includeAll?: boolean;
       selector?: string;
+      saveTo?: boolean | string;
+      preview?: number;
     }) || {};
 
     // Apply hard cap on maxLines to prevent token overflow
@@ -125,6 +145,24 @@ export async function handleTakeSnapshot(args: unknown): Promise<McpToolResponse
       options.maxDepth = maxDepth;
     }
     const formattedText = formatSnapshotTree(snapshot.json.root, 0, options);
+
+    if (saveTo) {
+      const saved = await saveOutput(
+        formattedText,
+        saveTo === true ? undefined : saveTo,
+        'snapshot',
+        'txt'
+      );
+      let output = `Snapshot (id=${snapshot.json.snapshotId}) saved to: ${saved.path} (${(saved.bytes / 1024).toFixed(1)}KB)`;
+      if (snapshot.json.truncated) {
+        output += ' [DOM truncated]';
+      }
+      if (preview !== undefined && preview > 0) {
+        const previewChars = Math.min(Math.max(preview, 50), TOKEN_LIMITS.MAX_RESPONSE_CHARS);
+        output += '\nPreview:\n' + truncateText(formattedText, previewChars);
+      }
+      return successResponse(output);
+    }
 
     // Get snapshot text (truncated if needed)
     const lines = formattedText.split('\n');

@@ -3,9 +3,15 @@
  * Requires MOZ_REMOTE_ALLOW_SYSTEM_ACCESS=1
  */
 
-import { successResponse, errorResponse } from '../utils/response-helpers.js';
+import {
+  successResponse,
+  errorResponse,
+  truncateText,
+  TOKEN_LIMITS,
+} from '../utils/response-helpers.js';
 import { validateFunction } from '../utils/js-validation.js';
 import { remoteValueToNative } from '../utils/remote-value.js';
+import { saveOutput } from '../utils/save-output.js';
 import type { McpToolResponse } from '../types/common.js';
 
 export const listPrivilegedContextsTool = {
@@ -53,6 +59,16 @@ export const evaluatePrivilegedScriptTool = {
       function: {
         type: 'string',
         description: 'JS function string, e.g. () => Services.prefs.getBoolPref("foo")',
+      },
+      saveTo: {
+        type: ['boolean', 'string'],
+        description:
+          'Save the result to a file as JSON instead of returning it inline. Pass a file path, an existing directory (generated file inside), or true (generated file under ~/.firefox-devtools-mcp/output/). Relative paths resolve against the current working directory.',
+      },
+      preview: {
+        type: 'number',
+        description:
+          'Number of characters of the saved result to return inline as a preview when saveTo is used. Omit for no preview.',
       },
     },
     required: ['function'],
@@ -141,7 +157,15 @@ const EvaluateResultType = {
 
 export async function handleEvaluatePrivilegedScript(args: unknown): Promise<McpToolResponse> {
   try {
-    const { function: fnString } = args as { function: string };
+    const {
+      function: fnString,
+      saveTo,
+      preview,
+    } = args as {
+      function: string;
+      saveTo?: boolean | string;
+      preview?: number;
+    };
 
     validateFunction(fnString);
 
@@ -156,11 +180,26 @@ export async function handleEvaluatePrivilegedScript(args: unknown): Promise<Mcp
     });
 
     if (result.type === EvaluateResultType.Success) {
-      let output = 'Script ran in chrome context and returned:\n';
-      output += '```json\n';
-      output += JSON.stringify(remoteValueToNative(result.result), null, 2);
-      output += '\n```';
-      return successResponse(output);
+      // JSON.stringify returns undefined for an undefined script result
+      const json = JSON.stringify(remoteValueToNative(result.result), null, 2) ?? 'undefined';
+
+      if (saveTo) {
+        const saved = await saveOutput(
+          json,
+          saveTo === true ? undefined : saveTo,
+          'evaluate-privileged'
+        );
+        let output = `Script ran in chrome context. Result saved to: ${saved.path} (${(saved.bytes / 1024).toFixed(1)}KB)`;
+        if (preview !== undefined && preview > 0) {
+          const previewChars = Math.min(Math.max(preview, 50), TOKEN_LIMITS.MAX_RESPONSE_CHARS);
+          output += '\nPreview:\n```json\n' + truncateText(json, previewChars) + '\n```';
+        }
+        return successResponse(output);
+      }
+
+      return successResponse(
+        'Script ran in chrome context and returned:\n```json\n' + json + '\n```'
+      );
     } else if (result.type === EvaluateResultType.Exception) {
       const exceptionDetails = result.exceptionDetails;
       return errorResponse(

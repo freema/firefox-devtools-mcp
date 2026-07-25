@@ -20,6 +20,20 @@ describe('Privileged Context Tool Definitions', () => {
     it('should require function parameter', () => {
       expect(evaluatePrivilegedScriptTool.inputSchema.required).toContain('function');
     });
+
+    it('should have optional saveTo parameter of type boolean|string', () => {
+      const { properties, required } = evaluatePrivilegedScriptTool.inputSchema;
+      expect(properties?.saveTo).toBeDefined();
+      expect(properties?.saveTo.type).toEqual(['boolean', 'string']);
+      expect(required).not.toContain('saveTo');
+    });
+
+    it('should have optional numeric preview parameter', () => {
+      const { properties, required } = evaluatePrivilegedScriptTool.inputSchema;
+      expect(properties?.preview).toBeDefined();
+      expect(properties?.preview.type).toBe('number');
+      expect(required).not.toContain('preview');
+    });
   });
 });
 

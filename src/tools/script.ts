@@ -2,9 +2,15 @@
  * JavaScript evaluation tool
  */
 
-import { successResponse, errorResponse } from '../utils/response-helpers.js';
+import {
+  successResponse,
+  errorResponse,
+  truncateText,
+  TOKEN_LIMITS,
+} from '../utils/response-helpers.js';
 import { remoteValueToNative } from '../utils/remote-value.js';
 import { validateFunction } from '../utils/js-validation.js';
+import { saveOutput } from '../utils/save-output.js';
 import type { McpToolResponse } from '../types/common.js';
 
 export const evaluateScriptTool = {
@@ -38,6 +44,16 @@ export const evaluateScriptTool = {
         type: 'number',
         description: 'Timeout in ms (default: 5000)',
       },
+      saveTo: {
+        type: ['boolean', 'string'],
+        description:
+          'Save the result to a file as JSON instead of returning it inline. Pass a file path, an existing directory (generated file inside), or true (generated file under ~/.firefox-devtools-mcp/output/). Relative paths resolve against the current working directory.',
+      },
+      preview: {
+        type: 'number',
+        description:
+          'Number of characters of the saved result to return inline as a preview when saveTo is used. Omit for no preview.',
+      },
     },
     required: ['function'],
   },
@@ -59,10 +75,14 @@ export async function handleEvaluateScript(args: unknown): Promise<McpToolRespon
       function: fnString,
       args: fnArgs,
       timeout,
+      saveTo,
+      preview,
     } = args as {
       function: string;
       args?: Array<{ uid: string }>;
       timeout?: number;
+      saveTo?: boolean | string;
+      preview?: number;
     };
 
     // Validate function
@@ -125,13 +145,25 @@ export async function handleEvaluateScript(args: unknown): Promise<McpToolRespon
         )
       );
     } else if (result.type === EvaluateResultType.Success) {
-      // Format output
-      let output = 'Script ran on page and returned:\n';
-      output += '```json\n';
-      output += JSON.stringify(remoteValueToNative(result.result), null, 2);
-      output += '\n```';
+      // JSON.stringify returns undefined for an undefined script result
+      const json = JSON.stringify(remoteValueToNative(result.result), null, 2) ?? 'undefined';
 
-      return successResponse(output);
+      if (saveTo) {
+        const saved = await saveOutput(
+          json,
+          saveTo === true ? undefined : saveTo,
+          'evaluate-script'
+        );
+        let output = `Script ran on page. Result saved to: ${saved.path} (${(saved.bytes / 1024).toFixed(1)}KB)`;
+        if (preview !== undefined && preview > 0) {
+          // Floor keeps truncateText's suffix from dominating tiny budgets.
+          const previewChars = Math.min(Math.max(preview, 50), TOKEN_LIMITS.MAX_RESPONSE_CHARS);
+          output += '\nPreview:\n```json\n' + truncateText(json, previewChars) + '\n```';
+        }
+        return successResponse(output);
+      }
+
+      return successResponse('Script ran on page and returned:\n```json\n' + json + '\n```');
     } else if (result.type === EvaluateResultType.Exception) {
       const exceptionDetails = result.exceptionDetails;
       return errorResponse(

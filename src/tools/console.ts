@@ -9,6 +9,7 @@ import {
   TOKEN_LIMITS,
   truncateText,
 } from '../utils/response-helpers.js';
+import { saveOutput } from '../utils/save-output.js';
 import type { McpToolResponse } from '../types/common.js';
 
 export const listConsoleMessagesTool = {
@@ -46,6 +47,16 @@ export const listConsoleMessagesTool = {
         enum: ['text', 'json'],
         description: 'Output format (default: text)',
       },
+      saveTo: {
+        type: ['boolean', 'string'],
+        description:
+          'Save all matching messages to a file in full (no truncation or limit) instead of returning them inline. Pass a file path, an existing directory (generated file inside), or true (generated file under ~/.firefox-devtools-mcp/output/). Relative paths resolve against the current working directory.',
+      },
+      preview: {
+        type: 'number',
+        description:
+          'Number of characters of the saved output to return inline as a preview when saveTo is used. Omit for no preview.',
+      },
     },
   },
 };
@@ -64,6 +75,18 @@ export const clearConsoleMessagesTool = {
 
 const DEFAULT_LIMIT = 50;
 
+function formatMessageLine(msg: {
+  level: string;
+  text: string;
+  source?: string | undefined;
+  timestamp?: number | undefined;
+}): string {
+  const timestamp = msg.timestamp ? new Date(msg.timestamp).toISOString() : '';
+  const source = msg.source ? ` [${msg.source}]` : '';
+  const time = timestamp ? `[${timestamp}] ` : '';
+  return `${time}${msg.level.toUpperCase()}${source}: ${msg.text}`;
+}
+
 export async function handleListConsoleMessages(args: unknown): Promise<McpToolResponse> {
   try {
     const {
@@ -73,6 +96,8 @@ export async function handleListConsoleMessages(args: unknown): Promise<McpToolR
       textContains,
       source,
       format = 'text',
+      saveTo,
+      preview,
     } = (args as {
       level?: string;
       limit?: number;
@@ -80,6 +105,8 @@ export async function handleListConsoleMessages(args: unknown): Promise<McpToolR
       textContains?: string;
       source?: string;
       format?: 'text' | 'json';
+      saveTo?: boolean | string;
+      preview?: number;
     }) || {};
 
     const { getFirefox } = await import('../index.js');
@@ -105,6 +132,38 @@ export async function handleListConsoleMessages(args: unknown): Promise<McpToolR
 
     if (source) {
       messages = messages.filter((msg) => msg.source?.toLowerCase() === source.toLowerCase());
+    }
+
+    if (saveTo && messages.length > 0) {
+      const fileBody =
+        format === 'json'
+          ? JSON.stringify(
+              {
+                total: totalCount,
+                filtered: messages.length,
+                messages: messages.map((msg) => ({
+                  level: msg.level,
+                  text: msg.text,
+                  source: msg.source || null,
+                  timestamp: msg.timestamp || null,
+                })),
+              },
+              null,
+              2
+            )
+          : messages.map(formatMessageLine).join('\n');
+      const saved = await saveOutput(
+        fileBody,
+        saveTo === true ? undefined : saveTo,
+        'console-messages',
+        format === 'json' ? 'json' : 'txt'
+      );
+      let output = `Console messages (${messages.length} matching, ${totalCount} total) saved to: ${saved.path} (${(saved.bytes / 1024).toFixed(1)}KB)`;
+      if (preview !== undefined && preview > 0) {
+        const previewChars = Math.min(Math.max(preview, 50), TOKEN_LIMITS.MAX_RESPONSE_CHARS);
+        output += '\nPreview:\n' + truncateText(fileBody, previewChars);
+      }
+      return successResponse(output);
     }
 
     // Truncate individual message texts to prevent token overflow
@@ -207,11 +266,7 @@ export async function handleListConsoleMessages(args: unknown): Promise<McpToolR
     output += '\n';
 
     for (const msg of messages) {
-      const timestamp = msg.timestamp ? new Date(msg.timestamp).toISOString() : '';
-      const source = msg.source ? ` [${msg.source}]` : '';
-      const time = timestamp ? `[${timestamp}] ` : '';
-
-      output += `${time}${msg.level.toUpperCase()}${source}: ${msg.text}\n`;
+      output += `${formatMessageLine(msg)}\n`;
     }
 
     if (truncated) {
