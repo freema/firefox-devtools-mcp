@@ -90,6 +90,7 @@ describe('Console Tools', () => {
       tempDir = join(tmpdir(), `console-test-${Date.now()}`);
 
       vi.doMock('../../src/index.js', () => ({
+        args: { unrestrictedSavePaths: true },
         getFirefox: vi.fn().mockResolvedValue({
           getConsoleMessages: vi.fn().mockResolvedValue(MESSAGES),
         }),

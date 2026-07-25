@@ -74,6 +74,7 @@ describe('Script Tools', () => {
       tempDir = join(tmpdir(), `script-test-${Date.now()}`);
 
       vi.doMock('../../src/index.js', () => ({
+        args: { unrestrictedSavePaths: true },
         getFirefox: vi.fn().mockResolvedValue({
           getCurrentContextId: vi.fn().mockReturnValue('ctx-1'),
           sendBiDiCommand: vi.fn().mockResolvedValue({
@@ -139,6 +140,7 @@ describe('Script Tools', () => {
     it('should save the string "undefined" when the script returns undefined', async () => {
       vi.resetModules();
       vi.doMock('../../src/index.js', () => ({
+        args: { unrestrictedSavePaths: true },
         getFirefox: vi.fn().mockResolvedValue({
           getCurrentContextId: vi.fn().mockReturnValue('ctx-1'),
           sendBiDiCommand: vi.fn().mockResolvedValue({

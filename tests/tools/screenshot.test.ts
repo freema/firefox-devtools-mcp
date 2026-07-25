@@ -5,8 +5,8 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { screenshotPageTool, screenshotByUidTool } from '../../src/tools/screenshot.js';
 import { existsSync, readFileSync, rmSync } from 'node:fs';
-import { join } from 'node:path';
 import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 
 const MOCK_HOME = join(tmpdir(), 'screenshot-test-home');
 
@@ -55,12 +55,11 @@ describe('Screenshot Tools', () => {
 
   describe('Handler: saveTo behavior', () => {
     const FAKE_BASE64 = Buffer.from('fake-png-data').toString('base64');
-    let tempDir: string;
+    const tempDir = join(tmpdir(), `screenshot-test-${process.pid}`);
 
     beforeEach(() => {
-      tempDir = join(tmpdir(), `screenshot-test-${Date.now()}`);
-
       vi.doMock('../../src/index.js', () => ({
+        args: { unrestrictedSavePaths: true },
         getFirefox: vi.fn().mockResolvedValue({
           takeScreenshotPage: vi.fn().mockResolvedValue(FAKE_BASE64),
           takeScreenshotByUid: vi.fn().mockResolvedValue(FAKE_BASE64),
@@ -77,7 +76,7 @@ describe('Screenshot Tools', () => {
       }
     });
 
-    it('should save screenshot to file when saveTo is provided (page)', async () => {
+    it('should save screenshot to a file when saveTo is provided (page)', async () => {
       const { handleScreenshotPage } = await import('../../src/tools/screenshot.js');
       const filePath = join(tempDir, 'page.png');
       const result = await handleScreenshotPage({ saveTo: filePath });
@@ -85,24 +84,19 @@ describe('Screenshot Tools', () => {
       expect(result.isError).toBeUndefined();
       expect(result.content).toHaveLength(1);
       expect(result.content[0]).toHaveProperty('type', 'text');
-      expect((result.content[0] as { type: 'text'; text: string }).text).toContain(
-        'Screenshot saved to:'
-      );
-      expect((result.content[0] as { type: 'text'; text: string }).text).toContain('KB)');
+      const text = (result.content[0] as { type: 'text'; text: string }).text;
+      expect(text).toContain('Screenshot saved to:');
+      expect(text).toContain('KB)');
       expect(existsSync(filePath)).toBe(true);
-
-      const written = readFileSync(filePath);
-      expect(written).toEqual(Buffer.from(FAKE_BASE64, 'base64'));
+      expect(readFileSync(filePath)).toEqual(Buffer.from(FAKE_BASE64, 'base64'));
     });
 
-    it('should save screenshot to file when saveTo is provided (by uid)', async () => {
+    it('should save screenshot to a file when saveTo is provided (by uid)', async () => {
       const { handleScreenshotByUid } = await import('../../src/tools/screenshot.js');
       const filePath = join(tempDir, 'element.png');
       const result = await handleScreenshotByUid({ uid: 'test-uid', saveTo: filePath });
 
       expect(result.isError).toBeUndefined();
-      expect(result.content).toHaveLength(1);
-      expect(result.content[0]).toHaveProperty('type', 'text');
       expect((result.content[0] as { type: 'text'; text: string }).text).toContain(
         'Screenshot saved to:'
       );
@@ -116,6 +110,17 @@ describe('Screenshot Tools', () => {
 
       expect(result.isError).toBeUndefined();
       expect(existsSync(filePath)).toBe(true);
+    });
+
+    it('should save to a generated file in the default output dir when saveTo is true', async () => {
+      const { handleScreenshotPage } = await import('../../src/tools/screenshot.js');
+      const result = await handleScreenshotPage({ saveTo: true });
+
+      expect(result.isError).toBeUndefined();
+      const text = (result.content[0] as { type: 'text'; text: string }).text;
+      expect(text).toContain('Screenshot saved to:');
+      expect(text).toContain(join(MOCK_HOME, '.firefox-devtools-mcp', 'output'));
+      expect(text).toContain('screenshot-');
     });
 
     it('should return image content when saveTo is not provided (page)', async () => {
@@ -139,26 +144,38 @@ describe('Screenshot Tools', () => {
       expect(result.content[0]).toHaveProperty('data', FAKE_BASE64);
       expect(result.content[0]).toHaveProperty('mimeType', 'image/png');
     });
+  });
 
-    it('should resolve relative saveTo path', async () => {
-      const { handleScreenshotPage } = await import('../../src/tools/screenshot.js');
-      const relativePath = join(tempDir, 'relative.png');
-      const result = await handleScreenshotPage({ saveTo: relativePath });
+  describe('Handler: saveTo restriction', () => {
+    const FAKE_BASE64 = Buffer.from('fake-png-data').toString('base64');
+    const outside = join(tmpdir(), `screenshot-restrict-${process.pid}.png`);
 
-      expect(result.isError).toBeUndefined();
-      expect((result.content[0] as { type: 'text'; text: string }).text).toContain(relativePath);
-      expect(existsSync(relativePath)).toBe(true);
+    beforeEach(() => {
+      vi.doMock('../../src/index.js', () => ({
+        args: { unrestrictedSavePaths: false },
+        getFirefox: vi.fn().mockResolvedValue({
+          takeScreenshotPage: vi.fn().mockResolvedValue(FAKE_BASE64),
+          takeScreenshotByUid: vi.fn().mockResolvedValue(FAKE_BASE64),
+        }),
+      }));
     });
 
-    it('should save to a generated file in the default output dir when saveTo is true', async () => {
-      const { handleScreenshotPage } = await import('../../src/tools/screenshot.js');
-      const result = await handleScreenshotPage({ saveTo: true });
+    afterEach(() => {
+      vi.restoreAllMocks();
+      if (existsSync(outside)) {
+        rmSync(outside, { force: true });
+      }
+    });
 
-      expect(result.isError).toBeUndefined();
-      const text = (result.content[0] as { type: 'text'; text: string }).text;
-      expect(text).toContain('Screenshot saved to:');
-      expect(text).toContain(join(MOCK_HOME, '.firefox-devtools-mcp', 'output'));
-      expect(text).toContain('screenshot-');
+    it('should reject an absolute saveTo outside the allowed directory', async () => {
+      const { handleScreenshotPage } = await import('../../src/tools/screenshot.js');
+      const result = await handleScreenshotPage({ saveTo: outside });
+
+      expect(result.isError).toBe(true);
+      expect((result.content[0] as { type: 'text'; text: string }).text).toContain(
+        '--unrestricted-save-paths'
+      );
+      expect(existsSync(outside)).toBe(false);
     });
   });
 });

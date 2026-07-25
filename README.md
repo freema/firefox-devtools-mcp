@@ -214,7 +214,7 @@ Large tool output can consume significant context in CLI clients like Claude Cod
 `evaluate_privileged_script` tools accept an optional `saveTo` parameter that writes the
 result to a file instead of returning it inline. `saveTo` takes one of three forms:
 
-- a file path (absolute, or relative to the current working directory; parent directories are created)
+- a file path (relative to the current working directory, or absolute within `~/.firefox-devtools-mcp`; parent directories are created)
 - an existing directory (a timestamped file is generated inside it)
 - `true` (a timestamped file is generated under `~/.firefox-devtools-mcp/output/`)
 
@@ -227,11 +227,16 @@ of characters of the saved output to echo back inline as a short excerpt. Screen
 preview.
 
 ```
-screenshot_page({ saveTo: "/tmp/page.png" })
+screenshot_page({ saveTo: "page.png" })
 take_snapshot({ saveTo: true })
-list_network_requests({ urlContains: "api", saveTo: "/tmp/net.json" })
+list_network_requests({ urlContains: "api", saveTo: "network.json" })
 evaluate_script({ function: "() => performance.getEntries()", saveTo: true, preview: 2000 })
 ```
+
+By default, save paths are restricted: relative paths resolve against the current working
+directory, and absolute paths are only allowed within `~/.firefox-devtools-mcp`. Paths that
+escape these locations are rejected. Start the server with `--unrestricted-save-paths` to
+write to arbitrary locations, including absolute paths outside that directory.
 
 Saved files can then be viewed with Claude Code's `Read` tool without impacting context size.
 
