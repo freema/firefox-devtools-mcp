@@ -144,3 +144,11 @@ export {
   handleProfilerStart,
   handleProfilerStop,
 } from './profiler.js';
+
+// Screencast tools
+export {
+  screencastStartTool,
+  screencastStopTool,
+  handleScreencastStart,
+  handleScreencastStop,
+} from './screencast.js';

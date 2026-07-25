@@ -172,6 +172,7 @@ Both flags are required because the MCP uses both WebDriver Classic (`--marionet
 - WebExtension: install_extension, uninstall_extension, list_extensions (list requires `MOZ_REMOTE_ALLOW_SYSTEM_ACCESS=1`)
 - Firefox Management: get_firefox_info, get_firefox_output, restart_firefox, set_firefox_prefs, get_firefox_prefs
 - Profiler: profiler_is_active, profiler_start (preset or explicit config), profiler_stop (saves profile to downloads directory)
+- Screencast: screencast_start (records the page viewport to a video file in the downloads directory), screencast_stop (requires Firefox 154+)
 - Utilities: accept/dismiss dialog, history back/forward, set viewport
 
 ### Saving bulky output to disk
