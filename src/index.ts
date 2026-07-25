@@ -234,6 +234,10 @@ export async function run(
     ['profiler_start', tools.handleProfilerStart],
     ['profiler_stop', tools.handleProfilerStop],
 
+    // Screencast
+    ['screencast_start', tools.handleScreencastStart],
+    ['screencast_stop', tools.handleScreencastStop],
+
     // Script evaluation — requires --enable-script
     ...(args.enableScript ? ([['evaluate_script', tools.handleEvaluateScript]] as const) : []),
 
@@ -315,6 +319,10 @@ export async function run(
     tools.profilerIsActiveTool,
     tools.profilerStartTool,
     tools.profilerStopTool,
+
+    // Screencast
+    tools.screencastStartTool,
+    tools.screencastStopTool,
 
     // Script evaluation — requires --enable-script
     ...(args.enableScript ? [tools.evaluateScriptTool] : []),
