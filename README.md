@@ -19,7 +19,7 @@ Browser MCP servers carry inherent risks. A few key practices:
 
 - **Use a dedicated Firefox profile.** Never run the server against your regular profile — the agent has access to whatever the browser can reach, including cookies and saved sessions.
 - **Be cautious about which sites you visit.** Pages can return content designed to manipulate the agent (prompt injection). Stick to sites you control or trust.
-- **Avoid enabling extra flags unless needed.** `--enable-script` and `--enable-privileged-context` significantly expand what the agent can do.
+- **Enable only the tool modules you need.** Higher presets such as `--tool-preset developer` (script, debugging) and `--tool-preset mozilla` (privileged context) significantly expand what the agent can do.
 
 See [SECURITY.md](SECURITY.md) for a full breakdown of risks and how to report vulnerabilities.
 
@@ -106,12 +106,43 @@ You can pass flags or environment variables (names on the right):
 - `--connect-existing` — attach to an already-running Firefox instead of launching a new one (`CONNECT_EXISTING=true`)
 - `--marionette-port` — Marionette port for connect-existing mode, default 2828 (`MARIONETTE_PORT`)
 - `--pref name=value` — set Firefox preference at startup via `moz:firefoxOptions` (repeatable)
-- `--enable-script` — enable the `evaluate_script` tool (executes arbitrary JavaScript in the page context) and debugging tools (list scripts, inspect source, set logpoints). Debugging tools require Firefox 153+. (`ENABLE_SCRIPT=true`)
-- `--enable-privileged-context` — enable privileged context tools: list/select privileged contexts, evaluate privileged scripts, get/set Firefox prefs, and list extensions. Requires `MOZ_REMOTE_ALLOW_SYSTEM_ACCESS=1` (`ENABLE_PRIVILEGED_CONTEXT=true`)
+- `--tool-preset` — select which tool modules to enable: `slim`, `basic` (default), `developer`, `mozilla`, or `all`. See [Tool modules and presets](#tool-modules-and-presets). (`TOOL_PRESET`)
+- `--tools` — explicit list of tool modules to enable, overriding `--tool-preset` entirely (e.g. `--tools pages network script`). See [Tool modules and presets](#tool-modules-and-presets).
+- `--enable-script` — _deprecated, use `--tool-preset developer` or `--tools ... script debugging`._ Enables the script and debugging tools. (`ENABLE_SCRIPT=true`)
+- `--enable-privileged-context` — _deprecated, use `--tool-preset mozilla` or `--tools ... privileged prefs`._ Enables privileged context and Firefox prefs tools. Requires `MOZ_REMOTE_ALLOW_SYSTEM_ACCESS=1` (`ENABLE_PRIVILEGED_CONTEXT=true`)
 - `--android-device` — enable Firefox for Android mode; value is the ADB device serial (e.g. `emulator-5554`). Run `adb devices` to list connected devices. Omit the value or use `auto` to select the single connected device automatically.
 - `--android-package` — Android app package name, default `org.mozilla.firefox`. Other packages: `org.mozilla.firefox_beta` for Firefox Beta, `org.mozilla.fenix` for Firefox Nightly, `org.mozilla.fenix.debug` for Firefox Nightly Debug, `org.mozilla.geckoview_example` for geckoview (`ANDROID_PACKAGE`)
 - `--log-file` — write MCP server logs to a file instead of stderr. Useful for debugging sessions with MCP clients that hide server output. Set `DEBUG=*` to also include verbose debug logs. Example: `--log-file /tmp/firefox-mcp.log`
 
+
+### Tool modules and presets
+
+Tools are grouped into modules. You choose which modules to expose either with a named preset
+(`--tool-preset`) or with an explicit list (`--tools`). When both are given, `--tools` wins and
+the preset is ignored.
+
+Modules: `pages`, `snapshot`, `input`, `network`, `console`, `screenshot`, `utilities`,
+`management`, `webextension`, `profiler`, `screencast`, `script`, `debugging`, `prefs`,
+`privileged`.
+
+Presets (each is a superset of the previous):
+
+- `slim` — `pages`, `snapshot`, `input`, `network`, `console`
+- `basic` (default) — `slim` plus `screenshot`, `utilities`, `management`, `webextension`, `profiler`, `screencast`
+- `developer` — `basic` plus `script`, `debugging`
+- `mozilla` — `developer` plus `prefs`, `privileged`
+- `all` — every module
+
+```bash
+# Use the developer preset (adds script and debugging tools)
+npx @mozilla/firefox-devtools-mcp --tool-preset developer
+
+# Enable only the modules you need
+npx @mozilla/firefox-devtools-mcp --tools pages network console
+```
+
+The `prefs` and `privileged` modules require `MOZ_REMOTE_ALLOW_SYSTEM_ACCESS=1` and are only
+available in the Mozilla-internal build; the public package silently skips them even if requested.
 
 ### Useful preferences (`--pref`)
 

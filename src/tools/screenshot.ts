@@ -5,6 +5,7 @@
 import { successResponse, errorResponse } from '../utils/response-helpers.js';
 import { handleUidError } from '../utils/uid-helpers.js';
 import { saveOutput } from '../utils/save-output.js';
+import { defineModule } from './module.js';
 import type { McpToolResponse } from '../types/common.js';
 
 const SAVE_TO_SCHEMA = {
@@ -128,3 +129,12 @@ export async function handleScreenshotByUid(args: unknown): Promise<McpToolRespo
     return errorResponse(error as Error);
   }
 }
+
+export const module = defineModule({
+  name: 'screenshot',
+  description: 'Capture screenshots of the page or specific elements.',
+  tools: [
+    [screenshotPageTool, handleScreenshotPage],
+    [screenshotByUidTool, handleScreenshotByUid],
+  ],
+});

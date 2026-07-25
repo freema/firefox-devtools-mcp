@@ -10,6 +10,7 @@ import {
   truncateText,
 } from '../utils/response-helpers.js';
 import { saveOutput } from '../utils/save-output.js';
+import { defineModule } from './module.js';
 import type { McpToolResponse } from '../types/common.js';
 
 export const listConsoleMessagesTool = {
@@ -292,3 +293,12 @@ export async function handleClearConsoleMessages(_args: unknown): Promise<McpToo
     return errorResponse(error as Error);
   }
 }
+
+export const module = defineModule({
+  name: 'console',
+  description: 'Read and clear console messages.',
+  tools: [
+    [listConsoleMessagesTool, handleListConsoleMessages],
+    [clearConsoleMessagesTool, handleClearConsoleMessages],
+  ],
+});

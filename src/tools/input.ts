@@ -5,6 +5,7 @@
 
 import { successResponse, errorResponse } from '../utils/response-helpers.js';
 import { handleUidError } from '../utils/uid-helpers.js';
+import { defineModule } from './module.js';
 import type { McpToolResponse } from '../types/common.js';
 
 // Tool definitions
@@ -325,3 +326,16 @@ export async function handleUploadFileByUid(args: unknown): Promise<McpToolRespo
     return errorResponse(error as Error);
   }
 }
+
+export const module = defineModule({
+  name: 'input',
+  description: 'Interact with the page via UID-based clicks, typing, drag, and uploads.',
+  tools: [
+    [clickByUidTool, handleClickByUid],
+    [hoverByUidTool, handleHoverByUid],
+    [fillByUidTool, handleFillByUid],
+    [dragByUidToUidTool, handleDragByUidToUid],
+    [fillFormByUidTool, handleFillFormByUid],
+    [uploadFileByUidTool, handleUploadFileByUid],
+  ],
+});

@@ -22,6 +22,31 @@ npx @modelcontextprotocol/inspector node dist/index.js --headless --viewport 128
 npm run inspector:dev
 ```
 
+## Adding a tool
+
+Tools are grouped into modules, one module per file under `src/tools/`. Each
+tool file declares its own module with `defineModule`, pairing every tool
+definition with its handler:
+
+```ts
+import { defineModule } from './module.js';
+
+export const module = defineModule({
+  name: 'mymodule',
+  description: 'What this group of tools does.',
+  // privileged: true, // only if it needs the moz build + system access
+  tools: [
+    [myTool, handleMyTool],
+    [myOtherTool, handleMyOtherTool],
+  ],
+});
+```
+
+To register the module, add it to the catalog in
+[`src/tools/index.ts`](src/tools/index.ts): import its `module`, add it to the
+`MODULES` array, and list its name in whichever presets (`SLIM`, `BASIC`,
+`DEVELOPER`, `MOZILLA`) should expose it.
+
 ## Testing
 
 ```bash

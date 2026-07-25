@@ -8,6 +8,7 @@ import { join } from 'node:path';
 import type { Options as YargsOptions } from 'yargs';
 import yargs from 'yargs';
 import { hideBin } from 'yargs/helpers';
+import { MODULE_NAMES, PRESET_NAMES } from './tools/index.js';
 
 /**
  * Parsed preference value (boolean, integer, or string)
@@ -168,16 +169,40 @@ export const cliOptions = {
     description:
       'Path to a file where MCP server logs will be written. Set DEBUG=* to also enable verbose debug logs.',
   },
+  tools: {
+    type: 'array',
+    string: true,
+    description:
+      'Explicit list of tool modules to enable, e.g. --tools pages network script. Overrides --tool-preset entirely. ' +
+      `Available modules: ${MODULE_NAMES.join(', ')}.`,
+    coerce: (arg: string[] | undefined) => {
+      if (arg === undefined) {
+        return undefined;
+      }
+      // Allow both repeated flags and comma-separated values.
+      return arg
+        .flatMap((value) => value.split(','))
+        .map((value) => value.trim())
+        .filter((value) => value.length > 0);
+    },
+  },
+  toolPreset: {
+    type: 'string',
+    description:
+      `Preset selecting which tool modules to enable: ${PRESET_NAMES.join(' < ')}. ` +
+      'Ignored when --tools is given. Privileged modules (mozilla/all) require MOZ_REMOTE_ALLOW_SYSTEM_ACCESS=1.',
+    default: process.env.TOOL_PRESET || 'basic',
+  },
   enableScript: {
     type: 'boolean',
     description:
-      'Enable the script tools such as script evaluation and logpoints (Firefox 153+ required).',
+      'Deprecated: use --tools/--tool-preset. Enable the script and debugging tools (Firefox 153+ required).',
     default: (process.env.ENABLE_SCRIPT ?? 'false') === 'true',
   },
   enablePrivilegedContext: {
     type: 'boolean',
     description:
-      'Enable privileged context tools: list/select privileged contexts, evaluate privileged scripts, get/set Firefox prefs, and list extensions. Requires MOZ_REMOTE_ALLOW_SYSTEM_ACCESS=1.',
+      'Deprecated: use --tools/--tool-preset. Enable privileged context tools and Firefox prefs tools. Requires MOZ_REMOTE_ALLOW_SYSTEM_ACCESS=1.',
     default: (process.env.ENABLE_PRIVILEGED_CONTEXT ?? 'false') === 'true',
   },
 } satisfies Record<string, YargsOptions>;

@@ -21,7 +21,7 @@ import { run } from './index.js';
 export { FirefoxDevTools } from './firefox/index.js';
 export { FirefoxDisconnectedError, isDisconnectionError } from './utils/errors.js';
 
-run(parseArguments, import.meta.url).catch((error) => {
+run(parseArguments, import.meta.url, true).catch((error) => {
   console.error('Fatal error in main', error);
   process.exit(1);
 });

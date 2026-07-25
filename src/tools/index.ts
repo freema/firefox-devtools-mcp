@@ -1,154 +1,77 @@
 /**
- * Central export for all MCP tools
+ * Tool module catalog.
+ *
+ * The declarative half of the registry: it lists every tool module and the
+ * presets that group them. Each module is declared in its own tool file via
+ * `defineModule`; registering it here (import + an entry in MODULES, plus any
+ * presets it belongs to) is all that is needed to expose it.
+ *
+ * `registry.ts` holds the logic that reads this catalog. A test
+ * (tests/tools/registry.test.ts) fails if a tool file declares a module that is
+ * not listed here, so a forgotten registration is caught rather than silently
+ * dropping the tools.
  */
 
-// Pages tools
-export {
-  listPagesTool,
-  newPageTool,
-  navigatePageTool,
-  selectPageTool,
-  closePageTool,
-  handleListPages,
-  handleNewPage,
-  handleNavigatePage,
-  handleSelectPage,
-  handleClosePage,
-} from './pages.js';
+import { module as pages } from './pages.js';
+import { module as snapshot } from './snapshot.js';
+import { module as input } from './input.js';
+import { module as network } from './network.js';
+import { module as consoleModule } from './console.js';
+import { module as screenshot } from './screenshot.js';
+import { module as utilities } from './utilities.js';
+import { module as management } from './firefox-management.js';
+import { module as webextension } from './webextension.js';
+import { module as profiler } from './profiler.js';
+import { module as screencast } from './screencast.js';
+import { module as script } from './script.js';
+import { module as debugging } from './debugging.js';
+import { module as prefs } from './firefox-prefs.js';
+import { module as privileged } from './privileged-context.js';
+import type { ToolModule } from './module.js';
 
-// Script evaluation tools
-export { evaluateScriptTool, handleEvaluateScript } from './script.js';
+export type { ToolDefinition, ToolEntry, ToolModule } from './module.js';
 
-// Console tools
-export {
-  listConsoleMessagesTool,
-  clearConsoleMessagesTool,
-  handleListConsoleMessages,
-  handleClearConsoleMessages,
-} from './console.js';
+export const MODULES: ToolModule[] = [
+  pages,
+  snapshot,
+  input,
+  network,
+  consoleModule,
+  screenshot,
+  utilities,
+  management,
+  webextension,
+  profiler,
+  screencast,
+  script,
+  debugging,
+  prefs,
+  privileged,
+];
 
-// Network tools
-export {
-  listNetworkRequestsTool,
-  getNetworkRequestTool,
-  handleListNetworkRequests,
-  handleGetNetworkRequest,
-} from './network.js';
+export const MODULE_NAMES = MODULES.map((m) => m.name);
 
-// Snapshot tools
-export {
-  takeSnapshotTool,
-  resolveUidToSelectorTool,
-  clearSnapshotTool,
-  handleTakeSnapshot,
-  handleResolveUidToSelector,
-  handleClearSnapshot,
-} from './snapshot.js';
+const SLIM = ['pages', 'snapshot', 'input', 'network', 'console'];
+const BASIC = [
+  ...SLIM,
+  'screenshot',
+  'utilities',
+  'management',
+  'webextension',
+  'profiler',
+  'screencast',
+];
+const DEVELOPER = [...BASIC, 'script', 'debugging'];
+const MOZILLA = [...DEVELOPER, 'prefs', 'privileged'];
 
-// Input tools (UID-based interactions)
-export {
-  clickByUidTool,
-  hoverByUidTool,
-  fillByUidTool,
-  dragByUidToUidTool,
-  fillFormByUidTool,
-  uploadFileByUidTool,
-  handleClickByUid,
-  handleHoverByUid,
-  handleFillByUid,
-  handleDragByUidToUid,
-  handleFillFormByUid,
-  handleUploadFileByUid,
-} from './input.js';
+export const PRESETS: Record<string, string[]> = {
+  slim: SLIM,
+  basic: BASIC,
+  developer: DEVELOPER,
+  mozilla: MOZILLA,
+  all: MODULE_NAMES,
+};
 
-// Screenshot tools
-export {
-  screenshotPageTool,
-  screenshotByUidTool,
-  handleScreenshotPage,
-  handleScreenshotByUid,
-} from './screenshot.js';
+export const PRESET_NAMES = Object.keys(PRESETS);
 
-// Utility tools (dialogs, history, viewport)
-export {
-  acceptDialogTool,
-  dismissDialogTool,
-  navigateHistoryTool,
-  setViewportSizeTool,
-  handleAcceptDialog,
-  handleDismissDialog,
-  handleNavigateHistory,
-  handleSetViewportSize,
-} from './utilities.js';
-
-// Firefox management tools (logs, restart, info)
-export {
-  getFirefoxLogsTool,
-  getFirefoxInfoTool,
-  restartFirefoxTool,
-  handleGetFirefoxLogs,
-  handleGetFirefoxInfo,
-  handleRestartFirefox,
-} from './firefox-management.js';
-
-// Privileged ("chrome") context tools
-export {
-  listPrivilegedContextsTool,
-  selectPrivilegedContextTool,
-  evaluatePrivilegedScriptTool,
-  handleListPrivilegedContexts,
-  handleSelectPrivilegedContext,
-  handleEvaluatePrivilegedScript,
-} from './privileged-context.js';
-
-// Firefox preferences tools
-export {
-  setFirefoxPrefsTool,
-  getFirefoxPrefsTool,
-  handleSetFirefoxPrefs,
-  handleGetFirefoxPrefs,
-} from './firefox-prefs.js';
-
-// WebExtension tools (install, uninstall, and list extensions)
-export {
-  installExtensionTool,
-  uninstallExtensionTool,
-  listExtensionsTool,
-  handleInstallExtension,
-  handleUninstallExtension,
-  handleListExtensions,
-} from './webextension.js';
-
-// Debugging tools (script inspection, logpoints)
-export {
-  enableDebuggerTool,
-  listScriptsTool,
-  getScriptSourceTool,
-  setLogpointTool,
-  removeLogpointTool,
-  getLogpointResultsTool,
-  handleEnableDebugger,
-  handleListScripts,
-  handleGetScriptSource,
-  handleSetLogpoint,
-  handleRemoveLogpoint,
-  handleGetLogpointResults,
-} from './debugging.js';
-
-// Profiler tools
-export {
-  profilerIsActiveTool,
-  profilerStartTool,
-  profilerStopTool,
-  handleProfilerIsActive,
-  handleProfilerStart,
-  handleProfilerStop,
-} from './profiler.js';
-
-// Screencast tools
-export {
-  screencastStartTool,
-  screencastStopTool,
-  handleScreencastStart,
-  handleScreencastStop,
-} from './screencast.js';
+export const DEFAULT_PRESET = 'basic';

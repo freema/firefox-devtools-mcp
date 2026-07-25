@@ -11,6 +11,7 @@ import {
 import { remoteValueToNative } from '../utils/remote-value.js';
 import { validateFunction } from '../utils/js-validation.js';
 import { saveOutput } from '../utils/save-output.js';
+import { defineModule } from './module.js';
 import type { McpToolResponse } from '../types/common.js';
 
 export const evaluateScriptTool = {
@@ -181,3 +182,9 @@ export async function handleEvaluateScript(args: unknown): Promise<McpToolRespon
     return errorResponse(error as Error);
   }
 }
+
+export const module = defineModule({
+  name: 'script',
+  description: 'Evaluate arbitrary JavaScript in the page context.',
+  tools: [[evaluateScriptTool, handleEvaluateScript]],
+});

@@ -4,14 +4,8 @@
  */
 
 import { readFileSync, existsSync, statSync } from 'node:fs';
-import {
-  args,
-  getFirefox,
-  getFirefoxIfRunning,
-  resetFirefox,
-  setNextLaunchOptions,
-} from '../index.js';
 import { errorResponse, successResponse } from '../utils/response-helpers.js';
+import { defineModule } from './module.js';
 
 // ============================================================================
 // Tool: get_firefox_logs
@@ -55,6 +49,7 @@ export async function handleGetFirefoxLogs(input: unknown) {
       since?: number;
     };
 
+    const { getFirefox } = await import('../index.js');
     const firefox = await getFirefox();
     const logFilePath = firefox.getLogFilePath();
 
@@ -130,6 +125,7 @@ export const getFirefoxInfoTool = {
 
 export async function handleGetFirefoxInfo(_input: unknown) {
   try {
+    const { getFirefox } = await import('../index.js');
     const firefox = await getFirefox();
     const options = firefox.getOptions();
     const logFilePath = firefox.getLogFilePath();
@@ -255,6 +251,10 @@ export async function handleRestartFirefox(input: unknown) {
       startUrl?: string;
       prefs?: Record<string, string | number | boolean>;
     };
+
+    const { args, getFirefoxIfRunning, resetFirefox, setNextLaunchOptions } = await import(
+      '../index.js'
+    );
 
     // This tool is designed to be robust and never get stuck:
     // - Handles disconnected Firefox gracefully (resets stale reference)
@@ -387,3 +387,13 @@ export async function handleRestartFirefox(input: unknown) {
     return errorResponse(error as Error);
   }
 }
+
+export const module = defineModule({
+  name: 'management',
+  description: 'Inspect Firefox info/output and restart the browser.',
+  tools: [
+    [getFirefoxLogsTool, handleGetFirefoxLogs],
+    [getFirefoxInfoTool, handleGetFirefoxInfo],
+    [restartFirefoxTool, handleRestartFirefox],
+  ],
+});

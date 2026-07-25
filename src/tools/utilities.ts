@@ -3,6 +3,7 @@
  */
 
 import { successResponse, errorResponse } from '../utils/response-helpers.js';
+import { defineModule } from './module.js';
 import type { McpToolResponse } from '../types/common.js';
 
 // Tool definitions - Dialogs
@@ -174,3 +175,14 @@ export async function handleSetViewportSize(args: unknown): Promise<McpToolRespo
     return errorResponse(error as Error);
   }
 }
+
+export const module = defineModule({
+  name: 'utilities',
+  description: 'Handle dialogs, history navigation, and viewport sizing.',
+  tools: [
+    [acceptDialogTool, handleAcceptDialog],
+    [dismissDialogTool, handleDismissDialog],
+    [navigateHistoryTool, handleNavigateHistory],
+    [setViewportSizeTool, handleSetViewportSize],
+  ],
+});
