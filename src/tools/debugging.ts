@@ -1,6 +1,7 @@
 import { successResponse, errorResponse } from '../utils/response-helpers.js';
 import { compareVersions } from '../utils/version.js';
 import { remoteValueToNative } from '../utils/remote-value.js';
+import { defineModule } from './module.js';
 import type { McpToolResponse } from '../types/common.js';
 
 const MIN_VERSION = '153';
@@ -214,3 +215,16 @@ export async function handleGetLogpointResults(args: unknown): Promise<McpToolRe
     return errorResponse(error as Error);
   }
 }
+
+export const module = defineModule({
+  name: 'debugging',
+  description: 'Inspect scripts and set logpoints (Firefox 153+).',
+  tools: [
+    [enableDebuggerTool, handleEnableDebugger],
+    [listScriptsTool, handleListScripts],
+    [getScriptSourceTool, handleGetScriptSource],
+    [setLogpointTool, handleSetLogpoint],
+    [removeLogpointTool, handleRemoveLogpoint],
+    [getLogpointResultsTool, handleGetLogpointResults],
+  ],
+});

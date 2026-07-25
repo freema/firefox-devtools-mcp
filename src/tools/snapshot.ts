@@ -10,6 +10,7 @@ import {
 } from '../utils/response-helpers.js';
 import { handleUidError } from '../utils/uid-helpers.js';
 import { saveOutput } from '../utils/save-output.js';
+import { defineModule } from './module.js';
 import type { McpToolResponse } from '../types/common.js';
 
 const DEFAULT_SNAPSHOT_LINES = 100;
@@ -238,3 +239,13 @@ export async function handleClearSnapshot(_args: unknown): Promise<McpToolRespon
     return errorResponse(error as Error);
   }
 }
+
+export const module = defineModule({
+  name: 'snapshot',
+  description: 'Capture accessibility/DOM snapshots and resolve UIDs.',
+  tools: [
+    [takeSnapshotTool, handleTakeSnapshot],
+    [resolveUidToSelectorTool, handleResolveUidToSelector],
+    [clearSnapshotTool, handleClearSnapshot],
+  ],
+});

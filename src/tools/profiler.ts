@@ -1,6 +1,7 @@
 import { successResponse, errorResponse } from '../utils/response-helpers.js';
 import { compareVersions } from '../utils/version.js';
 import type { FirefoxDevTools } from '../firefox/index.js';
+import { defineModule } from './module.js';
 import type { McpToolResponse } from '../types/common.js';
 
 const MIN_FIREFOX_VERSION = '154.0';
@@ -196,3 +197,13 @@ export async function handleProfilerStop(args: unknown): Promise<McpToolResponse
     return errorResponse(error as Error);
   }
 }
+
+export const module = defineModule({
+  name: 'profiler',
+  description: 'Start, stop, and query the performance profiler.',
+  tools: [
+    [profilerIsActiveTool, handleProfilerIsActive],
+    [profilerStartTool, handleProfilerStart],
+    [profilerStopTool, handleProfilerStop],
+  ],
+});

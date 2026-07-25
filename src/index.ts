@@ -18,8 +18,7 @@ import { parsePrefs, defaultProfileDir } from './cli.js';
 import type { parseArguments } from './cli.js';
 import { FirefoxDevTools } from './firefox/index.js';
 import type { FirefoxLaunchOptions } from './firefox/types.js';
-import * as tools from './tools/index.js';
-import type { McpToolResponse } from './types/common.js';
+import { buildToolset } from './tools/registry.js';
 import { errorResponse } from './utils/response-helpers.js';
 
 type Args = ReturnType<typeof parseArguments>;
@@ -156,7 +155,10 @@ export async function getFirefox(): Promise<FirefoxDevTools> {
 
 export async function run(
   parseArgsFn: (version: string) => Args,
-  importMetaUrl: string
+  importMetaUrl: string,
+  // Fail closed: privileged tools must be opted into explicitly (index.moz.ts
+  // passes true). A caller that omits this never exposes privileged modules.
+  allowPrivileged = false
 ): Promise<void> {
   // Only run if this entry file is executed directly (not imported as a library).
   // We need to normalize both paths to handle different execution contexts (npx, node, etc.)
@@ -180,177 +182,24 @@ export async function run(
     setupLogFile(args.logFile);
   }
 
-  // Tool handler mapping
-  const toolHandlers = new Map<string, (input: unknown) => Promise<McpToolResponse>>([
-    // Pages
-    ['list_pages', tools.handleListPages],
-    ['new_page', tools.handleNewPage],
-    ['navigate_page', tools.handleNavigatePage],
-    ['select_page', tools.handleSelectPage],
-    ['close_page', tools.handleClosePage],
-
-    // Console
-    ['list_console_messages', tools.handleListConsoleMessages],
-    ['clear_console_messages', tools.handleClearConsoleMessages],
-
-    // Network
-    ['list_network_requests', tools.handleListNetworkRequests],
-    ['get_network_request', tools.handleGetNetworkRequest],
-
-    // Snapshot
-    ['take_snapshot', tools.handleTakeSnapshot],
-    ['resolve_uid_to_selector', tools.handleResolveUidToSelector],
-    ['clear_snapshot', tools.handleClearSnapshot],
-
-    // Input
-    ['click_by_uid', tools.handleClickByUid],
-    ['hover_by_uid', tools.handleHoverByUid],
-    ['fill_by_uid', tools.handleFillByUid],
-    ['drag_by_uid_to_uid', tools.handleDragByUidToUid],
-    ['fill_form_by_uid', tools.handleFillFormByUid],
-    ['upload_file_by_uid', tools.handleUploadFileByUid],
-
-    // Screenshot
-    ['screenshot_page', tools.handleScreenshotPage],
-    ['screenshot_by_uid', tools.handleScreenshotByUid],
-
-    // Utilities
-    ['accept_dialog', tools.handleAcceptDialog],
-    ['dismiss_dialog', tools.handleDismissDialog],
-    ['navigate_history', tools.handleNavigateHistory],
-    ['set_viewport_size', tools.handleSetViewportSize],
-
-    // Firefox Management
-    ['get_firefox_output', tools.handleGetFirefoxLogs],
-    ['get_firefox_info', tools.handleGetFirefoxInfo],
-    ['restart_firefox', tools.handleRestartFirefox],
-
-    // WebExtensions (install/uninstall use standard BiDi, no privileged context required)
-    ['install_extension', tools.handleInstallExtension],
-    ['uninstall_extension', tools.handleUninstallExtension],
-
-    // Profiler
-    ['profiler_is_active', tools.handleProfilerIsActive],
-    ['profiler_start', tools.handleProfilerStart],
-    ['profiler_stop', tools.handleProfilerStop],
-
-    // Screencast
-    ['screencast_start', tools.handleScreencastStart],
-    ['screencast_stop', tools.handleScreencastStop],
-
-    // Script evaluation — requires --enable-script
-    ...(args.enableScript ? ([['evaluate_script', tools.handleEvaluateScript]] as const) : []),
-
-    // Debugging tools — requires --enable-script
-    ...(args.enableScript
-      ? ([
-          ['enable_debugger', tools.handleEnableDebugger],
-          ['list_scripts', tools.handleListScripts],
-          ['get_script_source', tools.handleGetScriptSource],
-          ['set_logpoint', tools.handleSetLogpoint],
-          ['remove_logpoint', tools.handleRemoveLogpoint],
-          ['get_logpoint_results', tools.handleGetLogpointResults],
-        ] as const)
-      : []),
-
-    // Privileged context tools — requires --enable-privileged-context
-    ...(args.enablePrivilegedContext
-      ? ([
-          ['list_privileged_contexts', tools.handleListPrivilegedContexts],
-          ['select_privileged_context', tools.handleSelectPrivilegedContext],
-          ['evaluate_privileged_script', tools.handleEvaluatePrivilegedScript],
-          ['set_firefox_prefs', tools.handleSetFirefoxPrefs],
-          ['get_firefox_prefs', tools.handleGetFirefoxPrefs],
-          ['list_extensions', tools.handleListExtensions],
-        ] as const)
-      : []),
-  ]);
-
-  // All tool definitions
-  const allTools = [
-    // Pages
-    tools.listPagesTool,
-    tools.newPageTool,
-    tools.navigatePageTool,
-    tools.selectPageTool,
-    tools.closePageTool,
-
-    // Console
-    tools.listConsoleMessagesTool,
-    tools.clearConsoleMessagesTool,
-
-    // Network
-    tools.listNetworkRequestsTool,
-    tools.getNetworkRequestTool,
-
-    // Snapshot
-    tools.takeSnapshotTool,
-    tools.resolveUidToSelectorTool,
-    tools.clearSnapshotTool,
-
-    // Input
-    tools.clickByUidTool,
-    tools.hoverByUidTool,
-    tools.fillByUidTool,
-    tools.dragByUidToUidTool,
-    tools.fillFormByUidTool,
-    tools.uploadFileByUidTool,
-
-    // Screenshot
-    tools.screenshotPageTool,
-    tools.screenshotByUidTool,
-
-    // Utilities
-    tools.acceptDialogTool,
-    tools.dismissDialogTool,
-    tools.navigateHistoryTool,
-    tools.setViewportSizeTool,
-
-    // Firefox Management
-    tools.getFirefoxLogsTool,
-    tools.getFirefoxInfoTool,
-    tools.restartFirefoxTool,
-
-    // WebExtensions (install/uninstall use standard BiDi, no privileged context required)
-    tools.installExtensionTool,
-    tools.uninstallExtensionTool,
-
-    // Profiler
-    tools.profilerIsActiveTool,
-    tools.profilerStartTool,
-    tools.profilerStopTool,
-
-    // Screencast
-    tools.screencastStartTool,
-    tools.screencastStopTool,
-
-    // Script evaluation — requires --enable-script
-    ...(args.enableScript ? [tools.evaluateScriptTool] : []),
-
-    // Debugging tools — requires --enable-script
-    ...(args.enableScript
-      ? [
-          tools.enableDebuggerTool,
-          tools.listScriptsTool,
-          tools.getScriptSourceTool,
-          tools.setLogpointTool,
-          tools.removeLogpointTool,
-          tools.getLogpointResultsTool,
-        ]
-      : []),
-
-    // Privileged context tools — requires --enable-privileged-context
-    ...(args.enablePrivilegedContext
-      ? [
-          tools.listPrivilegedContextsTool,
-          tools.selectPrivilegedContextTool,
-          tools.evaluatePrivilegedScriptTool,
-          tools.setFirefoxPrefsTool,
-          tools.getFirefoxPrefsTool,
-          tools.listExtensionsTool,
-        ]
-      : []),
-  ];
+  // Resolve which tool modules to expose from --tools / --tool-preset (applying
+  // deprecated flags and the privileged capability gate) and build their tools.
+  const {
+    moduleNames,
+    warnings,
+    toolDefinitions: allTools,
+    handlers: toolHandlers,
+  } = buildToolset({
+    tools: args.tools,
+    preset: args.toolPreset,
+    enableScript: Boolean(args.enableScript),
+    enablePrivilegedContext: Boolean(args.enablePrivilegedContext),
+    allowPrivileged,
+  });
+  for (const warning of warnings) {
+    log(warning);
+  }
+  log(`Enabled tool modules: ${moduleNames.join(', ')}`);
 
   log(`Starting ${SERVER_NAME} v${SERVER_VERSION}`);
   log(`Node.js ${version}`);

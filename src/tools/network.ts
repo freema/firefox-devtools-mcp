@@ -12,6 +12,7 @@ import {
   TOKEN_LIMITS,
 } from '../utils/response-helpers.js';
 import { saveOutput } from '../utils/save-output.js';
+import { defineModule } from './module.js';
 import type { McpToolResponse } from '../types/common.js';
 
 // Tool definitions
@@ -434,3 +435,12 @@ export async function handleGetNetworkRequest(args: unknown): Promise<McpToolRes
     return errorResponse(error instanceof Error ? error : new Error(String(error)));
   }
 }
+
+export const module = defineModule({
+  name: 'network',
+  description: 'List and inspect network requests.',
+  tools: [
+    [listNetworkRequestsTool, handleListNetworkRequests],
+    [getNetworkRequestTool, handleGetNetworkRequest],
+  ],
+});

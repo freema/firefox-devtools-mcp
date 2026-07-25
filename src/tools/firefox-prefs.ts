@@ -6,6 +6,7 @@
 
 import { successResponse, errorResponse } from '../utils/response-helpers.js';
 import { generatePrefScript } from '../firefox/pref-utils.js';
+import { defineModule } from './module.js';
 import type { McpToolResponse } from '../types/common.js';
 
 // ============================================================================
@@ -249,3 +250,13 @@ export async function handleGetFirefoxPrefs(args: unknown): Promise<McpToolRespo
     return errorResponse(error as Error);
   }
 }
+
+export const module = defineModule({
+  name: 'prefs',
+  description: 'Get and set Firefox preferences.',
+  privileged: true,
+  tools: [
+    [getFirefoxPrefsTool, handleGetFirefoxPrefs],
+    [setFirefoxPrefsTool, handleSetFirefoxPrefs],
+  ],
+});

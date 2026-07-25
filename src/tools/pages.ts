@@ -3,6 +3,7 @@
  */
 
 import { successResponse, errorResponse } from '../utils/response-helpers.js';
+import { defineModule } from './module.js';
 import type { McpToolResponse } from '../types/common.js';
 
 // Tool definitions
@@ -261,3 +262,15 @@ export async function handleClosePage(args: unknown): Promise<McpToolResponse> {
     return errorResponse(error as Error);
   }
 }
+
+export const module = defineModule({
+  name: 'pages',
+  description: 'Open, navigate, select, and close pages.',
+  tools: [
+    [listPagesTool, handleListPages],
+    [newPageTool, handleNewPage],
+    [navigatePageTool, handleNavigatePage],
+    [selectPageTool, handleSelectPage],
+    [closePageTool, handleClosePage],
+  ],
+});

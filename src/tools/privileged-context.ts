@@ -12,6 +12,11 @@ import {
 import { validateFunction } from '../utils/js-validation.js';
 import { remoteValueToNative } from '../utils/remote-value.js';
 import { saveOutput } from '../utils/save-output.js';
+import { defineModule } from './module.js';
+// list_extensions lives with the other extension tools in webextension.ts, but
+// it needs parent access (AddonManager), so it is registered here under the
+// privileged module rather than the unprivileged webextension module.
+import { listExtensionsTool, handleListExtensions } from './webextension.js';
 import type { McpToolResponse } from '../types/common.js';
 
 export const listPrivilegedContextsTool = {
@@ -217,3 +222,15 @@ export async function handleEvaluatePrivilegedScript(args: unknown): Promise<Mcp
     return errorResponse(error as Error);
   }
 }
+
+export const module = defineModule({
+  name: 'privileged',
+  description: 'Access privileged ("chrome") contexts and list extensions.',
+  privileged: true,
+  tools: [
+    [listPrivilegedContextsTool, handleListPrivilegedContexts],
+    [selectPrivilegedContextTool, handleSelectPrivilegedContext],
+    [evaluatePrivilegedScriptTool, handleEvaluatePrivilegedScript],
+    [listExtensionsTool, handleListExtensions],
+  ],
+});

@@ -10,6 +10,7 @@
  */
 
 import { successResponse, errorResponse } from '../utils/response-helpers.js';
+import { defineModule } from './module.js';
 import type { McpToolResponse } from '../types/common.js';
 
 // ============================================================================
@@ -351,3 +352,12 @@ export async function handleListExtensions(args: unknown): Promise<McpToolRespon
     return errorResponse(error as Error);
   }
 }
+
+export const module = defineModule({
+  name: 'webextension',
+  description: 'Install and uninstall web extensions.',
+  tools: [
+    [installExtensionTool, handleInstallExtension],
+    [uninstallExtensionTool, handleUninstallExtension],
+  ],
+});

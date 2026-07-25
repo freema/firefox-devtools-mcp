@@ -22,7 +22,8 @@
       "args": [
         "${__dirname}/dist/index.js",
         "--auto-profile",
-        "--enable-script",
+        "--tool-preset",
+        "developer",
         "--pref",
         "remote.prefs.recommended=false"
       ]
