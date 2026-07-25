@@ -119,6 +119,7 @@ describe('Network Tools', () => {
       tempDir = join(tmpdir(), `network-test-${Date.now()}`);
 
       vi.doMock('../../src/index.js', () => ({
+        args: { unrestrictedSavePaths: true },
         getFirefox: vi.fn().mockResolvedValue({
           getNetworkRequests: vi.fn().mockResolvedValue(REQUESTS),
         }),

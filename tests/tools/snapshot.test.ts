@@ -96,6 +96,7 @@ describe('Snapshot Tools', () => {
       tempDir = join(tmpdir(), `snapshot-test-${Date.now()}`);
 
       vi.doMock('../../src/index.js', () => ({
+        args: { unrestrictedSavePaths: true },
         getFirefox: vi.fn().mockResolvedValue({
           takeSnapshot: vi
             .fn()

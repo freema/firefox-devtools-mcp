@@ -205,6 +205,12 @@ export const cliOptions = {
       'Deprecated: use --tools/--tool-preset. Enable privileged context tools and Firefox prefs tools. Requires MOZ_REMOTE_ALLOW_SYSTEM_ACCESS=1.',
     default: (process.env.ENABLE_PRIVILEGED_CONTEXT ?? 'false') === 'true',
   },
+  unrestrictedSavePaths: {
+    type: 'boolean',
+    description:
+      'Allow tools that save files (e.g. screenshots, snapshots, network/console output) to write to arbitrary locations. By default, relative save paths resolve against the current working directory and absolute save paths are restricted to ~/.firefox-devtools-mcp; this flag lifts both restrictions. Use with caution.',
+    default: (process.env.UNRESTRICTED_SAVE_PATHS ?? 'false') === 'true',
+  },
 } satisfies Record<string, YargsOptions>;
 
 export function parseArguments(version: string, argv = process.argv, includePrivileged = true) {
