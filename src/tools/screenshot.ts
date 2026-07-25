@@ -2,16 +2,15 @@
  * Screenshot tools for visual capture
  */
 
-import { writeFile, mkdir } from 'node:fs/promises';
-import { resolve, dirname } from 'node:path';
 import { successResponse, errorResponse } from '../utils/response-helpers.js';
 import { handleUidError } from '../utils/uid-helpers.js';
+import { saveOutput } from '../utils/save-output.js';
 import type { McpToolResponse } from '../types/common.js';
 
 const SAVE_TO_SCHEMA = {
-  type: 'string',
+  type: ['boolean', 'string'],
   description:
-    'Optional file path to save the screenshot to instead of returning it as image data in the response.',
+    'Save the screenshot to a file instead of returning it as image data in the response. Pass a file path, an existing directory (generated file inside), or true (generated file under ~/.firefox-devtools-mcp/output/). Relative paths resolve against the current working directory.',
 } as const;
 
 // Tool definitions
@@ -51,14 +50,12 @@ export const screenshotByUidTool = {
 /**
  * Save screenshot to file and return text response with path.
  */
-async function saveScreenshot(base64Png: string, saveTo: string): Promise<McpToolResponse> {
+async function saveScreenshot(base64Png: string, saveTo: true | string): Promise<McpToolResponse> {
   const buffer = Buffer.from(base64Png, 'base64');
-  const resolvedPath = resolve(saveTo);
-  await mkdir(dirname(resolvedPath), { recursive: true });
-  await writeFile(resolvedPath, buffer);
+  const saved = await saveOutput(buffer, saveTo === true ? undefined : saveTo, 'screenshot', 'png');
 
   return successResponse(
-    `Screenshot saved to: ${resolvedPath} (${(buffer.length / 1024).toFixed(1)}KB)`
+    `Screenshot saved to: ${saved.path} (${(saved.bytes / 1024).toFixed(1)}KB)`
   );
 }
 
@@ -80,7 +77,7 @@ function imageResponse(base64Png: string): McpToolResponse {
 // Handlers
 export async function handleScreenshotPage(args: unknown): Promise<McpToolResponse> {
   try {
-    const { saveTo } = (args ?? {}) as { saveTo?: string };
+    const { saveTo } = (args ?? {}) as { saveTo?: boolean | string };
 
     const { getFirefox } = await import('../index.js');
     const firefox = await getFirefox();
@@ -103,7 +100,7 @@ export async function handleScreenshotPage(args: unknown): Promise<McpToolRespon
 
 export async function handleScreenshotByUid(args: unknown): Promise<McpToolResponse> {
   try {
-    const { uid, saveTo } = args as { uid: string; saveTo?: string };
+    const { uid, saveTo } = args as { uid: string; saveTo?: boolean | string };
 
     if (!uid || typeof uid !== 'string') {
       throw new Error('uid required');

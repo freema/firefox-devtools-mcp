@@ -2,7 +2,10 @@
  * Unit tests for snapshot tools
  */
 
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { existsSync, readFileSync, rmSync } from 'node:fs';
+import { join } from 'node:path';
+import { tmpdir } from 'node:os';
 import {
   takeSnapshotTool,
   resolveUidToSelectorTool,
@@ -65,6 +68,73 @@ describe('Snapshot Tools', () => {
       expect(properties).toBeDefined();
       expect(properties?.uid).toBeDefined();
       expect(required).toContain('uid');
+    });
+
+    it('takeSnapshotTool should have optional saveTo and preview', () => {
+      const { properties } = takeSnapshotTool.inputSchema;
+      expect(properties?.saveTo).toBeDefined();
+      expect(properties?.saveTo.type).toEqual(['boolean', 'string']);
+      expect(properties?.preview).toBeDefined();
+      expect(properties?.preview.type).toBe('number');
+    });
+  });
+
+  describe('Handler: saveTo behavior', () => {
+    const ROOT = {
+      uid: 'uid-root',
+      role: 'main',
+      tag: 'div',
+      children: [
+        { uid: 'uid-1', role: 'button', tag: 'button', name: 'One', children: [] },
+        { uid: 'uid-2', role: 'button', tag: 'button', name: 'Two', children: [] },
+        { uid: 'uid-3', role: 'button', tag: 'button', name: 'Three', children: [] },
+      ],
+    };
+    let tempDir: string;
+
+    beforeEach(() => {
+      tempDir = join(tmpdir(), `snapshot-test-${Date.now()}`);
+
+      vi.doMock('../../src/index.js', () => ({
+        getFirefox: vi.fn().mockResolvedValue({
+          takeSnapshot: vi
+            .fn()
+            .mockResolvedValue({ json: { root: ROOT, snapshotId: 's1', truncated: false } }),
+        }),
+      }));
+    });
+
+    afterEach(() => {
+      vi.restoreAllMocks();
+      if (existsSync(tempDir)) {
+        rmSync(tempDir, { recursive: true, force: true });
+      }
+    });
+
+    it('should save the full snapshot tree ignoring maxLines', async () => {
+      const { handleTakeSnapshot } = await import('../../src/tools/snapshot.js');
+      const filePath = join(tempDir, 'snapshot.txt');
+      const result = await handleTakeSnapshot({ saveTo: filePath, maxLines: 1 });
+
+      expect(result.isError).toBeUndefined();
+      const text = (result.content[0] as { type: 'text'; text: string }).text;
+      expect(text).toContain('Snapshot (id=s1) saved to:');
+      const fileContent = readFileSync(filePath, 'utf8');
+      expect(fileContent).toContain('uid=uid-1');
+      expect(fileContent).toContain('uid=uid-2');
+      expect(fileContent).toContain('uid=uid-3');
+      expect(fileContent.split('\n').length).toBeGreaterThan(1);
+    });
+
+    it('should include a preview when preview is given', async () => {
+      const { handleTakeSnapshot } = await import('../../src/tools/snapshot.js');
+      const result = await handleTakeSnapshot({
+        saveTo: join(tempDir, 'snapshot.txt'),
+        preview: 100,
+      });
+
+      const text = (result.content[0] as { type: 'text'; text: string }).text;
+      expect(text).toContain('Preview:');
     });
   });
 });

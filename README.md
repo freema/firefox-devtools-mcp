@@ -162,29 +162,46 @@ Both flags are required because the MCP uses both WebDriver Classic (`--marionet
 ## Tool overview
 
 - Pages: list/new/navigate/select/close
-- Snapshot/UID: take/resolve/clear
+- Snapshot/UID: take/resolve/clear (take supports optional `saveTo`)
 - Input: click/hover/fill/drag/upload/form fill
-- Network: list/get (ID‑first, filters, always‑on capture)
-- Console: list/clear
+- Network: list/get (ID‑first, filters, always‑on capture; both support optional `saveTo`)
+- Console: list/clear (list supports optional `saveTo`)
 - Screenshot: page/by uid (with optional `saveTo` for CLI environments)
-- Script: evaluate_script
+- Script: evaluate_script (with optional `saveTo` for bulky results)
 - Privileged Context: list/select privileged ("chrome") contexts, evaluate_privileged_script (requires `MOZ_REMOTE_ALLOW_SYSTEM_ACCESS=1`)
 - WebExtension: install_extension, uninstall_extension, list_extensions (list requires `MOZ_REMOTE_ALLOW_SYSTEM_ACCESS=1`)
 - Firefox Management: get_firefox_info, get_firefox_output, restart_firefox, set_firefox_prefs, get_firefox_prefs
 - Profiler: profiler_is_active, profiler_start (preset or explicit config), profiler_stop (saves profile to downloads directory)
 - Utilities: accept/dismiss dialog, history back/forward, set viewport
 
-### Screenshot optimization for Claude Code
+### Saving bulky output to disk
 
-When using screenshots in Claude Code CLI, the base64 image data can consume significant context.
-Use the `saveTo` parameter to save screenshots to disk instead:
+Large tool output can consume significant context in CLI clients like Claude Code. The
+`screenshot_page`, `screenshot_by_uid`, `take_snapshot`, `list_console_messages`,
+`list_network_requests`, `get_network_request`, `evaluate_script`, and
+`evaluate_privileged_script` tools accept an optional `saveTo` parameter that writes the
+result to a file instead of returning it inline. `saveTo` takes one of three forms:
+
+- a file path (absolute, or relative to the current working directory; parent directories are created)
+- an existing directory (a timestamped file is generated inside it)
+- `true` (a timestamped file is generated under `~/.firefox-devtools-mcp/output/`)
+
+The response returns the path and byte size. The saved file always holds the full,
+untruncated data: the inline size safeguards (console message caps, network header
+truncation, snapshot line caps) never apply to it.
+
+The text-producing tools (everything except the screenshots) also accept `preview`, a number
+of characters of the saved output to echo back inline as a short excerpt. Screenshots have no
+preview.
 
 ```
 screenshot_page({ saveTo: "/tmp/page.png" })
-screenshot_by_uid({ uid: "abc123", saveTo: "/tmp/element.png" })
+take_snapshot({ saveTo: true })
+list_network_requests({ urlContains: "api", saveTo: "/tmp/net.json" })
+evaluate_script({ function: "() => performance.getEntries()", saveTo: true, preview: 2000 })
 ```
 
-The file can then be viewed with Claude Code's `Read` tool without impacting context size.
+Saved files can then be viewed with Claude Code's `Read` tool without impacting context size.
 
 ## Local development
 

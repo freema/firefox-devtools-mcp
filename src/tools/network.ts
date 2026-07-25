@@ -8,7 +8,10 @@ import {
   errorResponse,
   jsonResponse,
   truncateHeaders,
+  truncateText,
+  TOKEN_LIMITS,
 } from '../utils/response-helpers.js';
+import { saveOutput } from '../utils/save-output.js';
 import type { McpToolResponse } from '../types/common.js';
 
 // Tool definitions
@@ -72,6 +75,16 @@ export const listNetworkRequestsTool = {
         enum: ['text', 'json'],
         description: 'Output format (default: text)',
       },
+      saveTo: {
+        type: ['boolean', 'string'],
+        description:
+          'Save all matching requests with full untruncated headers to a file as JSON (ignores limit and detail) instead of returning them inline. Pass a file path, an existing directory (generated file inside), or true (generated file under ~/.firefox-devtools-mcp/output/). Relative paths resolve against the current working directory.',
+      },
+      preview: {
+        type: 'number',
+        description:
+          'Number of characters of the saved output to return inline as a preview when saveTo is used. Omit for no preview.',
+      },
     },
   },
 };
@@ -98,6 +111,16 @@ export const getNetworkRequestTool = {
         enum: ['text', 'json'],
         description: 'Output format (default: text)',
       },
+      saveTo: {
+        type: ['boolean', 'string'],
+        description:
+          'Save the request details with full untruncated headers to a file as JSON instead of returning them inline. Pass a file path, an existing directory (generated file inside), or true (generated file under ~/.firefox-devtools-mcp/output/). Relative paths resolve against the current working directory.',
+      },
+      preview: {
+        type: 'number',
+        description:
+          'Number of characters of the saved output to return inline as a preview when saveTo is used. Omit for no preview.',
+      },
     },
   },
 };
@@ -118,6 +141,8 @@ export async function handleListNetworkRequests(args: unknown): Promise<McpToolR
       sortBy = 'timestamp',
       detail = 'summary',
       format = 'text',
+      saveTo,
+      preview,
     } = (args as {
       limit?: number;
       sinceMs?: number;
@@ -131,6 +156,8 @@ export async function handleListNetworkRequests(args: unknown): Promise<McpToolR
       sortBy?: 'timestamp' | 'duration' | 'status';
       detail?: 'summary' | 'min' | 'full';
       format?: 'text' | 'json';
+      saveTo?: boolean | string;
+      preview?: number;
     }) || {};
 
     const { getFirefox } = await import('../index.js');
@@ -183,6 +210,40 @@ export async function handleListNetworkRequests(args: unknown): Promise<McpToolR
       requests.sort((a, b) => (b.timings?.duration || 0) - (a.timings?.duration || 0));
     } else if (sortBy === 'status') {
       requests.sort((a, b) => (a.status || 0) - (b.status || 0));
+    }
+
+    if (saveTo && requests.length > 0) {
+      const fileBody = JSON.stringify(
+        {
+          total: requests.length,
+          requests: requests.map((req) => ({
+            id: req.id,
+            url: req.url,
+            method: req.method,
+            status: req.status ?? null,
+            statusText: req.statusText ?? null,
+            resourceType: req.resourceType ?? null,
+            isXHR: req.isXHR ?? false,
+            timestamp: req.timestamp ?? null,
+            timings: req.timings ?? null,
+            requestHeaders: req.requestHeaders ?? null,
+            responseHeaders: req.responseHeaders ?? null,
+          })),
+        },
+        null,
+        2
+      );
+      const saved = await saveOutput(
+        fileBody,
+        saveTo === true ? undefined : saveTo,
+        'network-requests'
+      );
+      let output = `${requests.length} network requests saved to: ${saved.path} (${(saved.bytes / 1024).toFixed(1)}KB)`;
+      if (preview !== undefined && preview > 0) {
+        const previewChars = Math.min(Math.max(preview, 50), TOKEN_LIMITS.MAX_RESPONSE_CHARS);
+        output += '\nPreview:\n```json\n' + truncateText(fileBody, previewChars) + '\n```';
+      }
+      return successResponse(output);
     }
 
     // Apply limit
@@ -284,11 +345,13 @@ export async function handleListNetworkRequests(args: unknown): Promise<McpToolR
 
 export async function handleGetNetworkRequest(args: unknown): Promise<McpToolResponse> {
   try {
-    const {
-      id,
-      url,
-      format = 'text',
-    } = args as { id?: string; url?: string; format?: 'text' | 'json' };
+    const { id, url, format, saveTo, preview } = args as {
+      id?: string;
+      url?: string;
+      format?: 'text' | 'json';
+      saveTo?: boolean | string;
+      preview?: number;
+    };
 
     if (!id && !url) {
       return errorResponse('id or url required');
@@ -326,8 +389,7 @@ export async function handleGetNetworkRequest(args: unknown): Promise<McpToolRes
       return errorResponse('Request not found');
     }
 
-    // Format request details - apply header truncation to prevent token overflow
-    const details = {
+    const fullDetails = {
       id: request.id,
       url: request.url,
       method: request.method,
@@ -337,6 +399,28 @@ export async function handleGetNetworkRequest(args: unknown): Promise<McpToolRes
       isXHR: request.isXHR ?? false,
       timestamp: request.timestamp ?? null,
       timings: request.timings ?? null,
+      requestHeaders: request.requestHeaders ?? null,
+      responseHeaders: request.responseHeaders ?? null,
+    };
+
+    if (saveTo) {
+      const fileBody = JSON.stringify(fullDetails, null, 2);
+      const saved = await saveOutput(
+        fileBody,
+        saveTo === true ? undefined : saveTo,
+        'network-request'
+      );
+      let output = `Request ${request.id} saved to: ${saved.path} (${(saved.bytes / 1024).toFixed(1)}KB)`;
+      if (preview !== undefined && preview > 0) {
+        const previewChars = Math.min(Math.max(preview, 50), TOKEN_LIMITS.MAX_RESPONSE_CHARS);
+        output += '\nPreview:\n```json\n' + truncateText(fileBody, previewChars) + '\n```';
+      }
+      return successResponse(output);
+    }
+
+    // Apply header truncation to prevent token overflow
+    const details = {
+      ...fullDetails,
       requestHeaders: truncateHeaders(request.requestHeaders),
       responseHeaders: truncateHeaders(request.responseHeaders),
     };
