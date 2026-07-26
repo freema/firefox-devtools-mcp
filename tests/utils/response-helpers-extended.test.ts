@@ -3,7 +3,14 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { successResponse, errorResponse, jsonResponse } from '../../src/utils/response-helpers.js';
+import {
+  successResponse,
+  errorResponse,
+  jsonResponse,
+  truncateText,
+  previewExcerpt,
+  TOKEN_LIMITS,
+} from '../../src/utils/response-helpers.js';
 
 describe('Response Helpers - Extended', () => {
   describe('successResponse', () => {
@@ -185,6 +192,46 @@ describe('Response Helpers - Extended', () => {
       expect(success.content[0].type).toBe('text');
       expect(error.content[0].type).toBe('text');
       expect(json.content[0].type).toBe('text');
+    });
+  });
+
+  describe('truncateText', () => {
+    it('should return text unchanged when within the budget', () => {
+      expect(truncateText('short', 100)).toBe('short');
+    });
+
+    it('should not blow up when the budget is smaller than the suffix', () => {
+      const long = 'x'.repeat(1000);
+      const result = truncateText(long, 5, '...');
+      // Would return nearly the whole string if the slice length went negative.
+      expect(result.length).toBeLessThan(20);
+      expect(result.endsWith('...')).toBe(true);
+    });
+  });
+
+  describe('previewExcerpt', () => {
+    it('should return an empty string when preview is omitted or non-positive', () => {
+      expect(previewExcerpt('data', undefined)).toBe('');
+      expect(previewExcerpt('data', 0)).toBe('');
+      expect(previewExcerpt('data', -5)).toBe('');
+    });
+
+    it('should return the full text when it fits within the requested budget', () => {
+      expect(previewExcerpt('hello', 100)).toBe('hello');
+    });
+
+    it('should truncate with an ellipsis and stay near the requested budget', () => {
+      const long = 'y'.repeat(1000);
+      const excerpt = previewExcerpt(long, 100);
+      expect(excerpt.endsWith('...')).toBe(true);
+      expect(excerpt.length).toBeLessThanOrEqual(100);
+      expect(excerpt.length).toBeGreaterThan(50);
+    });
+
+    it('should cap the budget at MAX_RESPONSE_CHARS', () => {
+      const huge = 'z'.repeat(TOKEN_LIMITS.MAX_RESPONSE_CHARS * 2);
+      const excerpt = previewExcerpt(huge, TOKEN_LIMITS.MAX_RESPONSE_CHARS * 2);
+      expect(excerpt.length).toBeLessThanOrEqual(TOKEN_LIMITS.MAX_RESPONSE_CHARS);
     });
   });
 });

@@ -120,7 +120,9 @@ describe('Script Tools', () => {
       expect(result.isError).toBeUndefined();
       const text = (result.content[0] as { type: 'text'; text: string }).text;
       expect(text).toContain('Preview:');
-      expect(text).toContain('[... truncated');
+      // Truncated previews end with a short ellipsis rather than the full value.
+      expect(text).toContain('...');
+      expect(text).not.toContain(RESULT_VALUE);
     });
 
     it('should treat non-positive preview as no preview', async () => {

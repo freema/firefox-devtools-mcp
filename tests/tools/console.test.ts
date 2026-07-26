@@ -139,13 +139,31 @@ describe('Console Tools', () => {
       expect(parsed.filtered).toBe(3);
     });
 
-    it('should ignore limit when saving to a file', async () => {
+    it('should honor an explicit limit when saving to a file', async () => {
       const { handleListConsoleMessages } = await import('../../src/tools/console.js');
       const filePath = join(tempDir, 'console.json');
       await handleListConsoleMessages({ saveTo: filePath, format: 'json', limit: 1 });
 
       const parsed = JSON.parse(readFileSync(filePath, 'utf8'));
-      expect(parsed.messages).toHaveLength(3);
+      expect(parsed.messages).toHaveLength(1);
+      expect(parsed.saved).toBe(1);
+      expect(parsed.filtered).toBe(3);
+    });
+
+    it('should still write a file when no messages match', async () => {
+      const { handleListConsoleMessages } = await import('../../src/tools/console.js');
+      const filePath = join(tempDir, 'console.json');
+      const result = await handleListConsoleMessages({
+        saveTo: filePath,
+        format: 'json',
+        textContains: 'no-such-message-zzz',
+      });
+
+      expect(result.isError).toBeUndefined();
+      expect((result.content[0] as { type: 'text'; text: string }).text).toContain('saved to:');
+      const parsed = JSON.parse(readFileSync(filePath, 'utf8'));
+      expect(parsed.messages).toHaveLength(0);
+      expect(parsed.saved).toBe(0);
     });
   });
 });
