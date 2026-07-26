@@ -6,7 +6,7 @@ import {
   successResponse,
   errorResponse,
   TOKEN_LIMITS,
-  truncateText,
+  previewExcerpt,
 } from '../utils/response-helpers.js';
 import { handleUidError } from '../utils/uid-helpers.js';
 import { saveOutput } from '../utils/save-output.js';
@@ -158,9 +158,9 @@ export async function handleTakeSnapshot(args: unknown): Promise<McpToolResponse
       if (snapshot.json.truncated) {
         output += ' [DOM truncated]';
       }
-      if (preview !== undefined && preview > 0) {
-        const previewChars = Math.min(Math.max(preview, 50), TOKEN_LIMITS.MAX_RESPONSE_CHARS);
-        output += '\nPreview:\n' + truncateText(formattedText, previewChars);
+      const excerpt = previewExcerpt(formattedText, preview);
+      if (excerpt) {
+        output += '\nPreview:\n' + excerpt;
       }
       return successResponse(output);
     }

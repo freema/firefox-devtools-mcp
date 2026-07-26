@@ -46,7 +46,21 @@ export function truncateText(
   if (text.length <= maxChars) {
     return text;
   }
-  return text.slice(0, maxChars - suffix.length) + suffix;
+  // Guard against tiny budgets: maxChars smaller than the suffix would make the
+  // slice length negative and return nearly the whole string.
+  return text.slice(0, Math.max(0, maxChars - suffix.length)) + suffix;
+}
+
+/**
+ * Build an inline preview excerpt of saved output, or an empty string when no
+ * preview was requested. The budget is capped at MAX_RESPONSE_CHARS and a short
+ * ellipsis suffix is used so the budget is spent on content rather than a notice.
+ */
+export function previewExcerpt(text: string, preview: number | undefined): string {
+  if (preview === undefined || preview <= 0) {
+    return '';
+  }
+  return truncateText(text, Math.min(preview, TOKEN_LIMITS.MAX_RESPONSE_CHARS), '...');
 }
 
 /**

@@ -147,14 +147,43 @@ describe('Network Tools', () => {
       expect(raw).not.toContain('__truncated__');
     });
 
-    it('should ignore limit when saving to a file', async () => {
+    it('should honor an explicit limit when saving to a file', async () => {
       const { handleListNetworkRequests } = await import('../../src/tools/network.js');
       const filePath = join(tempDir, 'network.json');
       await handleListNetworkRequests({ saveTo: filePath, limit: 1 });
 
       const parsed = JSON.parse(readFileSync(filePath, 'utf8'));
-      expect(parsed.requests).toHaveLength(2);
+      expect(parsed.requests).toHaveLength(1);
+      expect(parsed.saved).toBe(1);
       expect(parsed.total).toBe(2);
+    });
+
+    it('should save a lean form without headers when detail is summary', async () => {
+      const { handleListNetworkRequests } = await import('../../src/tools/network.js');
+      const filePath = join(tempDir, 'network.json');
+      await handleListNetworkRequests({ saveTo: filePath, detail: 'summary' });
+
+      const raw = readFileSync(filePath, 'utf8');
+      expect(raw).not.toContain(LONG_HEADER);
+      const parsed = JSON.parse(raw);
+      expect(parsed.detail).toBe('summary');
+      expect(parsed.requests[0]).not.toHaveProperty('requestHeaders');
+      expect(parsed.requests[0]).toHaveProperty('duration');
+    });
+
+    it('should still write a file when no requests match', async () => {
+      const { handleListNetworkRequests } = await import('../../src/tools/network.js');
+      const filePath = join(tempDir, 'network.json');
+      const result = await handleListNetworkRequests({
+        saveTo: filePath,
+        urlContains: 'no-such-url-zzz',
+      });
+
+      expect(result.isError).toBeUndefined();
+      expect((result.content[0] as { type: 'text'; text: string }).text).toContain('saved to:');
+      const parsed = JSON.parse(readFileSync(filePath, 'utf8'));
+      expect(parsed.requests).toHaveLength(0);
+      expect(parsed.saved).toBe(0);
     });
 
     it('should save a single request with raw headers by id', async () => {

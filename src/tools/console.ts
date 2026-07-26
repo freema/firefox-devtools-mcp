@@ -8,6 +8,7 @@ import {
   jsonResponse,
   TOKEN_LIMITS,
   truncateText,
+  previewExcerpt,
 } from '../utils/response-helpers.js';
 import { saveOutput } from '../utils/save-output.js';
 import { defineModule } from './module.js';
@@ -51,7 +52,7 @@ export const listConsoleMessagesTool = {
       saveTo: {
         type: ['boolean', 'string'],
         description:
-          'Save all matching messages to a file in full (no truncation or limit) instead of returning them inline. Pass a file path, an existing directory (generated file inside), or true (generated file under ~/.firefox-devtools-mcp/output/). Relative paths resolve against the current working directory.',
+          'Save matching messages to a file in full (untruncated) instead of returning them inline. Saves all matching messages by default; pass an explicit limit to cap how many are saved. Pass a file path, an existing directory (generated file inside), or true (generated file under ~/.firefox-devtools-mcp/output/). Relative paths resolve against the current working directory.',
       },
       preview: {
         type: 'number',
@@ -135,14 +136,16 @@ export async function handleListConsoleMessages(args: unknown): Promise<McpToolR
       messages = messages.filter((msg) => msg.source?.toLowerCase() === source.toLowerCase());
     }
 
-    if (saveTo && messages.length > 0) {
+    if (saveTo) {
+      const selected = limit !== undefined ? messages.slice(0, limit) : messages;
       const fileBody =
         format === 'json'
           ? JSON.stringify(
               {
                 total: totalCount,
                 filtered: messages.length,
-                messages: messages.map((msg) => ({
+                saved: selected.length,
+                messages: selected.map((msg) => ({
                   level: msg.level,
                   text: msg.text,
                   source: msg.source || null,
@@ -152,17 +155,17 @@ export async function handleListConsoleMessages(args: unknown): Promise<McpToolR
               null,
               2
             )
-          : messages.map(formatMessageLine).join('\n');
+          : selected.map(formatMessageLine).join('\n');
       const saved = await saveOutput(
         fileBody,
         saveTo === true ? undefined : saveTo,
         'console-messages',
         format === 'json' ? 'json' : 'txt'
       );
-      let output = `Console messages (${messages.length} matching, ${totalCount} total) saved to: ${saved.path} (${(saved.bytes / 1024).toFixed(1)}KB)`;
-      if (preview !== undefined && preview > 0) {
-        const previewChars = Math.min(Math.max(preview, 50), TOKEN_LIMITS.MAX_RESPONSE_CHARS);
-        output += '\nPreview:\n' + truncateText(fileBody, previewChars);
+      let output = `Console messages saved to: ${saved.path} (${selected.length} of ${messages.length} matching, ${totalCount} total, ${(saved.bytes / 1024).toFixed(1)}KB)`;
+      const excerpt = previewExcerpt(fileBody, preview);
+      if (excerpt) {
+        output += '\nPreview:\n' + excerpt;
       }
       return successResponse(output);
     }

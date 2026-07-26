@@ -8,8 +8,7 @@ import {
   errorResponse,
   jsonResponse,
   truncateHeaders,
-  truncateText,
-  TOKEN_LIMITS,
+  previewExcerpt,
 } from '../utils/response-helpers.js';
 import { saveOutput } from '../utils/save-output.js';
 import { defineModule } from './module.js';
@@ -79,7 +78,7 @@ export const listNetworkRequestsTool = {
       saveTo: {
         type: ['boolean', 'string'],
         description:
-          'Save all matching requests with full untruncated headers to a file as JSON (ignores limit and detail) instead of returning them inline. Pass a file path, an existing directory (generated file inside), or true (generated file under ~/.firefox-devtools-mcp/output/). Relative paths resolve against the current working directory.',
+          'Save matching requests to a file as JSON instead of returning them inline. Saves full untruncated headers by default; pass detail=summary or min for a lean form, or an explicit limit to cap how many are saved (default: all matching). Pass a file path, an existing directory (generated file inside), or true (generated file under ~/.firefox-devtools-mcp/output/). Relative paths resolve against the current working directory.',
       },
       preview: {
         type: 'number',
@@ -130,7 +129,7 @@ export const getNetworkRequestTool = {
 export async function handleListNetworkRequests(args: unknown): Promise<McpToolResponse> {
   try {
     const {
-      limit = 50,
+      limit,
       sinceMs,
       urlContains,
       method,
@@ -140,7 +139,7 @@ export async function handleListNetworkRequests(args: unknown): Promise<McpToolR
       isXHR,
       resourceType,
       sortBy = 'timestamp',
-      detail = 'summary',
+      detail,
       format = 'text',
       saveTo,
       preview,
@@ -213,23 +212,43 @@ export async function handleListNetworkRequests(args: unknown): Promise<McpToolR
       requests.sort((a, b) => (a.status || 0) - (b.status || 0));
     }
 
-    if (saveTo && requests.length > 0) {
+    if (saveTo) {
+      // Full untruncated headers by default on save; an explicit summary/min
+      // detail selects a lean form. An explicit limit selects the top-N by the
+      // current sort; otherwise all matching requests are saved.
+      const selected = limit !== undefined ? requests.slice(0, limit) : requests;
+      const fileDetail = detail ?? 'full';
       const fileBody = JSON.stringify(
         {
           total: requests.length,
-          requests: requests.map((req) => ({
-            id: req.id,
-            url: req.url,
-            method: req.method,
-            status: req.status ?? null,
-            statusText: req.statusText ?? null,
-            resourceType: req.resourceType ?? null,
-            isXHR: req.isXHR ?? false,
-            timestamp: req.timestamp ?? null,
-            timings: req.timings ?? null,
-            requestHeaders: req.requestHeaders ?? null,
-            responseHeaders: req.responseHeaders ?? null,
-          })),
+          saved: selected.length,
+          detail: fileDetail,
+          requests: selected.map((req) =>
+            fileDetail === 'full'
+              ? {
+                  id: req.id,
+                  url: req.url,
+                  method: req.method,
+                  status: req.status ?? null,
+                  statusText: req.statusText ?? null,
+                  resourceType: req.resourceType ?? null,
+                  isXHR: req.isXHR ?? false,
+                  timestamp: req.timestamp ?? null,
+                  timings: req.timings ?? null,
+                  requestHeaders: req.requestHeaders ?? null,
+                  responseHeaders: req.responseHeaders ?? null,
+                }
+              : {
+                  id: req.id,
+                  url: req.url,
+                  method: req.method,
+                  status: req.status ?? null,
+                  statusText: req.statusText ?? null,
+                  resourceType: req.resourceType ?? null,
+                  isXHR: req.isXHR ?? false,
+                  duration: req.timings?.duration ?? null,
+                }
+          ),
         },
         null,
         2
@@ -239,17 +258,19 @@ export async function handleListNetworkRequests(args: unknown): Promise<McpToolR
         saveTo === true ? undefined : saveTo,
         'network-requests'
       );
-      let output = `${requests.length} network requests saved to: ${saved.path} (${(saved.bytes / 1024).toFixed(1)}KB)`;
-      if (preview !== undefined && preview > 0) {
-        const previewChars = Math.min(Math.max(preview, 50), TOKEN_LIMITS.MAX_RESPONSE_CHARS);
-        output += '\nPreview:\n```json\n' + truncateText(fileBody, previewChars) + '\n```';
+      let output = `Network requests saved to: ${saved.path} (${selected.length} of ${requests.length} matching, ${(saved.bytes / 1024).toFixed(1)}KB)`;
+      const excerpt = previewExcerpt(fileBody, preview);
+      if (excerpt) {
+        output += '\nPreview:\n```json\n' + excerpt + '\n```';
       }
       return successResponse(output);
     }
 
     // Apply limit
-    const limitedRequests = requests.slice(0, limit);
-    const hasMore = requests.length > limit;
+    const effectiveLimit = limit ?? 50;
+    const effectiveDetail = detail ?? 'summary';
+    const limitedRequests = requests.slice(0, effectiveLimit);
+    const hasMore = requests.length > effectiveLimit;
 
     // Format output based on detail level and format
     if (format === 'json') {
@@ -261,7 +282,7 @@ export async function handleListNetworkRequests(args: unknown): Promise<McpToolR
         requests: [],
       };
 
-      if (detail === 'summary' || detail === 'min') {
+      if (effectiveDetail === 'summary' || effectiveDetail === 'min') {
         responseData.requests = limitedRequests.map((req) => ({
           id: req.id,
           url: req.url,
@@ -292,7 +313,7 @@ export async function handleListNetworkRequests(args: unknown): Promise<McpToolR
     }
 
     // Text format (default)
-    if (detail === 'summary') {
+    if (effectiveDetail === 'summary') {
       const formattedRequests = limitedRequests.map((req) => {
         const statusInfo = req.status
           ? `[${req.status}${req.statusText ? ' ' + req.statusText : ''}]`
@@ -300,9 +321,9 @@ export async function handleListNetworkRequests(args: unknown): Promise<McpToolR
         return `${req.id} | ${req.method} ${req.url} ${statusInfo}${req.isXHR ? ' (XHR)' : ''}`;
       });
 
-      const header = `📡 ${requests.length} requests${hasMore ? ` (limit ${limit})` : ''}\n`;
+      const header = `📡 ${requests.length} requests${hasMore ? ` (limit ${effectiveLimit})` : ''}\n`;
       return successResponse(header + formattedRequests.join('\n'));
-    } else if (detail === 'min') {
+    } else if (effectiveDetail === 'min') {
       // Compact JSON
       const minData = limitedRequests.map((req) => ({
         id: req.id,
@@ -316,7 +337,7 @@ export async function handleListNetworkRequests(args: unknown): Promise<McpToolR
       }));
 
       return successResponse(
-        `📡 ${requests.length} requests${hasMore ? ` (limit ${limit})` : ''}\n` +
+        `📡 ${requests.length} requests${hasMore ? ` (limit ${effectiveLimit})` : ''}\n` +
           JSON.stringify(minData, null, 2)
       );
     } else {
@@ -335,7 +356,7 @@ export async function handleListNetworkRequests(args: unknown): Promise<McpToolR
       }));
 
       return successResponse(
-        `📡 ${requests.length} requests${hasMore ? ` (limit ${limit})` : ''}\n` +
+        `📡 ${requests.length} requests${hasMore ? ` (limit ${effectiveLimit})` : ''}\n` +
           JSON.stringify(fullData, null, 2)
       );
     }
@@ -412,9 +433,9 @@ export async function handleGetNetworkRequest(args: unknown): Promise<McpToolRes
         'network-request'
       );
       let output = `Request ${request.id} saved to: ${saved.path} (${(saved.bytes / 1024).toFixed(1)}KB)`;
-      if (preview !== undefined && preview > 0) {
-        const previewChars = Math.min(Math.max(preview, 50), TOKEN_LIMITS.MAX_RESPONSE_CHARS);
-        output += '\nPreview:\n```json\n' + truncateText(fileBody, previewChars) + '\n```';
+      const excerpt = previewExcerpt(fileBody, preview);
+      if (excerpt) {
+        output += '\nPreview:\n```json\n' + excerpt + '\n```';
       }
       return successResponse(output);
     }

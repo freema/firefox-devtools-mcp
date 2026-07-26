@@ -3,12 +3,7 @@
  * Requires MOZ_REMOTE_ALLOW_SYSTEM_ACCESS=1
  */
 
-import {
-  successResponse,
-  errorResponse,
-  truncateText,
-  TOKEN_LIMITS,
-} from '../utils/response-helpers.js';
+import { successResponse, errorResponse, previewExcerpt } from '../utils/response-helpers.js';
 import { validateFunction } from '../utils/js-validation.js';
 import { remoteValueToNative } from '../utils/remote-value.js';
 import { saveOutput } from '../utils/save-output.js';
@@ -195,9 +190,9 @@ export async function handleEvaluatePrivilegedScript(args: unknown): Promise<Mcp
           'evaluate-privileged'
         );
         let output = `Script ran in chrome context. Result saved to: ${saved.path} (${(saved.bytes / 1024).toFixed(1)}KB)`;
-        if (preview !== undefined && preview > 0) {
-          const previewChars = Math.min(Math.max(preview, 50), TOKEN_LIMITS.MAX_RESPONSE_CHARS);
-          output += '\nPreview:\n```json\n' + truncateText(json, previewChars) + '\n```';
+        const excerpt = previewExcerpt(json, preview);
+        if (excerpt) {
+          output += '\nPreview:\n```json\n' + excerpt + '\n```';
         }
         return successResponse(output);
       }

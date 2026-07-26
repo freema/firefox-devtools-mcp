@@ -2,12 +2,7 @@
  * JavaScript evaluation tool
  */
 
-import {
-  successResponse,
-  errorResponse,
-  truncateText,
-  TOKEN_LIMITS,
-} from '../utils/response-helpers.js';
+import { successResponse, errorResponse, previewExcerpt } from '../utils/response-helpers.js';
 import { remoteValueToNative } from '../utils/remote-value.js';
 import { validateFunction } from '../utils/js-validation.js';
 import { saveOutput } from '../utils/save-output.js';
@@ -156,10 +151,9 @@ export async function handleEvaluateScript(args: unknown): Promise<McpToolRespon
           'evaluate-script'
         );
         let output = `Script ran on page. Result saved to: ${saved.path} (${(saved.bytes / 1024).toFixed(1)}KB)`;
-        if (preview !== undefined && preview > 0) {
-          // Floor keeps truncateText's suffix from dominating tiny budgets.
-          const previewChars = Math.min(Math.max(preview, 50), TOKEN_LIMITS.MAX_RESPONSE_CHARS);
-          output += '\nPreview:\n```json\n' + truncateText(json, previewChars) + '\n```';
+        const excerpt = previewExcerpt(json, preview);
+        if (excerpt) {
+          output += '\nPreview:\n```json\n' + excerpt + '\n```';
         }
         return successResponse(output);
       }
