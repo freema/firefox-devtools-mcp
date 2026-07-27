@@ -45,8 +45,8 @@ export function buildToolset(options: ToolsetOptions): Toolset {
  *
  * - `tools`, when provided, replaces the preset entirely (exact module set).
  * - Otherwise the named `preset` applies (default: basic).
- * - Legacy `enableScript` / `enablePrivilegedContext` flags add modules on top
- *   and emit deprecation warnings.
+ * - Legacy `enableScript` / `enablePrivilegedContext` flags force the
+ *   `developer` / `mozilla` presets on top and emit deprecation warnings.
  * - Privileged modules are dropped when `allowPrivileged` is false (public build).
  */
 function selectModules(options: ToolsetOptions): { moduleNames: string[]; warnings: string[] } {
@@ -89,8 +89,9 @@ function selectModules(options: ToolsetOptions): { moduleNames: string[]; warnin
       warnings.push('--enable-script is ignored when --tools is set; add "script" to --tools.');
     } else {
       warnings.push('--enable-script is deprecated; use --tools/--tool-preset instead.');
-      add('script');
-      add('debugging');
+      for (const name of PRESETS.developer ?? []) {
+        add(name);
+      }
     }
   }
   if (enablePrivilegedContext) {
@@ -102,8 +103,9 @@ function selectModules(options: ToolsetOptions): { moduleNames: string[]; warnin
       warnings.push(
         '--enable-privileged-context is deprecated; use --tools/--tool-preset instead.'
       );
-      add('privileged');
-      add('prefs');
+      for (const name of PRESETS.mozilla ?? []) {
+        add(name);
+      }
     }
   }
 

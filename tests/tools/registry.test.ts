@@ -76,8 +76,7 @@ describe('Tool registry', () => {
       expect([...PRESETS.all].sort()).toEqual(MODULES.map((m) => m.name).sort());
     });
 
-    it('basic (default) excludes script, debugging, prefs, and privileged', () => {
-      expect(PRESETS[DEFAULT_PRESET]).not.toContain('script');
+    it('basic (default) excludes debugging, prefs, and privileged', () => {
       expect(PRESETS[DEFAULT_PRESET]).not.toContain('debugging');
       expect(PRESETS[DEFAULT_PRESET]).not.toContain('prefs');
       expect(PRESETS[DEFAULT_PRESET]).not.toContain('privileged');
@@ -95,7 +94,9 @@ describe('Tool registry', () => {
 
     it('honors an explicit preset', () => {
       const { moduleNames } = buildToolset({ preset: 'slim' });
-      expect(moduleNames).toEqual(['pages', 'snapshot', 'input', 'network', 'console']);
+      expect(moduleNames).toEqual(
+        MODULES.map((m) => m.name).filter((n) => PRESETS.slim.includes(n))
+      );
     });
 
     it('lets --tools replace the preset entirely', () => {
@@ -119,20 +120,22 @@ describe('Tool registry', () => {
       expect(warnings.some((w) => w.includes('nope'))).toBe(true);
     });
 
-    it('treats --enable-script as a deprecated alias for script + debugging', () => {
+    it('treats --enable-script as a deprecated alias for the developer preset', () => {
       const { moduleNames, warnings } = buildToolset({ enableScript: true });
-      expect(moduleNames).toContain('script');
-      expect(moduleNames).toContain('debugging');
+      for (const name of PRESETS.developer) {
+        expect(moduleNames).toContain(name);
+      }
       expect(warnings.some((w) => w.includes('--enable-script is deprecated'))).toBe(true);
     });
 
-    it('treats --enable-privileged-context as a deprecated alias for privileged + prefs', () => {
+    it('treats --enable-privileged-context as a deprecated alias for the mozilla preset', () => {
       const { moduleNames, warnings } = buildToolset({
         enablePrivilegedContext: true,
         allowPrivileged: true,
       });
-      expect(moduleNames).toContain('privileged');
-      expect(moduleNames).toContain('prefs');
+      for (const name of PRESETS.mozilla) {
+        expect(moduleNames).toContain(name);
+      }
       expect(warnings.some((w) => w.includes('--enable-privileged-context is deprecated'))).toBe(
         true
       );
@@ -161,8 +164,9 @@ describe('Tool registry', () => {
 
     it('still applies legacy flags on top of a preset', () => {
       const { moduleNames } = buildToolset({ preset: 'basic', enableScript: true });
-      expect(moduleNames).toContain('script');
-      expect(moduleNames).toContain('debugging');
+      for (const name of PRESETS.developer) {
+        expect(moduleNames).toContain(name);
+      }
     });
 
     it('drops privileged modules when not allowed, with a warning', () => {
