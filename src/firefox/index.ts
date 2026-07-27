@@ -497,11 +497,12 @@ export class FirefoxClient {
   }
 
   /**
-   * Check if Firefox is still connected and responsive
-   * Returns false if Firefox was closed or connection is broken
+   * Ensure Firefox is still connected with a usable tab selected.
+   * If the previously selected tab is gone, recovers by switching to another
+   * tab or opening a new one. Returns false if the connection is unrecoverable.
    */
-  async isConnected(): Promise<boolean> {
-    return await this.core.isConnected();
+  async ensureConnected(): Promise<boolean> {
+    return await this.core.ensureConnected();
   }
 
   /**

@@ -276,7 +276,7 @@ export async function handleRestartFirefox(input: unknown) {
 
     // Check if Firefox is currently running and connected
     const currentFirefox = getFirefoxIfRunning();
-    const isConnected = currentFirefox ? await currentFirefox.isConnected() : false;
+    const isConnected = currentFirefox ? await currentFirefox.ensureConnected() : false;
 
     if (currentFirefox && isConnected) {
       // Firefox is running - restart with new config

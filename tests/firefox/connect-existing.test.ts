@@ -9,24 +9,24 @@ describe('getFirefox() reconnect behavior', () => {
     vi.resetModules();
 
     // Mock the firefox module
-    const mockIsConnected = vi.fn();
+    const mockEnsureConnected = vi.fn();
     const mockConnect = vi.fn();
     const mockClose = vi.fn();
 
     vi.doMock('@/firefox/index.js', () => ({
       FirefoxDevTools: vi.fn(() => ({
-        isConnected: mockIsConnected,
+        ensureConnected: mockEnsureConnected,
         connect: mockConnect,
         close: mockClose,
       })),
     }));
 
     // First call: create instance, connection works
-    mockIsConnected.mockResolvedValueOnce(true);
+    mockEnsureConnected.mockResolvedValueOnce(true);
     mockConnect.mockResolvedValue(undefined);
 
     // This test verifies the reconnect logic pattern:
-    // When isConnected() returns false, getFirefox() should reset and create
+    // When ensureConnected() returns false, getFirefox() should reset and create
     // a new connection instead of throwing FirefoxDisconnectedError
     const { FirefoxCore } = await import('@/firefox/core.js');
     const core = new FirefoxCore({

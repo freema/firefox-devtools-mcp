@@ -79,7 +79,7 @@ export function getFirefoxIfRunning(): FirefoxDevTools | null {
 export async function getFirefox(): Promise<FirefoxDevTools> {
   // If we have an existing instance, verify it's still connected
   if (firefox) {
-    const isConnected = await firefox.isConnected();
+    const isConnected = await firefox.ensureConnected();
     if (!isConnected) {
       log('Firefox connection lost, reconnecting...');
       await resetFirefox();
