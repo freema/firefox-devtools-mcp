@@ -53,18 +53,24 @@ export const MODULES: ToolModule[] = [
 
 export const MODULE_NAMES = MODULES.map((m) => m.name);
 
-const SLIM = ['pages', 'snapshot', 'input', 'network', 'console'];
+// SLIM: Minimum set of tools to navigate and browser the web efficiently.
+const SLIM = ['pages', 'snapshot', 'input', 'screenshot'];
+// BASIC: Additional tools useful for regular web-browsing.
 const BASIC = [
   ...SLIM,
-  'screenshot',
   'downloads',
+  // script is often used as a workaround by agents when they can't deal with
+  // the page using high level tools.
+  'script',
   'utilities',
   'management',
   'webextension',
-  'profiler',
   'screencast',
 ];
-const DEVELOPER = [...BASIC, 'script', 'debugging'];
+// DEVELOPER: Tools only useful for web developers / firefox developers.
+const DEVELOPER = [...BASIC, 'debugging', 'network', 'console', 'profiler'];
+// MOZILLA: (all tools) Also includes privileged tools only useful for firefox
+// developers.
 const MOZILLA = [...DEVELOPER, 'prefs', 'privileged'];
 
 export const PRESETS: Record<string, string[]> = {
