@@ -321,7 +321,7 @@ export async function handleListNetworkRequests(args: unknown): Promise<McpToolR
         return `${req.id} | ${req.method} ${req.url} ${statusInfo}${req.isXHR ? ' (XHR)' : ''}`;
       });
 
-      const header = `📡 ${requests.length} requests${hasMore ? ` (limit ${effectiveLimit})` : ''}\n`;
+      const header = `[network] ${requests.length} requests${hasMore ? ` (limit ${effectiveLimit})` : ''}\n`;
       return successResponse(header + formattedRequests.join('\n'));
     } else if (effectiveDetail === 'min') {
       // Compact JSON
@@ -337,7 +337,7 @@ export async function handleListNetworkRequests(args: unknown): Promise<McpToolR
       }));
 
       return successResponse(
-        `📡 ${requests.length} requests${hasMore ? ` (limit ${effectiveLimit})` : ''}\n` +
+        `[network] ${requests.length} requests${hasMore ? ` (limit ${effectiveLimit})` : ''}\n` +
           JSON.stringify(minData, null, 2)
       );
     } else {
@@ -356,7 +356,7 @@ export async function handleListNetworkRequests(args: unknown): Promise<McpToolR
       }));
 
       return successResponse(
-        `📡 ${requests.length} requests${hasMore ? ` (limit ${effectiveLimit})` : ''}\n` +
+        `[network] ${requests.length} requests${hasMore ? ` (limit ${effectiveLimit})` : ''}\n` +
           JSON.stringify(fullData, null, 2)
       );
     }
