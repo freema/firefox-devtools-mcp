@@ -111,13 +111,13 @@ describe('Firefox Management Tools', () => {
     describe('when Firefox IS running', () => {
       const mockFirefoxInstance = {
         getOptions: vi.fn(),
-        isConnected: vi.fn(),
+        ensureConnected: vi.fn(),
         close: vi.fn(),
       };
 
       beforeEach(() => {
         mockGetFirefoxIfRunning.mockReturnValue(mockFirefoxInstance);
-        mockFirefoxInstance.isConnected.mockResolvedValue(true);
+        mockFirefoxInstance.ensureConnected.mockResolvedValue(true);
         mockFirefoxInstance.close.mockResolvedValue(undefined);
         mockFirefoxInstance.getOptions.mockReturnValue({
           firefoxPath: '/current/firefox',

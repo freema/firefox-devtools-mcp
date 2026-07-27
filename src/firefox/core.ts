@@ -315,10 +315,11 @@ export class FirefoxCore {
   }
 
   /**
-   * Check if Firefox is still connected and responsive
-   * Returns false if Firefox was closed or connection is broken
+   * Ensure Firefox is still connected with a usable tab selected.
+   * If the previously selected tab is gone, recovers by switching to another
+   * tab or opening a new one. Returns false if the connection is unrecoverable.
    */
-  async isConnected(): Promise<boolean> {
+  async ensureConnected(): Promise<boolean> {
     if (!this.driver) {
       return false;
     }
@@ -326,10 +327,34 @@ export class FirefoxCore {
     try {
       await this.driver.getWindowHandle();
       return true;
-    } catch {
-      logDebug('Connection check failed: Firefox is not responsive');
+    } catch (e) {
+      logDebug('Previously selected tab is no longer available', e);
+    }
+
+    try {
+      const tabs = await this.driver.getAllWindowHandles();
+      if (tabs.length) {
+        logDebug('Switching to the first tab');
+        for (const tab of tabs) {
+          if (typeof tab === 'string') {
+            await this.driver.switchTo().window(tab);
+            this.currentContextId = tab;
+            return true;
+          }
+        }
+      } else {
+        logDebug('All tabs have been closed, switching to a new tab');
+        await this.driver.switchTo().newWindow('tab');
+        this.currentContextId = await this.driver.getWindowHandle();
+        return true;
+      }
+    } catch (e) {
+      logDebug('Connection check failed: Firefox is not responsive', e);
       return false;
     }
+
+    logDebug('Unable to select a tab to the connected Firefox instance, restarting');
+    return false;
   }
 
   /**
