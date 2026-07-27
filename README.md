@@ -1,5 +1,7 @@
 # Firefox DevTools MCP
 
+[![MCP Toplist](https://mcptoplist.com/badge/glama%2Fmozilla%2Ffirefox-devtools-mcp.svg)](https://mcptoplist.com/server/glama%2Fmozilla%2Ffirefox-devtools-mcp)
+
 [![npm version](https://badge.fury.io/js/@mozilla%2Ffirefox-devtools-mcp.svg)](https://www.npmjs.com/package/mozilla/firefox-devtools-mcp)
 [![CI](https://github.com/mozilla/firefox-devtools-mcp/workflows/CI/badge.svg)](https://github.com/mozilla/firefox-devtools-mcp/actions/workflows/ci.yml)
 [![codecov](https://codecov.io/gh/mozilla/firefox-devtools-mcp/branch/main/graph/badge.svg)](https://codecov.io/gh/mozilla/firefox-devtools-mcp)
