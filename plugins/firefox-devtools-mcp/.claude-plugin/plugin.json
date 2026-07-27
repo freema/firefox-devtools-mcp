@@ -15,7 +15,8 @@
         "-y",
         "@mozilla/firefox-devtools-mcp@latest",
         "--auto-profile",
-        "--enable-script",
+        "--tool-preset",
+        "developer",
         "--pref",
         "remote.prefs.recommended=false"
       ]
