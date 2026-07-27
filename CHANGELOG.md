@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.9.13] - 2026-07-28
+
+### Added
+- Screencast recording tools: `screencast_start`, `screencast_stop`
+- Download tools exposing download events: `list_downloads`, `clear_downloads`, `set_download_behavior`
+- `saveTo` and `preview` parameters for bulky-output tools (`evaluate_script`, `evaluate_privileged_script`, `list_console_messages`, `list_network_requests`, `get_network_request`, `take_snapshot`, and the screenshot tools); saved files always hold the full untruncated data while truncation limits keep applying to inline responses
+- MCP configuration can now enable tools by module
+- Readonly hints on tools that do not modify browser state
+- `--unrestricted-save-paths` CLI option to bypass the absolute save path restriction
+
+### Fixed
+- Fall back to an existing or new tab when the current tab was closed
+- `connect-existing` now fails early with a clear error when the session has no BiDi endpoint (started without `--remote-debugging-port`)
+- `MOZ_DISABLE_UPDATE_PROCESSING=1` is now forced when starting Firefox
+- Save paths are restricted to the current working directory or `~/.firefox-devtools-mcp`
+- Tool presets and legacy enable flags now match the developer/mozilla presets and actual usage
+
+### Docs
+- Document that `connect-existing` requires both `--marionette` and `--remote-debugging-port`
+
 ## [0.9.12] - 2026-07-10
 
 ### Fixed
