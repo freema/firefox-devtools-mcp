@@ -11,7 +11,8 @@ import type { McpToolResponse } from '../types/common.js';
 
 export const evaluateScriptTool = {
   name: 'evaluate_script',
-  description: 'Execute JS function in page. Prefer UID tools for interactions.',
+  description:
+    'Run a JS function in the page and return its result. Prefer this for targeted reads (a value, text, computed style, whether an element exists) instead of a full take_snapshot. Use the UID interaction tools for clicking, typing, and filling.',
   annotations: {
     readOnlyHint: false,
   },
