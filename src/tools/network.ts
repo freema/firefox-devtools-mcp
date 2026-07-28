@@ -9,6 +9,7 @@ import {
   jsonResponse,
   truncateHeaders,
   previewExcerpt,
+  truncationFooter,
 } from '../utils/response-helpers.js';
 import { saveOutput } from '../utils/save-output.js';
 import { defineModule } from './module.js';
@@ -17,7 +18,8 @@ import type { McpToolResponse } from '../types/common.js';
 // Tool definitions
 export const listNetworkRequestsTool = {
   name: 'list_network_requests',
-  description: 'List network requests. Returns IDs for get_network_request.',
+  description:
+    'List network requests, returning IDs for get_network_request. Filter by url/method/status; caps at limit (default 50); saveTo saves all matches to a file.',
   annotations: {
     readOnlyHint: true,
   },
@@ -271,6 +273,14 @@ export async function handleListNetworkRequests(args: unknown): Promise<McpToolR
     const effectiveDetail = detail ?? 'summary';
     const limitedRequests = requests.slice(0, effectiveLimit);
     const hasMore = requests.length > effectiveLimit;
+    const moreFooter = hasMore
+      ? '\n' +
+        truncationFooter(requests.length - limitedRequests.length, 'requests', [
+          'limit to show more',
+          'urlContains/method/status to filter',
+          'saveTo to save all to a file',
+        ])
+      : '';
 
     // Format output based on detail level and format
     if (format === 'json') {
@@ -322,7 +332,7 @@ export async function handleListNetworkRequests(args: unknown): Promise<McpToolR
       });
 
       const header = `[network] ${requests.length} requests${hasMore ? ` (limit ${effectiveLimit})` : ''}\n`;
-      return successResponse(header + formattedRequests.join('\n'));
+      return successResponse(header + formattedRequests.join('\n') + moreFooter);
     } else if (effectiveDetail === 'min') {
       // Compact JSON
       const minData = limitedRequests.map((req) => ({
@@ -338,7 +348,8 @@ export async function handleListNetworkRequests(args: unknown): Promise<McpToolR
 
       return successResponse(
         `[network] ${requests.length} requests${hasMore ? ` (limit ${effectiveLimit})` : ''}\n` +
-          JSON.stringify(minData, null, 2)
+          JSON.stringify(minData, null, 2) +
+          moreFooter
       );
     } else {
       // Full JSON including headers - apply truncation to prevent token overflow
@@ -357,7 +368,8 @@ export async function handleListNetworkRequests(args: unknown): Promise<McpToolR
 
       return successResponse(
         `[network] ${requests.length} requests${hasMore ? ` (limit ${effectiveLimit})` : ''}\n` +
-          JSON.stringify(fullData, null, 2)
+          JSON.stringify(fullData, null, 2) +
+          moreFooter
       );
     }
   } catch (error) {

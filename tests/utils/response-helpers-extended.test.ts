@@ -9,6 +9,7 @@ import {
   jsonResponse,
   truncateText,
   previewExcerpt,
+  truncationFooter,
   TOKEN_LIMITS,
 } from '../../src/utils/response-helpers.js';
 
@@ -232,6 +233,32 @@ describe('Response Helpers - Extended', () => {
       const huge = 'z'.repeat(TOKEN_LIMITS.MAX_RESPONSE_CHARS * 2);
       const excerpt = previewExcerpt(huge, TOKEN_LIMITS.MAX_RESPONSE_CHARS * 2);
       expect(excerpt.length).toBeLessThanOrEqual(TOKEN_LIMITS.MAX_RESPONSE_CHARS);
+    });
+  });
+
+  describe('truncationFooter', () => {
+    it('should return an empty string when nothing is hidden', () => {
+      expect(truncationFooter(0, 'lines', ['maxLines to show more'])).toBe('');
+      expect(truncationFooter(-3, 'lines', ['maxLines to show more'])).toBe('');
+    });
+
+    it('should include the hidden count and unit', () => {
+      const footer = truncationFooter(147, 'lines', ['maxLines to show more']);
+      expect(footer).toContain('+147 lines hidden');
+    });
+
+    it('should join the hints so every escape hatch is advertised', () => {
+      const footer = truncationFooter(30, 'messages', [
+        'limit to show more',
+        'saveTo to save all to a file',
+      ]);
+      expect(footer).toBe(
+        '[+30 messages hidden; limit to show more, saveTo to save all to a file]'
+      );
+    });
+
+    it('should omit the hint clause when no hints are given', () => {
+      expect(truncationFooter(5, 'requests', [])).toBe('[+5 requests hidden]');
     });
   });
 });
