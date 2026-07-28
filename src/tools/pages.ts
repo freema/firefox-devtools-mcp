@@ -107,14 +107,15 @@ function formatPageList(
   selectedIdx: number
 ): string {
   if (tabs.length === 0) {
-    return '📄 No pages';
+    return 'No pages';
   }
-  const lines: string[] = [`📄 ${tabs.length} pages (selected: ${selectedIdx})`];
+  const lines: string[] = [`${tabs.length} pages (selected: ${selectedIdx})`];
   for (const tab of tabs) {
     const idx = tabs.indexOf(tab);
     const marker = idx === selectedIdx ? '>' : ' ';
     const title = (tab.title || 'Untitled').substring(0, 40);
-    lines.push(`${marker}[${idx}] ${title}`);
+    const url = (tab.url || 'URL unavailable').substring(0, 200);
+    lines.push(`${marker}[${idx}] ${title} (${url})`);
   }
   return lines.join('\n');
 }
