@@ -441,4 +441,35 @@ describe('Snapshot Formatter - Advanced Cases', () => {
       expect(result).toContain('🚀 Launch');
     });
   });
+
+  describe('Attribute Truncation', () => {
+    const longHref = 'https://example.com/' + 'a'.repeat(100);
+
+    it('should truncate long attribute values to 30 chars by default', () => {
+      const node: SnapshotNode = {
+        uid: 'uid-1',
+        role: 'link',
+        tag: 'a',
+        href: longHref,
+        children: [],
+      };
+
+      const result = formatSnapshotTree(node);
+      expect(result).not.toContain(longHref);
+      expect(result).toContain('...');
+    });
+
+    it('should keep values untruncated when maxAttrLength is Infinity', () => {
+      const node: SnapshotNode = {
+        uid: 'uid-1',
+        role: 'link',
+        tag: 'a',
+        href: longHref,
+        children: [],
+      };
+
+      const result = formatSnapshotTree(node, 0, { maxAttrLength: Infinity });
+      expect(result).toContain(longHref);
+    });
+  });
 });
