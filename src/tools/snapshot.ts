@@ -147,6 +147,10 @@ export async function handleTakeSnapshot(args: unknown): Promise<McpToolResponse
     if (maxDepth !== undefined) {
       options.maxDepth = maxDepth;
     }
+    // A saved snapshot is the complete tree, so keep attribute values untruncated.
+    if (saveTo) {
+      options.maxAttrLength = Infinity;
+    }
     const formattedText = formatSnapshotTree(snapshot.json.root, 0, options);
 
     if (saveTo) {
