@@ -9,6 +9,7 @@ import {
   TOKEN_LIMITS,
   truncateText,
   previewExcerpt,
+  truncationFooter,
 } from '../utils/response-helpers.js';
 import { saveOutput } from '../utils/save-output.js';
 import { defineModule } from './module.js';
@@ -16,7 +17,8 @@ import type { McpToolResponse } from '../types/common.js';
 
 export const listConsoleMessagesTool = {
   name: 'list_console_messages',
-  description: 'List console messages. Supports filtering by level, time, text, source.',
+  description:
+    'List console messages, filterable by level, time, text, source. Caps at limit (default 50); saveTo saves all matches to a file.',
   annotations: {
     readOnlyHint: true,
   },
@@ -274,7 +276,13 @@ export async function handleListConsoleMessages(args: unknown): Promise<McpToolR
     }
 
     if (truncated) {
-      output += `\n[+${filteredCount - messages.length} more]`;
+      output +=
+        '\n' +
+        truncationFooter(filteredCount - messages.length, 'messages', [
+          'limit to show more',
+          'level/textContains/source to filter',
+          'saveTo to save all to a file',
+        ]);
     }
 
     return successResponse(output);

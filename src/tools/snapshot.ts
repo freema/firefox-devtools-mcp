@@ -7,6 +7,7 @@ import {
   errorResponse,
   TOKEN_LIMITS,
   previewExcerpt,
+  truncationFooter,
 } from '../utils/response-helpers.js';
 import { handleUidError } from '../utils/uid-helpers.js';
 import { saveOutput } from '../utils/save-output.js';
@@ -18,7 +19,8 @@ const DEFAULT_SNAPSHOT_LINES = 100;
 // Tool definitions
 export const takeSnapshotTool = {
   name: 'take_snapshot',
-  description: 'Capture DOM snapshot with stable UIDs. Retake after navigation.',
+  description:
+    'Capture DOM snapshot with stable UIDs. Retake after navigation. Output caps at maxLines (default 100); scope with selector or dump the full tree with saveTo.',
   annotations: {
     readOnlyHint: true,
   },
@@ -191,7 +193,13 @@ export async function handleTakeSnapshot(args: unknown): Promise<McpToolResponse
     output += displayLines.join('\n');
 
     if (truncated) {
-      output += `\n\n[+${lines.length - maxLines} lines, use maxLines to see more]`;
+      output +=
+        '\n\n' +
+        truncationFooter(lines.length - maxLines, 'lines', [
+          'maxLines to show more',
+          'selector to scope',
+          'saveTo to dump the full tree to a file',
+        ]);
     }
 
     return successResponse(output);

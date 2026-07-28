@@ -64,6 +64,20 @@ export function previewExcerpt(text: string, preview: number | undefined): strin
 }
 
 /**
+ * Build a one-line footer for truncated list or tree output. Names how much was
+ * hidden and which parameters would reveal more, so the model can self-correct
+ * instead of guessing or falling back to another tool. `hints` are joined
+ * verbatim and should read as actions, e.g. "maxLines to show more".
+ */
+export function truncationFooter(hiddenCount: number, unit: string, hints: string[]): string {
+  if (hiddenCount <= 0) {
+    return '';
+  }
+  const head = `[+${hiddenCount} ${unit} hidden`;
+  return hints.length > 0 ? `${head}; ${hints.join(', ')}]` : `${head}]`;
+}
+
+/**
  * Truncate headers object to fit within limits.
  */
 export function truncateHeaders(
