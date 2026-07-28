@@ -6,6 +6,7 @@ import type { FirefoxLaunchOptions, ConsoleMessage, LogpointResult } from './typ
 import { WebElement } from 'selenium-webdriver';
 import { FirefoxCore } from './core.js';
 import { logDebug } from '../utils/logger.js';
+import { remoteValueToNative } from '../utils/remote-value.js';
 import { ConsoleEvents, NetworkEvents, DebuggingEvents, DownloadEvents } from './events/index.js';
 import { DomInteractions } from './dom.js';
 import { PageManagement } from './pages.js';
@@ -129,18 +130,24 @@ export class FirefoxClient {
   // DOM / Evaluate
   // ============================================================================
 
-  async evaluate(script: string): Promise<unknown> {
-    if (!this.dom) {
-      throw new Error('Not connected');
+  /**
+   * Evaluate a JavaScript expression in the current browsing context over
+   * WebDriver BiDi (script.evaluate), so reads target the BiDi-tracked context
+   * rather than Selenium's classic window handle. Returns the result as a
+   * native value; throws on a script exception.
+   */
+  async evaluate(expression: string): Promise<unknown> {
+    const result = await this.core.sendBiDiCommand('script.evaluate', {
+      expression,
+      awaitPromise: true,
+      target: { context: this.core.getCurrentContextId() },
+    });
+    if (result.type === 'success') {
+      return remoteValueToNative(result.result);
     }
-    return await this.dom.evaluate(script);
-  }
-
-  async getContent(): Promise<string> {
-    if (!this.dom) {
-      throw new Error('Not connected');
-    }
-    return await this.dom.getContent();
+    throw new Error(
+      `Script evaluation failed: ${result.exceptionDetails?.text ?? 'unknown error'}`
+    );
   }
 
   async clickBySelector(selector: string): Promise<void> {

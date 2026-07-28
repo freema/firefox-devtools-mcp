@@ -2,9 +2,17 @@
  * Page navigation and management tools for MCP
  */
 
-import { successResponse, errorResponse } from '../utils/response-helpers.js';
+import {
+  successResponse,
+  errorResponse,
+  previewExcerpt,
+  truncationFooter,
+} from '../utils/response-helpers.js';
+import { saveOutput } from '../utils/save-output.js';
 import { defineModule } from './module.js';
 import type { McpToolResponse } from '../types/common.js';
+
+const DEFAULT_MAX_CONTENT_CHARS = 20_000;
 
 // Tool definitions
 export const listPagesTool = {
@@ -96,6 +104,35 @@ export const closePageTool = {
       },
     },
     required: ['pageIdx'],
+  },
+};
+
+export const getPageTextTool = {
+  name: 'get_page_text',
+  description:
+    'Get the visible text of the page (document.body.innerText). Caps at maxLength (default 20000 chars); saveTo saves the full text to a file.',
+  annotations: {
+    readOnlyHint: true,
+  },
+  inputSchema: {
+    type: 'object' as const,
+    properties: {
+      maxLength: {
+        type: 'number',
+        description:
+          'Max characters to return inline (default: 20000). Ignored when saveTo is used.',
+      },
+      saveTo: {
+        type: ['boolean', 'string'],
+        description:
+          'Save the full untruncated text to a file instead of returning it inline. Pass a file path, an existing directory (generated file inside), or true (generated file under ~/.firefox-devtools-mcp/output/). Relative paths resolve against the current working directory.',
+      },
+      preview: {
+        type: 'number',
+        description:
+          'Number of characters of the saved text to return inline as a preview when saveTo is used. Omit for no preview.',
+      },
+    },
   },
 };
 
@@ -264,6 +301,61 @@ export async function handleClosePage(args: unknown): Promise<McpToolResponse> {
   }
 }
 
+async function respondWithContent(
+  content: string,
+  args: unknown,
+  baseName: string,
+  extension: string
+): Promise<McpToolResponse> {
+  const {
+    maxLength = DEFAULT_MAX_CONTENT_CHARS,
+    saveTo,
+    preview,
+  } = (args as { maxLength?: number; saveTo?: boolean | string; preview?: number }) || {};
+
+  if (saveTo) {
+    const saved = await saveOutput(
+      content,
+      saveTo === true ? undefined : saveTo,
+      baseName,
+      extension
+    );
+    let output = `${baseName} saved to: ${saved.path} (${(saved.bytes / 1024).toFixed(1)}KB)`;
+    const excerpt = previewExcerpt(content, preview);
+    if (excerpt) {
+      output += '\nPreview:\n' + excerpt;
+    }
+    return successResponse(output);
+  }
+
+  // Always end with a status marker so the model can tell "this is everything"
+  // from "this was cut" instead of inferring completeness from a missing footer.
+  if (content.length <= maxLength) {
+    return successResponse(content + `\n\n[full content, ${content.length} chars]`);
+  }
+
+  const footer = truncationFooter(content.length - maxLength, 'chars', [
+    'maxLength to show more',
+    'saveTo to save the full content to a file',
+  ]);
+  return successResponse(content.slice(0, maxLength) + '\n\n' + footer);
+}
+
+export async function handleGetPageText(args: unknown): Promise<McpToolResponse> {
+  try {
+    const { getFirefox } = await import('../index.js');
+    const firefox = await getFirefox();
+
+    const text = (await firefox.evaluate(
+      'document.body ? document.body.innerText : document.documentElement.innerText'
+    )) as string | null | undefined;
+
+    return respondWithContent(text ?? '', args, 'page-text', 'txt');
+  } catch (error) {
+    return errorResponse(error as Error);
+  }
+}
+
 export const module = defineModule({
   name: 'pages',
   description: 'Open, navigate, select, and close pages.',
@@ -273,5 +365,6 @@ export const module = defineModule({
     [navigatePageTool, handleNavigatePage],
     [selectPageTool, handleSelectPage],
     [closePageTool, handleClosePage],
+    [getPageTextTool, handleGetPageText],
   ],
 });

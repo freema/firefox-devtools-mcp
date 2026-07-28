@@ -2,13 +2,17 @@
  * Unit tests for pages tools
  */
 
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { existsSync, readFileSync, rmSync } from 'node:fs';
+import { join } from 'node:path';
+import { tmpdir } from 'node:os';
 import {
   listPagesTool,
   selectPageTool,
   navigatePageTool,
   newPageTool,
   closePageTool,
+  getPageTextTool,
 } from '../../src/tools/pages.js';
 
 describe('Pages Tools', () => {
@@ -65,6 +69,83 @@ describe('Pages Tools', () => {
       expect(properties).toBeDefined();
       expect(properties?.pageIdx).toBeDefined();
       expect(required).toContain('pageIdx');
+    });
+  });
+
+  describe('Content Tools', () => {
+    it('should have correct tool name', () => {
+      expect(getPageTextTool.name).toBe('get_page_text');
+    });
+
+    it('should expose maxLength, saveTo, and preview without marking them required', () => {
+      const schema = getPageTextTool.inputSchema as {
+        properties?: Record<string, unknown>;
+        required?: string[];
+      };
+      expect(schema.properties?.maxLength).toBeDefined();
+      expect(schema.properties?.saveTo).toBeDefined();
+      expect(schema.properties?.preview).toBeDefined();
+      expect(schema.required).toBeUndefined();
+    });
+  });
+
+  describe('Content Tools: handler behavior', () => {
+    const LONG_TEXT = 'y'.repeat(30000);
+    let tempDir: string;
+
+    beforeEach(() => {
+      tempDir = join(tmpdir(), `pages-test-${Date.now()}`);
+
+      vi.doMock('../../src/index.js', () => ({
+        args: { unrestrictedSavePaths: true },
+        getFirefox: vi.fn().mockResolvedValue({
+          evaluate: vi.fn().mockResolvedValue(LONG_TEXT),
+        }),
+      }));
+    });
+
+    afterEach(() => {
+      vi.restoreAllMocks();
+      if (existsSync(tempDir)) {
+        rmSync(tempDir, { recursive: true, force: true });
+      }
+    });
+
+    it('should truncate inline output to maxLength with an escape-hatch footer', async () => {
+      const { handleGetPageText } = await import('../../src/tools/pages.js');
+      const result = await handleGetPageText({ maxLength: 100 });
+
+      const text = (result.content[0] as { type: 'text'; text: string }).text;
+      expect(text).toContain('chars hidden');
+      expect(text).toContain('saveTo');
+      expect(text.length).toBeLessThan(LONG_TEXT.length);
+    });
+
+    it('should return content inline with a completeness marker when it fits maxLength', async () => {
+      const { handleGetPageText } = await import('../../src/tools/pages.js');
+      const result = await handleGetPageText({ maxLength: LONG_TEXT.length });
+
+      const text = (result.content[0] as { type: 'text'; text: string }).text;
+      expect(text).toContain(LONG_TEXT);
+      expect(text).toContain(`[full content, ${LONG_TEXT.length} chars]`);
+    });
+
+    it('should save the full text untruncated when saveTo is used', async () => {
+      const { handleGetPageText } = await import('../../src/tools/pages.js');
+      const filePath = join(tempDir, 'page.txt');
+      const result = await handleGetPageText({ saveTo: filePath, maxLength: 100 });
+
+      const text = (result.content[0] as { type: 'text'; text: string }).text;
+      expect(text).toContain('saved to:');
+      expect(readFileSync(filePath, 'utf8')).toBe(LONG_TEXT);
+    });
+
+    it('should include a preview when preview is given', async () => {
+      const { handleGetPageText } = await import('../../src/tools/pages.js');
+      const result = await handleGetPageText({ saveTo: join(tempDir, 'page.txt'), preview: 100 });
+
+      const text = (result.content[0] as { type: 'text'; text: string }).text;
+      expect(text).toContain('Preview:');
     });
   });
 });

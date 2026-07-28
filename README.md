@@ -193,7 +193,7 @@ Both flags are required because the MCP uses both WebDriver Classic (`--marionet
 
 ## Tool overview
 
-- Pages: list/new/navigate/select/close
+- Pages: list/new/navigate/select/close/get_page_text (get_page_text supports optional `saveTo`)
 - Snapshot/UID: take/resolve/clear (take supports optional `saveTo`)
 - Input: click/hover/fill/drag/upload/form fill
 - Network: list/get (ID‑first, filters, always‑on capture; both support optional `saveTo`)
@@ -212,7 +212,8 @@ Both flags are required because the MCP uses both WebDriver Classic (`--marionet
 
 Large tool output can consume significant context in CLI clients like Claude Code. The
 `screenshot_page`, `screenshot_by_uid`, `take_snapshot`, `list_console_messages`,
-`list_network_requests`, `get_network_request`, `evaluate_script`, and
+`list_network_requests`, `get_network_request`, `get_page_text`,
+`evaluate_script`, and
 `evaluate_privileged_script` tools accept an optional `saveTo` parameter that writes the
 result to a file instead of returning it inline. `saveTo` takes one of three forms:
 
@@ -240,7 +241,7 @@ directory, and absolute paths are only allowed within `~/.firefox-devtools-mcp`.
 escape these locations are rejected. Start the server with `--unrestricted-save-paths` to
 write to arbitrary locations, including absolute paths outside that directory.
 
-Saved files can then be viewed with Claude Code's `Read` tool without impacting context size.
+Saved files can then be viewed for instance with Claude Code's `Read` tool without impacting context size.
 
 ## Local development
 
