@@ -196,14 +196,9 @@ Both flags are required because the MCP uses both WebDriver Classic (`--marionet
 - Pages: list/new/navigate/select/close
 - Snapshot/UID: take/resolve/clear (take supports optional `saveTo`)
 - Input: click/hover/fill/drag/upload/form fill
-<<<<<<< HEAD
 - Network: list/get (ID‑first, filters, always‑on capture; both support optional `saveTo`)
-- Console: list/clear (list supports optional `saveTo`)
-=======
-- Network: list/get (ID‑first, filters, always‑on capture)
 - Downloads: list_downloads/clear_downloads (always‑on capture), set_download_behavior (allow/deny/default)
-- Console: list/clear
->>>>>>> 6873767 (Bug 2055949 - [firefox-devtools-mcp] expose download events to firefox devtools mcp)
+- Console: list/clear (list supports optional `saveTo`)
 - Screenshot: page/by uid (with optional `saveTo` for CLI environments)
 - Script: evaluate_script (with optional `saveTo` for bulky results)
 - Privileged Context: list/select privileged ("chrome") contexts, evaluate_privileged_script (requires `MOZ_REMOTE_ALLOW_SYSTEM_ACCESS=1`)
