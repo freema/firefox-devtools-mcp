@@ -96,7 +96,7 @@ describe('E2E Scenario: Todo App Workflow', () => {
   }, 20000);
 
   it('should evaluate JavaScript to check app state', async () => {
-    const result = await firefox.evaluate('return document.getElementById("status").textContent');
+    const result = await firefox.evaluate('document.getElementById("status").textContent');
     expect(result).toBeDefined();
     expect(typeof result).toBe('string');
   }, 10000);
@@ -129,9 +129,7 @@ describe('E2E Scenario: Click Interactions', () => {
     await firefox.clickByUid(dblBtn.uid, true);
     await waitForPageLoad(200);
 
-    const result = await firefox.evaluate(
-      'return document.getElementById("dblClickResult").textContent'
-    );
+    const result = await firefox.evaluate('document.getElementById("dblClickResult").textContent');
     expect(result).toBe('Double-clicked!');
   }, 15000);
 
@@ -145,9 +143,7 @@ describe('E2E Scenario: Click Interactions', () => {
     await firefox.hoverByUid(hoverBtn.uid);
     await waitForPageLoad(200);
 
-    const result = await firefox.evaluate(
-      'return document.getElementById("hoverResult").textContent'
-    );
+    const result = await firefox.evaluate('document.getElementById("hoverResult").textContent');
     expect(result).toBe('Hovered!');
   }, 15000);
 });
@@ -272,14 +268,14 @@ describe('E2E Scenario: Viewport Resize', () => {
     await firefox.setViewportSize(800, 600);
     await waitForPageLoad(200);
 
-    const smallWidth = (await firefox.evaluate('return window.innerWidth')) as number;
-    const smallHeight = (await firefox.evaluate('return window.innerHeight')) as number;
+    const smallWidth = (await firefox.evaluate('window.innerWidth')) as number;
+    const smallHeight = (await firefox.evaluate('window.innerHeight')) as number;
 
     await firefox.setViewportSize(1200, 900);
     await waitForPageLoad(200);
 
-    const largeWidth = (await firefox.evaluate('return window.innerWidth')) as number;
-    const largeHeight = (await firefox.evaluate('return window.innerHeight')) as number;
+    const largeWidth = (await firefox.evaluate('window.innerWidth')) as number;
+    const largeHeight = (await firefox.evaluate('window.innerHeight')) as number;
 
     // Viewport should have grown in both dimensions
     expect(largeWidth).toBeGreaterThan(smallWidth);
@@ -416,10 +412,10 @@ describe('E2E Scenario: Form Submission', () => {
       { uid: emailInput!.uid, value: 'julian@mozilla.com' },
     ]);
 
-    const nameValue = await firefox.evaluate('return document.getElementById("regName").value');
+    const nameValue = await firefox.evaluate('document.getElementById("regName").value');
     expect(nameValue).toBe('Julian Descottes');
 
-    const emailValue = await firefox.evaluate('return document.getElementById("regEmail").value');
+    const emailValue = await firefox.evaluate('document.getElementById("regEmail").value');
     expect(emailValue).toBe('julian@mozilla.com');
   }, 20000);
 });

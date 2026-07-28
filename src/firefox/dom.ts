@@ -10,21 +10,6 @@ export class DomInteractions {
     private resolveUid?: (uid: string) => Promise<WebElement>
   ) {}
 
-  /**
-   * Evaluate JavaScript - direct passthrough to executeScript
-   */
-  async evaluate(script: string): Promise<unknown> {
-    return await this.driver.executeScript(script);
-  }
-
-  /**
-   * Get page HTML content
-   */
-  async getContent(): Promise<string> {
-    const html = await this.evaluate('return document.documentElement.outerHTML');
-    return String(html);
-  }
-
   // ============================================================================
   // Element polling helpers
   // ============================================================================
