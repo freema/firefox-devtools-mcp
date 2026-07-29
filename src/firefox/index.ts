@@ -8,6 +8,7 @@ import { FirefoxCore } from './core.js';
 import { logDebug } from '../utils/logger.js';
 import { remoteValueToNative } from '../utils/remote-value.js';
 import { ConsoleEvents, NetworkEvents, DebuggingEvents, DownloadEvents } from './events/index.js';
+import type { NetworkBodyResult } from './events/network.js';
 import { DomInteractions } from './dom.js';
 import { PageManagement } from './pages.js';
 import { SnapshotManager, type Snapshot, type SnapshotOptions } from './snapshot/index.js';
@@ -63,10 +64,14 @@ export class FirefoxClient {
         autoClearOnNavigate: false,
       });
 
-      this.networkEvents = new NetworkEvents(driver as any, {
-        onNavigate,
-        autoClearOnNavigate: false,
-      });
+      this.networkEvents = new NetworkEvents(
+        driver as any,
+        {
+          onNavigate,
+          autoClearOnNavigate: false,
+        },
+        (method, params) => this.core.sendBiDiCommand(method, params ?? {})
+      );
 
       this.debuggingEvents = new DebuggingEvents(driver as any, (method, params) =>
         this.core.sendBiDiCommand(method, params)
@@ -379,6 +384,22 @@ export class FirefoxClient {
       );
     }
     this.networkEvents.clearRequests();
+  }
+
+  /**
+   * Fetch a captured request or response body for a given request id.
+   * Returns a structured result describing the body or why it is unavailable.
+   */
+  async getNetworkRequestBody(
+    requestId: string,
+    dataType: 'request' | 'response'
+  ): Promise<NetworkBodyResult> {
+    if (!this.networkEvents) {
+      throw new Error(
+        'Network events not available (Firefox Remote Agent not running — start Firefox with --remote-debugging-port to enable BiDi)'
+      );
+    }
+    return this.networkEvents.fetchBody(requestId, dataType);
   }
 
   // ============================================================================

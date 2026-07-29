@@ -199,4 +199,121 @@ describe('Network Tools', () => {
       expect(raw).not.toContain('...[truncated]');
     });
   });
+
+  describe('Handler: response bodies', () => {
+    const REQUESTS = [
+      {
+        id: 'r1',
+        url: 'https://example.test/data.json',
+        method: 'GET',
+        status: 200,
+        statusText: 'OK',
+        resourceType: 'xhr',
+        isXHR: true,
+        timestamp: 1700000000000,
+        timings: { duration: 12 },
+        requestHeaders: {},
+        responseHeaders: { 'content-type': 'application/json' },
+      },
+    ];
+
+    function mockFirefox(fetchBody: (id: string, dataType: string) => Promise<unknown>) {
+      vi.doMock('../../src/index.js', () => ({
+        args: { unrestrictedSavePaths: true },
+        getFirefox: vi.fn().mockResolvedValue({
+          getNetworkRequests: vi.fn().mockResolvedValue(REQUESTS),
+          getNetworkRequestBody: vi.fn(fetchBody),
+        }),
+      }));
+    }
+
+    afterEach(() => {
+      vi.restoreAllMocks();
+    });
+
+    it('should include a text response body inline', async () => {
+      mockFirefox(async (_id, dataType) =>
+        dataType === 'response'
+          ? { ok: true, type: 'string', value: '{"hello":"world"}' }
+          : { ok: false, reason: 'not-collected' }
+      );
+
+      const { handleGetNetworkRequest } = await import('../../src/tools/network.js');
+      const result = await handleGetNetworkRequest({ id: 'r1' });
+
+      expect(result.isError).toBeUndefined();
+      const parsed = JSON.parse((result.content[0] as { type: 'text'; text: string }).text);
+      expect(parsed.responseBody).toBe('{"hello":"world"}');
+      // GET with no request body: requestBody must be omitted, not shown as a marker.
+      expect(parsed).not.toHaveProperty('requestBody');
+    });
+
+    it('should summarize a binary response body instead of dumping base64', async () => {
+      mockFirefox(async (_id, dataType) =>
+        dataType === 'response'
+          ? { ok: true, type: 'base64', value: 'AAAA'.repeat(1000) }
+          : { ok: false, reason: 'not-collected' }
+      );
+
+      const { handleGetNetworkRequest } = await import('../../src/tools/network.js');
+      const result = await handleGetNetworkRequest({ id: 'r1' });
+
+      const parsed = JSON.parse((result.content[0] as { type: 'text'; text: string }).text);
+      expect(parsed.responseBody).toContain('binary data');
+      expect(parsed.responseBody).toContain('saveTo');
+      expect(parsed.responseBodyEncoding).toBe('base64');
+    });
+
+    it('should render a marker when the body was not captured', async () => {
+      mockFirefox(async () => ({ ok: false, reason: 'not-collected' }));
+
+      const { handleGetNetworkRequest } = await import('../../src/tools/network.js');
+      const result = await handleGetNetworkRequest({ id: 'r1' });
+
+      const parsed = JSON.parse((result.content[0] as { type: 'text'; text: string }).text);
+      expect(parsed.responseBody).toBe('<not captured>');
+    });
+
+    it('should degrade gracefully when body capture is unsupported', async () => {
+      vi.doMock('../../src/index.js', () => ({
+        args: { unrestrictedSavePaths: true },
+        getFirefox: vi.fn().mockResolvedValue({
+          getNetworkRequests: vi.fn().mockResolvedValue(REQUESTS),
+        }),
+      }));
+
+      const { handleGetNetworkRequest } = await import('../../src/tools/network.js');
+      const result = await handleGetNetworkRequest({ id: 'r1' });
+
+      expect(result.isError).toBeUndefined();
+      const parsed = JSON.parse((result.content[0] as { type: 'text'; text: string }).text);
+      expect(parsed.responseBody).toContain('not supported');
+    });
+
+    it('should save the full untruncated body to a file', async () => {
+      const bigBody = 'x'.repeat(60_000);
+      mockFirefox(async (_id, dataType) =>
+        dataType === 'response'
+          ? { ok: true, type: 'string', value: bigBody }
+          : { ok: false, reason: 'not-collected' }
+      );
+
+      const tempDir = join(tmpdir(), `network-body-test-${Date.now()}`);
+      const filePath = join(tempDir, 'request.json');
+      try {
+        const { handleGetNetworkRequest } = await import('../../src/tools/network.js');
+        const result = await handleGetNetworkRequest({ id: 'r1', saveTo: filePath });
+
+        expect(result.isError).toBeUndefined();
+        const parsed = JSON.parse(readFileSync(filePath, 'utf8'));
+        expect(parsed.responseBody).toBe(bigBody);
+        expect(parsed.responseBody).not.toContain('truncated');
+        expect(parsed.responseBodyEncoding).toBe('utf-8');
+      } finally {
+        if (existsSync(tempDir)) {
+          rmSync(tempDir, { recursive: true, force: true });
+        }
+      }
+    });
+  });
 });

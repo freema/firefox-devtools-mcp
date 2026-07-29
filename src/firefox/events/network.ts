@@ -9,6 +9,10 @@ import { logDebug } from '../../utils/logger.js';
 const MAX_NETWORK_REQUESTS = 1000; // Maximum number of requests to keep
 const NETWORK_TTL_MS = 5 * 60 * 1000; // 5 minutes TTL for old requests
 
+// Per-body cap for the BiDi data collector. Bodies larger than this are not
+// retained (Firefox also enforces a shared session-wide budget with eviction).
+const MAX_ENCODED_DATA_SIZE = 10 * 1000 * 1000; // 10 MB
+
 export interface NetworkEventsOptions {
   /** Callback triggered on navigation events (for auto-clear) */
   onNavigate?: () => void;
@@ -16,16 +20,25 @@ export interface NetworkEventsOptions {
   autoClearOnNavigate?: boolean;
 }
 
+/** Outcome of fetching a request/response body via the BiDi data collector. */
+export type NetworkBodyResult =
+  | { ok: true; type: 'base64' | 'string'; value: string }
+  | { ok: false; reason: 'unsupported' | 'not-collected' | 'evicted' | 'aborted' | 'error' };
+
+type SendBiDiCommand = (method: string, params?: Record<string, any>) => Promise<any>;
+
 export class NetworkEvents {
   private networkRecords: Map<string, any> = new Map();
   private subscribed = false;
   private enabled = false;
   private requestStartTimes: Map<string, number> = new Map();
   private options: NetworkEventsOptions;
+  private collectorId: string | null = null;
 
   constructor(
     private driver: WebDriver,
-    options: NetworkEventsOptions = {}
+    options: NetworkEventsOptions = {},
+    private sendCommand?: SendBiDiCommand
   ) {
     this.options = {
       autoClearOnNavigate: true,
@@ -158,10 +171,83 @@ export class NetworkEvents {
       }
     });
 
+    // Register a data collector so response (and request) bodies are captured
+    // and can be fetched on demand via fetchBody(). Best-effort: older Firefox
+    // versions without this command degrade to metadata-only network records.
+    await this.registerDataCollector();
+
     this.subscribed = true;
     // Enable monitoring by default (always-on)
     this.enabled = true;
     logDebug('Network listener ready with lifecycle hooks (monitoring enabled by default)');
+  }
+
+  /**
+   * Register a BiDi network data collector for request and response bodies.
+   * Failures are non-fatal and simply leave body capture disabled.
+   */
+  private async registerDataCollector(): Promise<void> {
+    if (!this.sendCommand) {
+      return;
+    }
+
+    try {
+      const result = await this.sendCommand('network.addDataCollector', {
+        dataTypes: ['request', 'response'],
+        maxEncodedDataSize: MAX_ENCODED_DATA_SIZE,
+      });
+      this.collectorId = result?.collector ?? null;
+      if (this.collectorId) {
+        logDebug(`Network data collector registered (${this.collectorId})`);
+      }
+    } catch (error) {
+      logDebug(
+        `Network data collector unavailable, response bodies will not be captured: ${
+          error instanceof Error ? error.message : String(error)
+        }`
+      );
+    }
+  }
+
+  /**
+   * Fetch a captured request or response body via network.getData.
+   * Returns a structured result so callers can render an appropriate marker
+   * when the body was never collected, evicted, or the browser lacks support.
+   */
+  async fetchBody(requestId: string, dataType: 'request' | 'response'): Promise<NetworkBodyResult> {
+    if (!this.sendCommand || !this.collectorId) {
+      return { ok: false, reason: 'unsupported' };
+    }
+
+    try {
+      const result = await this.sendCommand('network.getData', {
+        request: requestId,
+        dataType,
+      });
+      const bytes = result?.bytes;
+      if (!bytes || typeof bytes.value !== 'string') {
+        return { ok: false, reason: 'not-collected' };
+      }
+      return {
+        ok: true,
+        type: bytes.type === 'base64' ? 'base64' : 'string',
+        value: bytes.value,
+      };
+    } catch (error) {
+      const message = (error instanceof Error ? error.message : String(error)).toLowerCase();
+      if (message.includes('no such network data')) {
+        return { ok: false, reason: 'not-collected' };
+      }
+      if (message.includes('unavailable network data')) {
+        if (message.includes('evicted')) {
+          return { ok: false, reason: 'evicted' };
+        }
+        if (message.includes('aborted')) {
+          return { ok: false, reason: 'aborted' };
+        }
+      }
+      return { ok: false, reason: 'error' };
+    }
   }
 
   /**
