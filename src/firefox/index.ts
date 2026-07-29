@@ -69,6 +69,7 @@ export class FirefoxClient {
         {
           onNavigate,
           autoClearOnNavigate: false,
+          captureBodies: this.core.getOptions().captureNetworkBodies !== false,
         },
         (method, params) => this.core.sendBiDiCommand(method, params ?? {})
       );

@@ -18,6 +18,8 @@ export interface NetworkEventsOptions {
   onNavigate?: () => void;
   /** Auto-clear network requests on navigation (default: true when monitoring is enabled) */
   autoClearOnNavigate?: boolean;
+  /** Register a data collector so request/response bodies can be fetched (default: true) */
+  captureBodies?: boolean;
 }
 
 /** Outcome of fetching a request/response body via the BiDi data collector. */
@@ -171,12 +173,10 @@ export class NetworkEvents {
       }
     });
 
-    // Register a data collector so response (and request) bodies are captured
-    // and can be fetched on demand via fetchBody(). Best-effort: older Firefox
-    // versions without this command degrade to metadata-only network records.
     await this.registerDataCollector();
 
     this.subscribed = true;
+
     // Enable monitoring by default (always-on)
     this.enabled = true;
     logDebug('Network listener ready with lifecycle hooks (monitoring enabled by default)');
@@ -187,6 +187,11 @@ export class NetworkEvents {
    * Failures are non-fatal and simply leave body capture disabled.
    */
   private async registerDataCollector(): Promise<void> {
+    if (this.options.captureBodies === false) {
+      logDebug('Network body capture disabled, skipping data collector registration');
+      return;
+    }
+
     if (!this.sendCommand) {
       return;
     }
@@ -239,6 +244,8 @@ export class NetworkEvents {
         return { ok: false, reason: 'not-collected' };
       }
       if (message.includes('unavailable network data')) {
+        // reason for unavailable network data errors can be either evicted or
+        // aborted in Firefox (see https://searchfox.org/firefox-main/rev/d573d849c063353bda3a67541ab219c8a548773a/remote/webdriver-bidi/modules/root/network.sys.mjs#396-399)
         if (message.includes('evicted')) {
           return { ok: false, reason: 'evicted' };
         }

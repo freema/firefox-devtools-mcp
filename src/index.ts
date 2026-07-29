@@ -131,6 +131,7 @@ export async function getFirefox(): Promise<FirefoxDevTools> {
       prefs,
       androidDevice: args.androidDevice ?? undefined,
       androidPackage: args.androidPackage ?? undefined,
+      captureNetworkBodies: !args.disableNetworkBodyCollection,
     };
   }
 
