@@ -8,12 +8,15 @@ import {
   errorResponse,
   jsonResponse,
   truncateHeaders,
+  truncateText,
   previewExcerpt,
   truncationFooter,
+  TOKEN_LIMITS,
 } from '../utils/response-helpers.js';
 import { saveOutput } from '../utils/save-output.js';
 import { defineModule } from './module.js';
 import type { McpToolResponse } from '../types/common.js';
+import type { NetworkBodyResult } from '../firefox/events/network.js';
 
 // Tool definitions
 export const listNetworkRequestsTool = {
@@ -93,7 +96,8 @@ export const listNetworkRequestsTool = {
 
 export const getNetworkRequestTool = {
   name: 'get_network_request',
-  description: 'Get request details by ID. URL lookup as fallback.',
+  description:
+    'Get request details by ID, including the response body (and request body when present). Large text bodies are truncated inline; binary bodies are summarized. URL lookup as fallback.',
   annotations: {
     readOnlyHint: true,
   },
@@ -116,7 +120,7 @@ export const getNetworkRequestTool = {
       saveTo: {
         type: ['boolean', 'string'],
         description:
-          'Save the request details with full untruncated headers to a file as JSON instead of returning them inline. Pass a file path, an existing directory (generated file inside), or true (generated file under ~/.firefox-devtools-mcp/output/). Relative paths resolve against the current working directory.',
+          'Save the request details with full untruncated headers and bodies to a file as JSON instead of returning them inline (binary bodies are stored base64-encoded). Pass a file path, an existing directory (generated file inside), or true (generated file under ~/.firefox-devtools-mcp/output/). Relative paths resolve against the current working directory.',
       },
       preview: {
         type: 'number',
@@ -126,6 +130,78 @@ export const getNetworkRequestTool = {
     },
   },
 };
+
+/**
+ * Fetch a body without letting a missing facade method or transport error fail
+ * the whole tool call. Absent support degrades to an 'unsupported' marker.
+ */
+async function safeFetchBody(
+  firefox: {
+    getNetworkRequestBody?: (
+      id: string,
+      dataType: 'request' | 'response'
+    ) => Promise<NetworkBodyResult>;
+  },
+  id: string,
+  dataType: 'request' | 'response'
+): Promise<NetworkBodyResult> {
+  if (typeof firefox.getNetworkRequestBody !== 'function') {
+    return { ok: false, reason: 'unsupported' };
+  }
+  try {
+    return await firefox.getNetworkRequestBody(id, dataType);
+  } catch {
+    return { ok: false, reason: 'error' };
+  }
+}
+
+function bodyUnavailableMarker(reason: string): string {
+  switch (reason) {
+    case 'unsupported':
+      return '<not captured: body collection not supported by this Firefox>';
+    case 'not-collected':
+      return '<not captured>';
+    case 'evicted':
+      return '<not available: evicted from the capture buffer>';
+    case 'aborted':
+      return '<not available: collection aborted>';
+    default:
+      return '<not available>';
+  }
+}
+
+/** A request body is only worth surfacing when it existed on the wire. */
+function hasRequestBody(result: NetworkBodyResult): boolean {
+  return result.ok || result.reason === 'evicted' || result.reason === 'aborted';
+}
+
+function renderBodyInline(result: NetworkBodyResult): { body: string; encoding?: 'base64' } {
+  if (!result.ok) {
+    return { body: bodyUnavailableMarker(result.reason) };
+  }
+  if (result.type === 'base64') {
+    const approxKb = ((result.value.length * 3) / 4 / 1024).toFixed(1);
+    return {
+      body: `<binary data (~${approxKb}KB); use saveTo to retrieve the full body>`,
+      encoding: 'base64',
+    };
+  }
+  return { body: truncateText(result.value, TOKEN_LIMITS.MAX_RESPONSE_CHARS) };
+}
+
+function renderBodyForFile(result: NetworkBodyResult): {
+  body: string | null;
+  encoding: 'base64' | 'utf-8' | null;
+  unavailable?: string;
+} {
+  if (!result.ok) {
+    return { body: null, encoding: null, unavailable: result.reason };
+  }
+  return {
+    body: result.value,
+    encoding: result.type === 'base64' ? 'base64' : 'utf-8',
+  };
+}
 
 // Tool handlers
 export async function handleListNetworkRequests(args: unknown): Promise<McpToolResponse> {
@@ -437,8 +513,31 @@ export async function handleGetNetworkRequest(args: unknown): Promise<McpToolRes
       responseHeaders: request.responseHeaders ?? null,
     };
 
+    const [responseBodyResult, requestBodyResult] = await Promise.all([
+      safeFetchBody(firefox, request.id, 'response'),
+      safeFetchBody(firefox, request.id, 'request'),
+    ]);
+
     if (saveTo) {
-      const fileBody = JSON.stringify(fullDetails, null, 2);
+      const responseFile = renderBodyForFile(responseBodyResult);
+      const fileObject: Record<string, unknown> = {
+        ...fullDetails,
+        responseBody: responseFile.body,
+        responseBodyEncoding: responseFile.encoding,
+      };
+      if (responseFile.unavailable) {
+        fileObject.responseBodyUnavailable = responseFile.unavailable;
+      }
+      if (hasRequestBody(requestBodyResult)) {
+        const requestFile = renderBodyForFile(requestBodyResult);
+        fileObject.requestBody = requestFile.body;
+        fileObject.requestBodyEncoding = requestFile.encoding;
+        if (requestFile.unavailable) {
+          fileObject.requestBodyUnavailable = requestFile.unavailable;
+        }
+      }
+
+      const fileBody = JSON.stringify(fileObject, null, 2);
       const saved = await saveOutput(
         fileBody,
         saveTo === true ? undefined : saveTo,
@@ -453,11 +552,23 @@ export async function handleGetNetworkRequest(args: unknown): Promise<McpToolRes
     }
 
     // Apply header truncation to prevent token overflow
-    const details = {
+    const responseInline = renderBodyInline(responseBodyResult);
+    const details: Record<string, unknown> = {
       ...fullDetails,
       requestHeaders: truncateHeaders(request.requestHeaders),
       responseHeaders: truncateHeaders(request.responseHeaders),
+      responseBody: responseInline.body,
     };
+    if (responseInline.encoding) {
+      details.responseBodyEncoding = responseInline.encoding;
+    }
+    if (hasRequestBody(requestBodyResult)) {
+      const requestInline = renderBodyInline(requestBodyResult);
+      details.requestBody = requestInline.body;
+      if (requestInline.encoding) {
+        details.requestBodyEncoding = requestInline.encoding;
+      }
+    }
 
     if (format === 'json') {
       return jsonResponse(details);
