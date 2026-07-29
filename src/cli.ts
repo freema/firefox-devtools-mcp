@@ -211,6 +211,13 @@ export const cliOptions = {
       'Allow tools that save files (e.g. screenshots, snapshots, network/console output) to write to arbitrary locations. By default, relative save paths resolve against the current working directory and absolute save paths are restricted to ~/.firefox-devtools-mcp; this flag lifts both restrictions. Use with caution.',
     default: (process.env.UNRESTRICTED_SAVE_PATHS ?? 'false') === 'true',
   },
+  disableNetworkBodyCollection: {
+    type: 'boolean',
+    hidden: true,
+    description:
+      'Disable capturing network request/response bodies via BiDi data collectors. get_network_request will still return metadata and headers but no bodies. Reduces browser memory and stream-cloning overhead.',
+    default: (process.env.DISABLE_NETWORK_BODY_COLLECTION ?? 'false') === 'true',
+  },
 } satisfies Record<string, YargsOptions>;
 
 export function parseArguments(version: string, argv = process.argv, includePrivileged = true) {
