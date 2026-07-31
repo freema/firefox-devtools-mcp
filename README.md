@@ -200,7 +200,7 @@ Both flags are required because the MCP uses both WebDriver Classic (`--marionet
 - Downloads: list_downloads/clear_downloads (always‑on capture), set_download_behavior (allow/deny/default)
 - Console: list/clear (list supports optional `saveTo`)
 - Screenshot: page/by uid (with optional `saveTo` for CLI environments)
-- Script: evaluate_script (with optional `saveTo` for bulky results)
+- Script: evaluate_script (optional `sandbox` for an isolated realm; optional `saveTo` for bulky results)
 - Privileged Context: list/select privileged ("chrome") contexts, evaluate_privileged_script (requires `MOZ_REMOTE_ALLOW_SYSTEM_ACCESS=1`)
 - WebExtension: install_extension, uninstall_extension, list_extensions (list requires `MOZ_REMOTE_ALLOW_SYSTEM_ACCESS=1`)
 - Firefox Management: get_firefox_info, get_firefox_output, restart_firefox, set_firefox_prefs, get_firefox_prefs
