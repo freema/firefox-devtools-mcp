@@ -49,7 +49,7 @@ export const selectPrivilegedContextTool = {
 export const evaluatePrivilegedScriptTool = {
   name: 'evaluate_privileged_script',
   description:
-    'Execute JS function in the current privileged context. Requires MOZ_REMOTE_ALLOW_SYSTEM_ACCESS=1 env var. Use select_privileged_context first to target a chrome context.',
+    'Execute JS function in a privileged (chrome) browsing context. Requires MOZ_REMOTE_ALLOW_SYSTEM_ACCESS=1 env var. Get context ids from list_privileged_contexts.',
   annotations: {
     readOnlyHint: false,
   },
@@ -59,6 +59,10 @@ export const evaluatePrivilegedScriptTool = {
       function: {
         type: 'string',
         description: 'JS function string, e.g. () => Services.prefs.getBoolPref("foo")',
+      },
+      context: {
+        type: 'string',
+        description: 'Privileged browsing context ID from list_privileged_contexts',
       },
       saveTo: {
         type: ['boolean', 'string'],
@@ -71,7 +75,7 @@ export const evaluatePrivilegedScriptTool = {
           'Number of characters of the saved result to return inline as a preview when saveTo is used. Omit for no preview.',
       },
     },
-    required: ['function'],
+    required: ['function', 'context'],
   },
 };
 
@@ -90,6 +94,31 @@ function formatContextList(contexts: any[]): string {
   return lines.join('\n');
 }
 
+const SYSTEM_ACCESS_ERROR =
+  'Privileged context access not enabled. Set MOZ_REMOTE_ALLOW_SYSTEM_ACCESS=1 environment variable and restart Firefox.';
+
+// Top-level entries of the chrome-scoped tree are the privileged contexts;
+// their children are content tabs and must not be accepted.
+async function assertPrivilegedContext(firefox: any, contextId: string): Promise<void> {
+  let result;
+  try {
+    result = await firefox.sendBiDiCommand('browsingContext.getTree', {
+      'moz:scope': 'chrome',
+    });
+  } catch (error) {
+    if (error instanceof Error && error.message.includes('UnsupportedOperationError')) {
+      throw new Error(SYSTEM_ACCESS_ERROR);
+    }
+    throw error;
+  }
+  const contexts: any[] = result.contexts || [];
+  if (!contexts.some((ctx) => ctx.context === contextId)) {
+    throw new Error(
+      `${contextId} is not a privileged context. Use list_privileged_contexts to see valid ids.`
+    );
+  }
+}
+
 export async function handleListPrivilegedContexts(_args: unknown): Promise<McpToolResponse> {
   try {
     const { getFirefox } = await import('../index.js');
@@ -104,11 +133,7 @@ export async function handleListPrivilegedContexts(_args: unknown): Promise<McpT
     return successResponse(formatContextList(contexts));
   } catch (error) {
     if (error instanceof Error && error.message.includes('UnsupportedOperationError')) {
-      return errorResponse(
-        new Error(
-          'Privileged context access not enabled. Set MOZ_REMOTE_ALLOW_SYSTEM_ACCESS=1 environment variable and restart Firefox.'
-        )
-      );
+      return errorResponse(new Error(SYSTEM_ACCESS_ERROR));
     }
     return errorResponse(error as Error);
   }
@@ -124,6 +149,8 @@ export async function handleSelectPrivilegedContext(args: unknown): Promise<McpT
 
     const { getFirefox } = await import('../index.js');
     const firefox = await getFirefox();
+
+    await assertPrivilegedContext(firefox, contextId);
 
     const driver = firefox.getDriver();
     await driver.switchTo().window(contextId);
@@ -159,24 +186,32 @@ export async function handleEvaluatePrivilegedScript(args: unknown): Promise<Mcp
   try {
     const {
       function: fnString,
+      context,
       saveTo,
       preview,
     } = args as {
       function: string;
+      context: string;
       saveTo?: boolean | string;
       preview?: number;
     };
 
     validateFunction(fnString);
 
+    if (!context || typeof context !== 'string') {
+      throw new Error('context parameter is required and must be a string');
+    }
+
     const { getFirefox } = await import('../index.js');
     const firefox = await getFirefox();
+
+    await assertPrivilegedContext(firefox, context);
 
     const result = await firefox.sendBiDiCommand('script.callFunction', {
       functionDeclaration: fnString,
       awaitPromise: true,
       arguments: [],
-      target: { context: firefox.getCurrentContextId() },
+      target: { context },
     });
 
     if (result.type === EvaluateResultType.Success) {
