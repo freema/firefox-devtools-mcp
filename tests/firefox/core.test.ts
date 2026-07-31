@@ -9,11 +9,7 @@ import type { FirefoxLaunchOptions } from '@/firefox/types.js';
 describe('FirefoxCore', () => {
   describe('constructor', () => {
     it('should create instance with options', () => {
-      const options: FirefoxLaunchOptions = {
-        headless: true,
-        width: 1920,
-        height: 1080,
-      };
+      const options: FirefoxLaunchOptions = { headless: true };
 
       const core = new FirefoxCore(options);
       expect(core).toBeInstanceOf(FirefoxCore);

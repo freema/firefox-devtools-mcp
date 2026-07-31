@@ -3,7 +3,7 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { restartFirefoxTool, getFirefoxInfoTool } from '../../src/tools/firefox-management.js';
+import { restartFirefoxTool } from '../../src/tools/firefox-management.js';
 
 // Create mock functions that will be used in the hoisted mock
 const mockSetNextLaunchOptions = vi.hoisted(() => vi.fn());

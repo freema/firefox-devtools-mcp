@@ -58,7 +58,6 @@ describe('Tab Management Integration Tests', () => {
 
   it('should switch between tabs', async () => {
     await firefox.refreshTabs();
-    const initialTabs = firefox.getTabs();
 
     // Create second tab
     const fixturePath = `file://${fixturesPath}/form.html`;

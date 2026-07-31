@@ -30,7 +30,7 @@ describe('DebuggingEvents', () => {
     sendBiDiCommand = vi
       .fn()
       .mockResolvedValue({ type: 'success', result: { type: 'string', value: 'ok' } });
-    events = new DebuggingEvents(mock.driver, sendBiDiCommand);
+    events = new DebuggingEvents(mock.driver, sendBiDiCommand as any);
   });
 
   it('subscribe called twice only attaches one WebSocket listener', async () => {

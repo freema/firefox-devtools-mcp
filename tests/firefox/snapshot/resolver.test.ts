@@ -108,7 +108,7 @@ describe('UidResolver', () => {
       resolver.setSnapshotId(1);
       const uidMap: UidEntry[] = [
         { uid: '1_button', css: '#submit', xpath: '//button[@id="submit"]' },
-        { uid: '1_input', css: 'input[name="email"]', xpath: null },
+        { uid: '1_input', css: 'input[name="email"]' },
       ];
       resolver.storeUidMappings(uidMap);
     });
@@ -143,7 +143,7 @@ describe('UidResolver', () => {
       resolver.setSnapshotId(1);
       const uidMap: UidEntry[] = [
         { uid: '1_button', css: '#submit', xpath: '//button[@id="submit"]' },
-        { uid: '1_input', css: 'input[name="email"]', xpath: null },
+        { uid: '1_input', css: 'input[name="email"]' },
       ];
       resolver.storeUidMappings(uidMap);
     });
