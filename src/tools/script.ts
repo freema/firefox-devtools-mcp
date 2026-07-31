@@ -41,6 +41,11 @@ export const evaluateScriptTool = {
         type: 'number',
         description: 'Timeout in ms (default: 5000)',
       },
+      sandbox: {
+        type: 'string',
+        description:
+          'Evaluate in an isolated sandbox realm with this name instead of the page realm. The sandbox shares the page DOM but keeps the native built-ins even where the page overrode them, and its globals stay invisible to the page. The same name reuses the same sandbox across calls; omit to evaluate in the page realm.',
+      },
       saveTo: {
         type: ['boolean', 'string'],
         description:
@@ -72,12 +77,14 @@ export async function handleEvaluateScript(args: unknown): Promise<McpToolRespon
       function: fnString,
       args: fnArgs,
       timeout,
+      sandbox,
       saveTo,
       preview,
     } = args as {
       function: string;
       args?: Array<{ uid: string }>;
       timeout?: number;
+      sandbox?: string;
       saveTo?: boolean | string;
       preview?: number;
     };
@@ -123,7 +130,7 @@ export async function handleEvaluateScript(args: unknown): Promise<McpToolRespon
       functionDeclaration: fnString,
       awaitPromise: true,
       arguments: resolvedArgs,
-      target: { context: firefox.getCurrentContextId() },
+      target: { context: firefox.getCurrentContextId(), ...(sandbox !== undefined && { sandbox }) },
     });
 
     // Race against timeout as WebDriver BiDi callFunction has no built-in

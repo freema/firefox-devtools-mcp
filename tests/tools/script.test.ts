@@ -51,6 +51,13 @@ describe('Script Tools', () => {
       expect(properties?.timeout.type).toBe('number');
     });
 
+    it('should have optional sandbox parameter', () => {
+      const { properties, required } = evaluateScriptTool.inputSchema;
+      expect(properties?.sandbox).toBeDefined();
+      expect(properties?.sandbox.type).toBe('string');
+      expect(required).not.toContain('sandbox');
+    });
+
     it('should have optional saveTo parameter', () => {
       const { properties, required } = evaluateScriptTool.inputSchema;
       expect(properties?.saveTo).toBeDefined();
@@ -178,6 +185,52 @@ describe('Script Tools', () => {
       const text = (result.content[0] as { type: 'text'; text: string }).text;
       expect(text).toContain('Script ran on page and returned:');
       expect(text).toContain(RESULT_VALUE);
+    });
+  });
+
+  describe('Handler: sandbox target', () => {
+    const sendBiDiCommand = vi.fn();
+
+    beforeEach(() => {
+      vi.resetModules();
+      sendBiDiCommand.mockReset();
+      sendBiDiCommand.mockResolvedValue({
+        type: 'success',
+        result: { type: 'number', value: 1 },
+      });
+
+      vi.doMock('../../src/index.js', () => ({
+        getFirefox: vi.fn().mockResolvedValue({
+          getCurrentContextId: vi.fn().mockReturnValue('ctx-1'),
+          sendBiDiCommand,
+        }),
+      }));
+    });
+
+    afterEach(() => {
+      vi.restoreAllMocks();
+    });
+
+    it('should target the page realm when sandbox is not given', async () => {
+      const { handleEvaluateScript } = await import('../../src/tools/script.js');
+      const result = await handleEvaluateScript({ function: '() => 1' });
+
+      expect(result.isError).toBeUndefined();
+      expect(sendBiDiCommand).toHaveBeenCalledWith(
+        'script.callFunction',
+        expect.objectContaining({ target: { context: 'ctx-1' } })
+      );
+    });
+
+    it('should pass the sandbox name in the target when given', async () => {
+      const { handleEvaluateScript } = await import('../../src/tools/script.js');
+      const result = await handleEvaluateScript({ function: '() => 1', sandbox: 'inspector' });
+
+      expect(result.isError).toBeUndefined();
+      expect(sendBiDiCommand).toHaveBeenCalledWith(
+        'script.callFunction',
+        expect.objectContaining({ target: { context: 'ctx-1', sandbox: 'inspector' } })
+      );
     });
   });
 });
