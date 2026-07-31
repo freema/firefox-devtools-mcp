@@ -402,7 +402,7 @@ describe('E2E Scenario: Form Submission', () => {
     await firefox.clickByUid(formNav.uid);
     await waitForPageLoad(200);
 
-    let snapshot = await firefox.takeSnapshot();
+    const snapshot = await firefox.takeSnapshot();
 
     const nameInput = snapshot.json.uidMap.find((e) => e.css.includes('#regName'));
     const emailInput = snapshot.json.uidMap.find((e) => e.css.includes('#regEmail'));
@@ -441,11 +441,11 @@ describe('E2E Scenario: Console Monitoring', () => {
     // The app logs "[E2E App] Application loaded" on load — wait for it
     await waitFor(async () => {
       const messages = await firefox.getConsoleMessages();
-      return messages.some((m) => m.text && m.text.includes('[E2E App]'));
+      return messages.some((m) => m.text?.includes('[E2E App]'));
     }, 5000);
 
     const messages = await firefox.getConsoleMessages();
-    const appLogMessage = messages.find((m) => m.text && m.text.includes('[E2E App]'));
+    const appLogMessage = messages.find((m) => m.text?.includes('[E2E App]'));
     expect(appLogMessage).toBeDefined();
   }, 10000);
 
@@ -457,11 +457,11 @@ describe('E2E Scenario: Console Monitoring', () => {
     // Wait for the BiDi event to arrive asynchronously
     await waitFor(async () => {
       const messages = await firefox.getConsoleMessages();
-      return messages.some((m) => m.text && m.text.includes('BiDi test message'));
+      return messages.some((m) => m.text?.includes('BiDi test message'));
     }, 5000);
 
     const messages = await firefox.getConsoleMessages();
-    const testMessage = messages.find((m) => m.text && m.text.includes('BiDi test message'));
+    const testMessage = messages.find((m) => m.text?.includes('BiDi test message'));
     expect(testMessage).toBeDefined();
   }, 10000);
 });
@@ -647,7 +647,7 @@ describe('E2E Scenario: Stale UID Detection', () => {
     await waitForPageLoad();
 
     // Old UID should throw
-    await expect(firefox.clickByUid(firstUid!)).rejects.toThrow(/(stale snapshot|UID not found)/);
+    await expect(firefox.clickByUid(firstUid)).rejects.toThrow(/(stale snapshot|UID not found)/);
   }, 20000);
 
   it('should detect stale UIDs after clearSnapshot()', async () => {
@@ -660,7 +660,7 @@ describe('E2E Scenario: Stale UID Detection', () => {
 
     firefox.clearSnapshot();
 
-    await expect(firefox.clickByUid(uid!)).rejects.toThrow();
+    await expect(firefox.clickByUid(uid)).rejects.toThrow();
   }, 15000);
 });
 

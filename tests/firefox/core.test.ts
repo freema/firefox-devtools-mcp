@@ -372,15 +372,17 @@ describe('FirefoxCore sendBiDiCommand WebSocket readiness', () => {
     const core = new FirefoxCore({ headless: true });
 
     // Track event listeners and send calls
-    const eventListeners: Record<string, Function[]> = {};
+    const eventListeners: Record<string, ((...args: unknown[]) => void)[]> = {};
     const mockSend = vi.fn();
 
     // Mock WebSocket in CONNECTING state (readyState 0)
     const mockWs = {
       readyState: 0, // CONNECTING
       send: mockSend,
-      on: vi.fn((event: string, handler: Function) => {
-        if (!eventListeners[event]) eventListeners[event] = [];
+      on: vi.fn((event: string, handler: (...args: unknown[]) => void) => {
+        if (!eventListeners[event]) {
+          eventListeners[event] = [];
+        }
         eventListeners[event].push(handler);
       }),
       off: vi.fn(),
@@ -436,14 +438,16 @@ describe('FirefoxCore sendBiDiCommand WebSocket readiness', () => {
     const core = new FirefoxCore({ headless: true });
 
     // Track event listeners
-    const eventListeners: Record<string, Function[]> = {};
+    const eventListeners: Record<string, ((...args: unknown[]) => void)[]> = {};
 
     // Mock WebSocket stuck in CONNECTING state (never opens)
     const mockWs = {
       readyState: 0, // CONNECTING - stays this way
       send: vi.fn(),
-      on: vi.fn((event: string, handler: Function) => {
-        if (!eventListeners[event]) eventListeners[event] = [];
+      on: vi.fn((event: string, handler: (...args: unknown[]) => void) => {
+        if (!eventListeners[event]) {
+          eventListeners[event] = [];
+        }
         eventListeners[event].push(handler);
       }),
       off: vi.fn(),

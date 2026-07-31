@@ -55,7 +55,7 @@ function cleanup() {
     });
 
     console.log('✅ Global cleanup: All test Firefox processes terminated');
-  } catch (error) {
+  } catch {
     // Ignore errors - processes might already be dead
   } finally {
     isCleaningUp = false;

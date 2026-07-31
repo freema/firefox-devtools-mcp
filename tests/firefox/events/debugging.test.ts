@@ -2,9 +2,9 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { DebuggingEvents } from '../../../src/firefox/events/debugging.js';
 
 function makeMockDriver() {
-  const handlers: Record<string, Function[]> = {};
+  const handlers: Record<string, ((data: string) => void)[]> = {};
   const mockWs = {
-    on: vi.fn((event: string, fn: Function) => {
+    on: vi.fn((event: string, fn: (data: string) => void) => {
       (handlers[event] ??= []).push(fn);
     }),
   };

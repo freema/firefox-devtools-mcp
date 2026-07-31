@@ -117,7 +117,9 @@ describe('BiDi Navigation Integration Tests', () => {
     if (extensionId) {
       try {
         await firefox.sendBiDiCommand('webExtension.uninstall', { extension: extensionId });
-      } catch {}
+      } catch {
+        // Ignore errors - the extension might already be gone
+      }
     }
     await closeFirefox(firefox);
     // Remove the packed .xpi so no build artifact remains on disk
@@ -171,7 +173,7 @@ describe('BiDi Navigation Integration Tests', () => {
         await driver.close();
         const remaining = await driver.getAllWindowHandles();
         if (remaining.length > 0) {
-          await driver.switchTo().window(remaining[0]!);
+          await driver.switchTo().window(remaining[0]);
         }
       }
     } catch {

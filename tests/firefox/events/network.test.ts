@@ -41,6 +41,7 @@ function parseHeaders(headers: any[]): Record<string, string> {
         return null;
       }
     }
+    // eslint-disable-next-line @typescript-eslint/no-base-to-string
     return String(value);
   };
 
