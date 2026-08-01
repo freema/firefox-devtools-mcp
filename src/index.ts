@@ -7,8 +7,6 @@ import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import {
   CallToolRequestSchema,
   ListToolsRequestSchema,
-  ListResourcesRequestSchema,
-  ReadResourceRequestSchema,
   CallToolRequest,
 } from '@modelcontextprotocol/sdk/types.js';
 
@@ -222,7 +220,6 @@ export async function run(
     },
     {
       capabilities: {
-        resources: {},
         tools: {},
       },
     }
@@ -265,16 +262,6 @@ export async function run(
       logError(`Error executing tool ${name}`, error);
       throw error;
     }
-  });
-
-  // List resources (not implemented for this server)
-  server.setRequestHandler(ListResourcesRequestSchema, async () => {
-    return { resources: [] };
-  });
-
-  // Read resource (not implemented for this server)
-  server.setRequestHandler(ReadResourceRequestSchema, async () => {
-    throw new Error('Resource reading not implemented');
   });
 
   const transport = new StdioServerTransport();
