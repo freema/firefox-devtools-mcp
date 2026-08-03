@@ -67,7 +67,7 @@ describe('Network Monitoring Integration Tests', () => {
     // Wait for fetch GET button to appear in snapshot
     const fetchGetBtn = await waitForElementInSnapshot(
       firefox,
-      (entry) => entry.css.includes('#fetchGet') || entry.css.includes('fetchGet'),
+      (node) => node.id === 'fetchGet',
       10000
     );
 
@@ -98,7 +98,7 @@ describe('Network Monitoring Integration Tests', () => {
     // Wait for fetch POST button to appear in snapshot
     const fetchPostBtn = await waitForElementInSnapshot(
       firefox,
-      (entry) => entry.css.includes('#fetchPost') || entry.css.includes('fetchPost'),
+      (node) => node.id === 'fetchPost',
       10000
     );
 
@@ -128,11 +128,7 @@ describe('Network Monitoring Integration Tests', () => {
     firefox.clearNetworkRequests();
 
     // Wait for XHR button to appear in snapshot
-    const xhrBtn = await waitForElementInSnapshot(
-      firefox,
-      (entry) => entry.css.includes('#xhr') || entry.css.includes('data-testid="xhr'),
-      10000
-    );
+    const xhrBtn = await waitForElementInSnapshot(firefox, (node) => node.id === 'xhr', 10000);
 
     expect(xhrBtn).toBeDefined();
 

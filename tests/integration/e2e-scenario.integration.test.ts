@@ -26,6 +26,7 @@ import {
   createTestFirefox,
   closeFirefox,
   waitForElementInSnapshot,
+  findNodeInSnapshot,
   waitForPageLoad,
   waitFor,
 } from '../helpers/firefox.js';
@@ -58,16 +59,15 @@ describe('E2E Scenario: Todo App Workflow', () => {
     const snapshot = await firefox.takeSnapshot();
 
     expect(snapshot.text).toContain('E2E Test Application');
-    expect(snapshot.json.uidMap.length).toBeGreaterThan(0);
 
-    const statusEl = snapshot.json.uidMap.find((e) => e.css.includes('#status'));
+    const statusEl = findNodeInSnapshot(snapshot.json.root, (node) => node.id === 'status');
     expect(statusEl).toBeDefined();
   }, 10000);
 
   it('should add todo items via UID-based interaction', async () => {
     const todoInput = await waitForElementInSnapshot(
       firefox,
-      (e) => e.css.includes('#todoInput'),
+      (node) => node.id === 'todoInput',
       5000
     );
 
@@ -75,7 +75,7 @@ describe('E2E Scenario: Todo App Workflow', () => {
 
     const addBtn = await waitForElementInSnapshot(
       firefox,
-      (e) => e.css.includes('#addTodoBtn'),
+      (node) => node.id === 'addTodoBtn',
       5000
     );
     await firefox.clickByUid(addBtn.uid);
@@ -83,9 +83,9 @@ describe('E2E Scenario: Todo App Workflow', () => {
 
     // Add second todo
     const snapshot2 = await firefox.takeSnapshot();
-    const todoInput2 = snapshot2.json.uidMap.find((e) => e.css.includes('#todoInput'));
+    const todoInput2 = findNodeInSnapshot(snapshot2.json.root, (node) => node.id === 'todoInput');
     await firefox.fillByUid(todoInput2!.uid, 'Review PR');
-    const addBtn2 = snapshot2.json.uidMap.find((e) => e.css.includes('#addTodoBtn'));
+    const addBtn2 = findNodeInSnapshot(snapshot2.json.root, (node) => node.id === 'addTodoBtn');
     await firefox.clickByUid(addBtn2!.uid);
     await waitForPageLoad(200);
 
@@ -122,7 +122,7 @@ describe('E2E Scenario: Click Interactions', () => {
   it('should double-click element by UID', async () => {
     const dblBtn = await waitForElementInSnapshot(
       firefox,
-      (e) => e.css.includes('#dblClickTarget'),
+      (node) => node.id === 'dblClickTarget',
       5000
     );
 
@@ -136,7 +136,7 @@ describe('E2E Scenario: Click Interactions', () => {
   it('should hover over element by UID', async () => {
     const hoverBtn = await waitForElementInSnapshot(
       firefox,
-      (e) => e.css.includes('#hoverTarget'),
+      (node) => node.id === 'hoverTarget',
       5000
     );
 
@@ -169,7 +169,7 @@ describe('E2E Scenario: Multi-Page Navigation', () => {
     // Go to Search
     const searchNav = await waitForElementInSnapshot(
       firefox,
-      (e) => e.css.includes('#navSearch'),
+      (node) => node.id === 'navSearch',
       5000
     );
     await firefox.clickByUid(searchNav.uid);
@@ -179,7 +179,7 @@ describe('E2E Scenario: Multi-Page Navigation', () => {
     expect(snapshot.text).toContain('Search');
 
     // Go to Registration
-    const formNav = snapshot.json.uidMap.find((e) => e.css.includes('#navForm'));
+    const formNav = findNodeInSnapshot(snapshot.json.root, (node) => node.id === 'navForm');
     await firefox.clickByUid(formNav!.uid);
     await waitForPageLoad(200);
 
@@ -187,7 +187,7 @@ describe('E2E Scenario: Multi-Page Navigation', () => {
     expect(snapshot.text).toContain('Registration');
 
     // Back to Todo
-    const todoNav = snapshot.json.uidMap.find((e) => e.css.includes('#navTodo'));
+    const todoNav = findNodeInSnapshot(snapshot.json.root, (node) => node.id === 'navTodo');
     await firefox.clickByUid(todoNav!.uid);
     await waitForPageLoad(200);
 
@@ -303,17 +303,17 @@ describe('E2E Scenario: Search Workflow', () => {
   it('should search and display results', async () => {
     const searchNav = await waitForElementInSnapshot(
       firefox,
-      (e) => e.css.includes('#navSearch'),
+      (node) => node.id === 'navSearch',
       5000
     );
     await firefox.clickByUid(searchNav.uid);
     await waitForPageLoad(200);
 
     let snapshot = await firefox.takeSnapshot();
-    const searchInput = snapshot.json.uidMap.find((e) => e.css.includes('#searchInput'));
+    const searchInput = findNodeInSnapshot(snapshot.json.root, (node) => node.id === 'searchInput');
     await firefox.fillByUid(searchInput!.uid, 'bidi');
 
-    const searchBtn = snapshot.json.uidMap.find((e) => e.css.includes('#searchBtn'));
+    const searchBtn = findNodeInSnapshot(snapshot.json.root, (node) => node.id === 'searchBtn');
     await firefox.clickByUid(searchBtn!.uid);
     await waitForPageLoad(200);
 
@@ -325,18 +325,18 @@ describe('E2E Scenario: Search Workflow', () => {
     // Self-contained: navigate to search page first
     const searchNav = await waitForElementInSnapshot(
       firefox,
-      (e) => e.css.includes('#navSearch'),
+      (node) => node.id === 'navSearch',
       5000
     );
     await firefox.clickByUid(searchNav.uid);
     await waitForPageLoad(200);
 
     let snapshot = await firefox.takeSnapshot();
-    const searchInput = snapshot.json.uidMap.find((e) => e.css.includes('#searchInput'));
+    const searchInput = findNodeInSnapshot(snapshot.json.root, (node) => node.id === 'searchInput');
 
     await firefox.fillByUid(searchInput!.uid, 'nonexistent-xyz');
 
-    const searchBtn = snapshot.json.uidMap.find((e) => e.css.includes('#searchBtn'));
+    const searchBtn = findNodeInSnapshot(snapshot.json.root, (node) => node.id === 'searchBtn');
     await firefox.clickByUid(searchBtn!.uid);
     await waitForPageLoad(200);
 
@@ -363,20 +363,16 @@ describe('E2E Scenario: Form Submission', () => {
   });
 
   it('should fill and submit registration form', async () => {
-    const formNav = await waitForElementInSnapshot(
-      firefox,
-      (e) => e.css.includes('#navForm'),
-      5000
-    );
+    const formNav = await waitForElementInSnapshot(firefox, (node) => node.id === 'navForm', 5000);
     await firefox.clickByUid(formNav.uid);
     await waitForPageLoad(200);
 
     let snapshot = await firefox.takeSnapshot();
 
-    const nameInput = snapshot.json.uidMap.find((e) => e.css.includes('#regName'));
-    const emailInput = snapshot.json.uidMap.find((e) => e.css.includes('#regEmail'));
-    const bioInput = snapshot.json.uidMap.find((e) => e.css.includes('#regBio'));
-    const submitBtn = snapshot.json.uidMap.find((e) => e.css.includes('#regSubmitBtn'));
+    const nameInput = findNodeInSnapshot(snapshot.json.root, (node) => node.id === 'regName');
+    const emailInput = findNodeInSnapshot(snapshot.json.root, (node) => node.id === 'regEmail');
+    const bioInput = findNodeInSnapshot(snapshot.json.root, (node) => node.id === 'regBio');
+    const submitBtn = findNodeInSnapshot(snapshot.json.root, (node) => node.id === 'regSubmitBtn');
 
     await firefox.fillByUid(nameInput!.uid, 'Tomas Grasl');
     await firefox.fillByUid(emailInput!.uid, 'tomas@example.com');
@@ -394,18 +390,14 @@ describe('E2E Scenario: Form Submission', () => {
     await firefox.navigate(appUrl);
     await waitForPageLoad();
 
-    const formNav = await waitForElementInSnapshot(
-      firefox,
-      (e) => e.css.includes('#navForm'),
-      5000
-    );
+    const formNav = await waitForElementInSnapshot(firefox, (node) => node.id === 'navForm', 5000);
     await firefox.clickByUid(formNav.uid);
     await waitForPageLoad(200);
 
     const snapshot = await firefox.takeSnapshot();
 
-    const nameInput = snapshot.json.uidMap.find((e) => e.css.includes('#regName'));
-    const emailInput = snapshot.json.uidMap.find((e) => e.css.includes('#regEmail'));
+    const nameInput = findNodeInSnapshot(snapshot.json.root, (node) => node.id === 'regName');
+    const emailInput = findNodeInSnapshot(snapshot.json.root, (node) => node.id === 'regEmail');
 
     await firefox.fillFormByUid([
       { uid: nameInput!.uid, value: 'Julian Descottes' },
@@ -493,7 +485,7 @@ describe('E2E Scenario: Network Monitoring', () => {
     // Click the fetch GET button
     const fetchBtn = await waitForElementInSnapshot(
       firefox,
-      (e) => e.css.includes('#fetchGet'),
+      (node) => node.id === 'fetchGet',
       5000
     );
     await firefox.clickByUid(fetchBtn.uid);
@@ -521,7 +513,7 @@ describe('E2E Scenario: Network Monitoring', () => {
 
     const fetchBtn = await waitForElementInSnapshot(
       firefox,
-      (e) => e.css.includes('#fetchGet'),
+      (node) => node.id === 'fetchGet',
       5000
     );
     await firefox.clickByUid(fetchBtn.uid);
@@ -639,7 +631,7 @@ describe('E2E Scenario: Stale UID Detection', () => {
     await waitForPageLoad();
 
     const snapshot = await firefox.takeSnapshot();
-    const firstUid = snapshot.json.uidMap[0]?.uid;
+    const firstUid = snapshot.json.root.uid;
     expect(firstUid).toBeDefined();
 
     // Navigate away — UIDs become stale
@@ -655,10 +647,10 @@ describe('E2E Scenario: Stale UID Detection', () => {
     await waitForPageLoad();
 
     const snapshot = await firefox.takeSnapshot();
-    const uid = snapshot.json.uidMap[0]?.uid;
+    const uid = snapshot.json.root.uid;
     expect(uid).toBeDefined();
 
-    firefox.clearSnapshot();
+    await firefox.clearSnapshot();
 
     await expect(firefox.clickByUid(uid)).rejects.toThrow();
   }, 15000);
@@ -681,27 +673,23 @@ describe('E2E Scenario: Error Handling', () => {
     await closeFirefox(firefox);
   });
 
-  it('should throw on invalid UID format', async () => {
-    await expect(firefox.clickByUid('invalid-no-underscore')).rejects.toThrow(/Invalid UID format/);
-  }, 10000);
-
   it('should throw on unknown UID', async () => {
-    // Take a snapshot to set a valid snapshot ID
-    const snapshot = await firefox.takeSnapshot();
-    const snapshotId = snapshot.json.snapshotId;
-
-    // Use valid format but non-existent UID
-    await expect(firefox.clickByUid(`${snapshotId}_nonexistent`)).rejects.toThrow(/UID not found/);
-  }, 10000);
-
-  it('should throw on stale snapshot UID', async () => {
-    const snapshot = await firefox.takeSnapshot();
-    const snapshotId = snapshot.json.snapshotId;
-
-    // Take another snapshot to bump ID
     await firefox.takeSnapshot();
 
-    // Old snapshot ID is now stale
-    await expect(firefox.clickByUid(`${snapshotId}_button`)).rejects.toThrow(/stale snapshot/);
+    await expect(firefox.clickByUid('e999999')).rejects.toThrow(/UID not found/);
+  }, 10000);
+
+  it('should keep UIDs from earlier snapshots valid', async () => {
+    const target = await waitForElementInSnapshot(firefox, (node) => node.id === 'dblClickTarget');
+
+    // A later snapshot reuses the UID instead of invalidating it
+    const snapshot = await firefox.takeSnapshot();
+    const sameTarget = findNodeInSnapshot(
+      snapshot.json.root,
+      (node) => node.id === 'dblClickTarget'
+    );
+    expect(sameTarget?.uid).toBe(target.uid);
+
+    await expect(firefox.clickByUid(target.uid)).resolves.not.toThrow();
   }, 10000);
 });

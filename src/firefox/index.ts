@@ -42,14 +42,6 @@ export class FirefoxClient {
     // Initialize snapshot manager first
     this.snapshot = new SnapshotManager(driver);
 
-    // Create centralized navigation handler for lifecycle hooks
-    const onNavigate = () => {
-      // Clear snapshot on any navigation
-      if (this.snapshot) {
-        this.snapshot.clear();
-      }
-    };
-
     // Initialize event modules with lifecycle hooks.
     // BiDi (console/network events) is available in both launch and connect-existing
     // modes, provided Firefox has its Remote Agent running. If webSocketUrl is absent
@@ -60,14 +52,12 @@ export class FirefoxClient {
     if (hasBidi) {
       // Cast to any for BiDi-specific APIs that only exist on selenium WebDriver
       this.consoleEvents = new ConsoleEvents(driver as any, {
-        onNavigate,
         autoClearOnNavigate: false,
       });
 
       this.networkEvents = new NetworkEvents(
         driver as any,
         {
-          onNavigate,
           autoClearOnNavigate: false,
           captureBodies: this.core.getOptions().captureNetworkBodies !== false,
         },
@@ -266,8 +256,6 @@ export class FirefoxClient {
       throw new Error('Not connected');
     }
     await this.pages.navigate(url);
-    // Clear snapshot on navigation (but NOT console - users can manually clear if needed)
-    this.clearSnapshot();
   }
 
   async navigateBack(): Promise<void> {
@@ -450,11 +438,11 @@ export class FirefoxClient {
     return await this.snapshot.takeSnapshot(options);
   }
 
-  resolveUidToSelector(uid: string): string {
+  async resolveUidToSelector(uid: string): Promise<string> {
     if (!this.snapshot) {
       throw new Error('Not connected');
     }
-    return this.snapshot.resolveUidToSelector(uid);
+    return await this.snapshot.resolveUidToSelector(uid);
   }
 
   async resolveUidToElement(uid: string): Promise<WebElement> {
@@ -464,11 +452,11 @@ export class FirefoxClient {
     return await this.snapshot.resolveUidToElement(uid);
   }
 
-  clearSnapshot(): void {
+  async clearSnapshot(): Promise<void> {
     if (!this.snapshot) {
       throw new Error('Not connected');
     }
-    this.snapshot.clear();
+    await this.snapshot.clear();
   }
 
   // ============================================================================

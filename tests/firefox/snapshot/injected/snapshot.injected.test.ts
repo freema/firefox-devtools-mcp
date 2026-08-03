@@ -1,7 +1,12 @@
 // @vitest-environment jsdom
 
 import { describe, it, expect, vi, beforeAll, afterEach } from 'vitest';
-import { createSnapshot } from '@/firefox/snapshot/injected/snapshot.injected.js';
+import {
+  clearUidRegistry,
+  createSnapshot,
+  resolveUid,
+  uidToSelector,
+} from '@/firefox/snapshot/injected/snapshot.injected.js';
 
 beforeAll(() => {
   // jsdom doesn't implement CSS.escape
@@ -33,6 +38,8 @@ beforeAll(() => {
 describe('snapshot.injected - createSnapshot', () => {
   afterEach(() => {
     document.body.innerHTML = '';
+    // The registry lives on the window, which jsdom keeps between tests
+    clearUidRegistry();
   });
 
   describe('default behavior', () => {
@@ -42,15 +49,15 @@ describe('snapshot.injected - createSnapshot', () => {
       const result = createSnapshot(1);
       expect(result.tree).not.toBeNull();
       expect(result.tree!.tag).toBe('body');
-      expect(result.uidMap.length).toBeGreaterThan(0);
+      expect(result.nodeCount).toBeGreaterThan(0);
     });
 
-    it('returns uidMap with entries', () => {
+    it('counts the nodes it emitted', () => {
       document.body.innerHTML = '<button>A</button><input />';
 
       const result = createSnapshot(1);
       // body + button + input = at least 3
-      expect(result.uidMap.length).toBeGreaterThanOrEqual(3);
+      expect(result.nodeCount).toBeGreaterThanOrEqual(3);
     });
 
     it('has no selectorError by default', () => {
@@ -104,14 +111,74 @@ describe('snapshot.injected - createSnapshot', () => {
       const includeAll = createSnapshot(2, { includeAll: true });
 
       // includeAll should produce at least as many nodes
-      expect(includeAll.uidMap.length).toBeGreaterThanOrEqual(standard.uidMap.length);
+      expect(includeAll.nodeCount).toBeGreaterThanOrEqual(standard.nodeCount);
     });
   });
 
-  describe('window global', () => {
-    it('registers __createSnapshot on window', () => {
-      expect((window as any).__createSnapshot).toBeDefined();
-      expect(typeof (window as any).__createSnapshot).toBe('function');
+  describe('uid resolution', () => {
+    it('resolves a uid from the snapshot back to its element', () => {
+      document.body.innerHTML = '<div id="app"><button id="go">OK</button></div>';
+
+      const result = createSnapshot(1);
+      const button = findNode(result.tree, (node) => node.tag === 'button');
+
+      expect(resolveUid(button.uid)).toBe(document.getElementById('go'));
+    });
+
+    it('generates a css selector for a uid on demand', () => {
+      document.body.innerHTML = '<div id="app"><button id="go">OK</button></div>';
+
+      const result = createSnapshot(1);
+      const button = findNode(result.tree, (node) => node.tag === 'button');
+
+      const selector = uidToSelector(button.uid);
+      expect(selector).toBe('button#go');
+      expect(document.querySelector(selector!)).toBe(document.getElementById('go'));
+    });
+
+    it('returns null for unknown uids', () => {
+      expect(resolveUid('e99')).toBeNull();
+      expect(uidToSelector('e99')).toBeNull();
+    });
+
+    it('returns null after the registry is cleared', () => {
+      document.body.innerHTML = '<button id="go">OK</button>';
+
+      const result = createSnapshot(1);
+      const button = findNode(result.tree, (node) => node.tag === 'button');
+
+      clearUidRegistry();
+
+      expect(resolveUid(button.uid)).toBeNull();
+    });
+  });
+
+  describe('window globals', () => {
+    it('registers the snapshot and uid helpers on window', () => {
+      for (const name of [
+        '__createSnapshot',
+        '__resolveUid',
+        '__uidToSelector',
+        '__clearUidRegistry',
+      ]) {
+        expect(typeof (window as any)[name]).toBe('function');
+      }
     });
   });
 });
+
+function findNode(node: any, predicate: (node: any) => boolean): any {
+  if (!node) {
+    return null;
+  }
+  if (predicate(node)) {
+    return node;
+  }
+  for (const child of node.children ?? []) {
+    const found = findNode(child, predicate);
+    if (found) {
+      return found;
+    }
+  }
+  return null;
+}

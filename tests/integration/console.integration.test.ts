@@ -67,7 +67,7 @@ describe('Console Capture Integration Tests', () => {
     // Wait for log info button to appear in snapshot
     const logInfoBtn = await waitForElementInSnapshot(
       firefox,
-      (entry) => entry.css.includes('#logInfo') || entry.css.includes('logInfo'),
+      (node) => node.id === 'logInfo',
       10000
     );
 
@@ -98,7 +98,7 @@ describe('Console Capture Integration Tests', () => {
     // Wait for log warn button to appear in snapshot
     const logWarnBtn = await waitForElementInSnapshot(
       firefox,
-      (entry) => entry.css.includes('#logWarn') || entry.css.includes('logWarn'),
+      (node) => node.id === 'logWarn',
       10000
     );
 
@@ -129,7 +129,7 @@ describe('Console Capture Integration Tests', () => {
     // Wait for log error button to appear in snapshot
     const logErrorBtn = await waitForElementInSnapshot(
       firefox,
-      (entry) => entry.css.includes('#logError') || entry.css.includes('logError'),
+      (node) => node.id === 'logError',
       10000
     );
 

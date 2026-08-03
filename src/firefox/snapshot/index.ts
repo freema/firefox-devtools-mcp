@@ -7,7 +7,6 @@ export type {
   Snapshot,
   SnapshotNode,
   SnapshotJson,
-  UidEntry,
   AriaAttributes,
   ComputedProperties,
 } from './types.js';

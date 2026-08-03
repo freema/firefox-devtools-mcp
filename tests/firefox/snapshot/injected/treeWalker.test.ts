@@ -2,6 +2,8 @@
 
 import { describe, it, expect, vi, beforeAll, afterEach } from 'vitest';
 import { walkTree } from '@/firefox/snapshot/injected/treeWalker.js';
+import { clearRegistry, lookupElement } from '@/firefox/snapshot/injected/uidRegistry.js';
+import type { SnapshotNode } from '@/firefox/snapshot/types.js';
 
 beforeAll(() => {
   // jsdom doesn't implement CSS.escape
@@ -30,13 +32,19 @@ beforeAll(() => {
   );
 });
 
+function collectUids(node: SnapshotNode): string[] {
+  return [node.uid, ...node.children.flatMap(collectUids)];
+}
+
 describe('treeWalker', () => {
   afterEach(() => {
     document.body.innerHTML = '';
+    // The registry lives on the window, which jsdom keeps between tests
+    clearRegistry();
   });
 
   describe('basic walkTree', () => {
-    it('returns tree rooted at body with correct uid prefix', () => {
+    it('returns tree rooted at body with uids starting at the given element id', () => {
       const btn = document.createElement('button');
       btn.textContent = 'Click';
       document.body.appendChild(btn);
@@ -44,23 +52,34 @@ describe('treeWalker', () => {
       const result = walkTree(document.body, 42);
       expect(result.tree).not.toBeNull();
       expect(result.tree!.tag).toBe('body');
-      expect(result.tree!.uid).toMatch(/^42_/);
-      expect(result.uidMap.length).toBeGreaterThan(0);
-      expect(result.uidMap[0].uid).toMatch(/^42_/);
+      expect(collectUids(result.tree!).sort()).toEqual(['e42', 'e43']);
+      expect(result.nodeCount).toBe(2);
     });
 
-    it('populates uidMap entries', () => {
+    it('returns the advanced element id counter', () => {
+      document.body.innerHTML = '<button>A</button>';
+
+      const result = walkTree(document.body, 7);
+      expect(result.nextElementId).toBe(7 + result.nodeCount);
+    });
+
+    it('counts every included node', () => {
       const btn = document.createElement('button');
       btn.textContent = 'OK';
       document.body.appendChild(btn);
 
       const result = walkTree(document.body, 1);
       // button + body = at least 2
-      expect(result.uidMap.length).toBeGreaterThanOrEqual(2);
-      for (const entry of result.uidMap) {
-        expect(entry.uid).toBeDefined();
-        expect(entry.css).toBeDefined();
-      }
+      expect(result.nodeCount).toBeGreaterThanOrEqual(2);
+    });
+
+    it('records the id attribute on nodes', () => {
+      document.body.innerHTML = '<button id="submitBtn">OK</button>';
+
+      const result = walkTree(document.body, 1);
+      const btn = result.tree!.children.find((c) => c.tag === 'button');
+      expect(btn!.id).toBe('submitBtn');
+      expect(result.tree!.id).toBeUndefined();
     });
 
     it('returns truncated=false for small trees', () => {
@@ -115,10 +134,10 @@ describe('treeWalker', () => {
       document.body.innerHTML = '<div><span>text</span></div>';
 
       const standard = walkTree(document.body, 1, { includeAll: false });
-      const includeAll = walkTree(document.body, 2, { includeAll: true });
+      const includeAll = walkTree(document.body, standard.nextElementId, { includeAll: true });
 
       // includeAll should have more or equal nodes
-      expect(includeAll.uidMap.length).toBeGreaterThanOrEqual(standard.uidMap.length);
+      expect(includeAll.nodeCount).toBeGreaterThanOrEqual(standard.nodeCount);
     });
 
     it('still hides display:none elements', () => {
@@ -168,8 +187,85 @@ describe('treeWalker', () => {
       const result = walkTree(document.body, 1);
       expect(result.truncated).toBe(true);
       // Should cap around 1000 nodes (body + navs + buttons)
-      expect(result.uidMap.length).toBeLessThan(1100);
+      expect(result.nodeCount).toBeLessThan(1100);
     }, 30000);
+
+    it('still enforces MAX_NODES when uids are reused', () => {
+      let html = '';
+      for (let g = 0; g < 11; g++) {
+        html += '<nav>';
+        for (let i = 0; i < 100; i++) {
+          html += `<button>b${g * 100 + i}</button>`;
+        }
+        html += '</nav>';
+      }
+      document.body.innerHTML = html;
+
+      const first = walkTree(document.body, 1);
+      const second = walkTree(document.body, first.nextElementId);
+
+      expect(second.truncated).toBe(true);
+      expect(second.nodeCount).toBeLessThan(1100);
+    }, 30000);
+  });
+
+  describe('uid stability', () => {
+    it('reuses uids assigned by a previous walk', () => {
+      document.body.innerHTML = '<button>A</button><button>B</button>';
+
+      const first = walkTree(document.body, 0);
+      const second = walkTree(document.body, first.nextElementId);
+
+      const childUids = (result: typeof first) => result.tree!.children.map((c) => c.uid);
+      expect(second.tree!.uid).toBe(first.tree!.uid);
+      expect(childUids(second)).toEqual(childUids(first));
+      expect(second.nodeCount).toBe(first.nodeCount);
+      expect(second.nextElementId).toBe(first.nextElementId);
+    });
+
+    it('assigns fresh uids to elements added after the first walk', () => {
+      document.body.innerHTML = '<button>A</button>';
+
+      const first = walkTree(document.body, 0);
+      const firstUids = first.tree!.children.map((c) => c.uid);
+
+      document.body.insertAdjacentHTML('beforeend', '<button>B</button>');
+      const second = walkTree(document.body, first.nextElementId);
+      const secondUids = second.tree!.children.map((c) => c.uid);
+
+      expect(secondUids[0]).toBe(firstUids[0]);
+      expect(secondUids[1]).toBe(`e${first.nextElementId}`);
+    });
+
+    it('assigns fresh uids after the registry is cleared', () => {
+      document.body.innerHTML = '<button>A</button>';
+
+      const first = walkTree(document.body, 0);
+      clearRegistry();
+      const second = walkTree(document.body, first.nextElementId);
+
+      const firstUids = new Set(collectUids(first.tree!));
+      expect(collectUids(second.tree!).some((uid) => firstUids.has(uid))).toBe(false);
+    });
+
+    it('registers walked elements so their uid resolves back to them', () => {
+      document.body.innerHTML = '<button id="go">A</button>';
+
+      const result = walkTree(document.body, 1);
+      const btn = result.tree!.children.find((c) => c.tag === 'button');
+
+      expect(lookupElement(btn!.uid)).toBe(document.getElementById('go'));
+    });
+
+    it('does not resolve uids of elements removed from the DOM', () => {
+      document.body.innerHTML = '<button id="go">A</button>';
+
+      const result = walkTree(document.body, 1);
+      const btn = result.tree!.children.find((c) => c.tag === 'button');
+      document.getElementById('go')!.remove();
+
+      expect(lookupElement(btn!.uid)).toBeNull();
+    });
   });
 
   describe('iframes', () => {

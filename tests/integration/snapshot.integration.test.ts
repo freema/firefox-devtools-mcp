@@ -8,9 +8,12 @@ import {
   createTestFirefox,
   closeFirefox,
   waitForElementInSnapshot,
+  findNodeInSnapshot,
+  findNodesInSnapshot,
   waitForPageLoad,
 } from '../helpers/firefox.js';
 import type { FirefoxClient } from '@/firefox/index.js';
+import type { SnapshotNode } from '@/firefox/snapshot/types.js';
 import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -38,8 +41,6 @@ describe('Snapshot Integration Tests', () => {
     expect(snapshot).toBeDefined();
     expect(snapshot.json).toBeDefined();
     expect(snapshot.json.root).toBeDefined();
-    expect(snapshot.json.uidMap).toBeDefined();
-    expect(snapshot.json.uidMap.length).toBeGreaterThan(0);
     expect(snapshot.text).toBeDefined();
     expect(snapshot.text.length).toBeGreaterThan(0);
   }, 10000);
@@ -52,13 +53,13 @@ describe('Snapshot Integration Tests', () => {
     // Wait for button to appear in snapshot
     const buttonUid = await waitForElementInSnapshot(
       firefox,
-      (entry) => entry.css.includes('#clickBtn') || entry.css.includes('id="clickBtn"'),
+      (node) => node.id === 'clickBtn',
       10000
     );
 
     expect(buttonUid).toBeDefined();
 
-    const selector = firefox.resolveUidToSelector(buttonUid.uid);
+    const selector = await firefox.resolveUidToSelector(buttonUid.uid);
     expect(selector).toBeDefined();
     expect(typeof selector).toBe('string');
   }, 10000);
@@ -71,7 +72,7 @@ describe('Snapshot Integration Tests', () => {
     // Wait for button to appear in snapshot
     const buttonUid = await waitForElementInSnapshot(
       firefox,
-      (entry) => entry.css.includes('#clickBtn') || entry.css.includes('id="clickBtn"'),
+      (node) => node.id === 'clickBtn',
       10000
     );
 
@@ -87,7 +88,7 @@ describe('Snapshot Integration Tests', () => {
     await waitForPageLoad();
 
     const snapshot1 = await firefox.takeSnapshot();
-    const firstUid = snapshot1.json.uidMap[0]?.uid;
+    const firstUid = snapshot1.json.root.uid;
 
     expect(firstUid).toBeDefined();
 
@@ -101,23 +102,23 @@ describe('Snapshot Integration Tests', () => {
     }
   }, 10000);
 
-  it('should clear snapshot cache on navigation', async () => {
+  it('should assign fresh UIDs after navigation', async () => {
     const fixturePath = `file://${fixturesPath}/simple.html`;
     await firefox.navigate(fixturePath);
     await waitForPageLoad();
 
     const snapshot1 = await firefox.takeSnapshot();
-    const snapshotId1 = snapshot1.json.snapshotId;
 
     // Navigate to same page
     await firefox.navigate(fixturePath);
     await waitForPageLoad();
 
     const snapshot2 = await firefox.takeSnapshot();
-    const snapshotId2 = snapshot2.json.snapshotId;
 
-    // Snapshot IDs should be different
-    expect(snapshotId2).toBeGreaterThan(snapshotId1);
+    // The registry died with the old page, so the new snapshot must not reuse its UIDs
+    const uids = (root: SnapshotNode) => findNodesInSnapshot(root, () => true).map((n) => n.uid);
+    const uids1 = new Set(uids(snapshot1.json.root));
+    expect(uids(snapshot2.json.root).some((uid) => uids1.has(uid))).toBe(false);
   }, 10000);
 
   it('should handle double-click by UID', async () => {
@@ -128,7 +129,7 @@ describe('Snapshot Integration Tests', () => {
     // Wait for double-click button to appear in snapshot
     const dblClickBtnUid = await waitForElementInSnapshot(
       firefox,
-      (entry) => entry.css.includes('#dblClickBtn') || entry.css.includes('id="dblClickBtn"'),
+      (node) => node.id === 'dblClickBtn',
       10000
     );
 
@@ -144,12 +145,12 @@ describe('Snapshot Integration Tests', () => {
     await waitForPageLoad();
 
     const snapshot = await firefox.takeSnapshot();
-    const firstUid = snapshot.json.uidMap[0]?.uid;
+    const firstUid = snapshot.json.root.uid;
 
     expect(firstUid).toBeDefined();
 
     // Clear snapshot manually
-    firefox.clearSnapshot();
+    await firefox.clearSnapshot();
 
     // UID should be stale after manual clear
     if (firstUid) {
@@ -180,21 +181,18 @@ describe('Snapshot Integration Tests', () => {
     const snapshot = await firefox.takeSnapshot({ includeAll: true });
 
     // Check that elements inside hidden parent are NOT in snapshot
-    const hasHiddenButton = snapshot.json.uidMap.some(
-      (entry) =>
-        entry.css.includes('buttonInHiddenDiv') || entry.css.includes('id="buttonInHiddenDiv"')
-    );
-    const hasHiddenText = snapshot.json.uidMap.some(
-      (entry) => entry.css.includes('textInHiddenDiv') || entry.css.includes('id="textInHiddenDiv"')
-    );
+    const hasHiddenButton =
+      findNodeInSnapshot(snapshot.json.root, (node) => node.id === 'buttonInHiddenDiv') !==
+      undefined;
+    const hasHiddenText =
+      findNodeInSnapshot(snapshot.json.root, (node) => node.id === 'textInHiddenDiv') !== undefined;
 
     expect(hasHiddenButton).toBe(false);
     expect(hasHiddenText).toBe(false);
 
     // Check that visible elements ARE in snapshot
-    const hasVisibleButton = snapshot.json.uidMap.some(
-      (entry) => entry.css.includes('visibleButton') || entry.css.includes('id="visibleButton"')
-    );
+    const hasVisibleButton =
+      findNodeInSnapshot(snapshot.json.root, (node) => node.id === 'visibleButton') !== undefined;
 
     expect(hasVisibleButton).toBe(true);
   }, 10000);
@@ -207,24 +205,20 @@ describe('Snapshot Integration Tests', () => {
     const snapshot = await firefox.takeSnapshot({ includeAll: true });
 
     // Check that buttons with opacity 0, 0.0, 0.00 are NOT in snapshot
-    const hasOpacity0 = snapshot.json.uidMap.some(
-      (entry) => entry.css.includes('opacity0') && entry.css.includes('id="opacity0"')
-    );
-    const hasOpacity00 = snapshot.json.uidMap.some(
-      (entry) => entry.css.includes('opacity00') && entry.css.includes('id="opacity00"')
-    );
-    const hasOpacity000 = snapshot.json.uidMap.some(
-      (entry) => entry.css.includes('opacity000') && entry.css.includes('id="opacity000"')
-    );
+    const hasOpacity0 =
+      findNodeInSnapshot(snapshot.json.root, (node) => node.id === 'opacity0') !== undefined;
+    const hasOpacity00 =
+      findNodeInSnapshot(snapshot.json.root, (node) => node.id === 'opacity00') !== undefined;
+    const hasOpacity000 =
+      findNodeInSnapshot(snapshot.json.root, (node) => node.id === 'opacity000') !== undefined;
 
     expect(hasOpacity0).toBe(false);
     expect(hasOpacity00).toBe(false);
     expect(hasOpacity000).toBe(false);
 
     // Check that button with opacity 0.1 IS in snapshot
-    const hasOpacity01 = snapshot.json.uidMap.some(
-      (entry) => entry.css.includes('opacity01') || entry.css.includes('id="opacity01"')
-    );
+    const hasOpacity01 =
+      findNodeInSnapshot(snapshot.json.root, (node) => node.id === 'opacity01') !== undefined;
 
     expect(hasOpacity01).toBe(true);
   }, 10000);
@@ -237,11 +231,9 @@ describe('Snapshot Integration Tests', () => {
     const snapshot = await firefox.takeSnapshot({ includeAll: true });
 
     // Check that button inside visibility:hidden parent is NOT in snapshot
-    const hasInvisibleButton = snapshot.json.uidMap.some(
-      (entry) =>
-        entry.css.includes('buttonInInvisibleDiv') ||
-        entry.css.includes('id="buttonInInvisibleDiv"')
-    );
+    const hasInvisibleButton =
+      findNodeInSnapshot(snapshot.json.root, (node) => node.id === 'buttonInInvisibleDiv') !==
+      undefined;
 
     expect(hasInvisibleButton).toBe(false);
   }, 10000);

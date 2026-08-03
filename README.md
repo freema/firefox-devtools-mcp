@@ -262,7 +262,7 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for more details on local development, te
 
 - Firefox not found: pass `--firefox-path "/Applications/Firefox.app/Contents/MacOS/firefox"` (macOS) or the correct path on your OS.
 - First run is slow: Selenium sets up the BiDi session; subsequent runs are faster.
-- Stale UIDs after navigation: take a fresh snapshot (`take_snapshot`) before using UID tools.
+- Stale UIDs: a UID stays valid until its element is removed or the page navigates; take a fresh snapshot (`take_snapshot`) when a UID tool reports one is gone.
 - Windows 10: Error during discovery for MCP server 'firefox-devtools': MCP error -32000: Connection closed
   - **Solution 1** Wrap with `cmd /c` ([details](https://github.com/modelcontextprotocol/servers/issues/1082#issuecomment-2791786310)):
 
