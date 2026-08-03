@@ -44,7 +44,7 @@ export const evaluateScriptTool = {
       sandbox: {
         type: 'string',
         description:
-          'Evaluate in an isolated sandbox realm with this name instead of the page realm. The sandbox shares the page DOM but keeps the native built-ins even where the page overrode them, and its globals stay invisible to the page. The same name reuses the same sandbox across calls; omit to evaluate in the page realm.',
+          'Evaluate in an isolated sandbox realm with this name instead of the page realm. The sandbox shares the page DOM and keeps the native built-ins even where the page overrode them. Page-defined globals and expandos are invisible from the sandbox, and vice-versa. The same name reuses the same sandbox across calls; omit to evaluate in the page realm.',
       },
       saveTo: {
         type: ['boolean', 'string'],
