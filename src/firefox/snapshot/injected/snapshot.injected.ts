@@ -5,6 +5,8 @@
 
 import { walkTree, type TreeWalkerOptions } from './treeWalker.js';
 import type { TreeWalkerResult } from './treeWalker.js';
+import { clearRegistry, lookupElement } from './uidRegistry.js';
+import { generateCssSelector } from './selectorGenerator.js';
 
 /**
  * Options for snapshot creation
@@ -25,7 +27,7 @@ export interface CreateSnapshotResult extends TreeWalkerResult {
  * This function is called from executeScript
  */
 export function createSnapshot(
-  snapshotId: number,
+  nextElementId: number,
   options?: CreateSnapshotOptions
 ): CreateSnapshotResult {
   try {
@@ -38,8 +40,9 @@ export function createSnapshot(
         if (!selected) {
           return {
             tree: null,
-            uidMap: [],
+            nodeCount: 0,
             truncated: false,
+            nextElementId,
             selectorError: `Selector "${options.selector}" not found`,
           };
         }
@@ -47,8 +50,9 @@ export function createSnapshot(
       } catch {
         return {
           tree: null,
-          uidMap: [],
+          nodeCount: 0,
           truncated: false,
+          nextElementId,
           selectorError: `Invalid selector syntax: "${options.selector}"`,
         };
       }
@@ -61,7 +65,7 @@ export function createSnapshot(
     if (options?.includeAll !== undefined) {
       treeOptions.includeAll = options.includeAll;
     }
-    const result = walkTree(rootElement, snapshotId, treeOptions);
+    const result = walkTree(rootElement, nextElementId, treeOptions);
 
     if (!result.tree) {
       throw new Error('Failed to generate tree');
@@ -71,13 +75,40 @@ export function createSnapshot(
   } catch {
     return {
       tree: null,
-      uidMap: [],
+      nodeCount: 0,
       truncated: false,
+      nextElementId,
     };
   }
 }
 
+/**
+ * Resolve a UID to the element it was assigned to during a snapshot
+ */
+export function resolveUid(uid: string): Element | null {
+  return lookupElement(uid);
+}
+
+/**
+ * Generate a CSS selector for the element a UID points at
+ */
+export function uidToSelector(uid: string): string | null {
+  const el = lookupElement(uid);
+  return el ? generateCssSelector(el) : null;
+}
+
+/**
+ * Forget all UID associations, making every existing UID unresolvable
+ */
+export function clearUidRegistry(): void {
+  clearRegistry();
+}
+
 // Make it available globally for executeScript
 if (typeof window !== 'undefined') {
-  (window as any).__createSnapshot = createSnapshot;
+  const target = window as any;
+  target.__createSnapshot = createSnapshot;
+  target.__resolveUid = resolveUid;
+  target.__uidToSelector = uidToSelector;
+  target.__clearUidRegistry = clearUidRegistry;
 }

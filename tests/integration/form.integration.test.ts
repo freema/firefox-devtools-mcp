@@ -38,7 +38,7 @@ describe('Form Interaction Integration Tests', () => {
     // Wait for submit button to appear in snapshot
     const submitBtn = await waitForElementInSnapshot(
       firefox,
-      (entry) => entry.css.includes('#submitBtn') || entry.css.includes('submitBtn'),
+      (node) => node.id === 'submitBtn',
       10000
     );
 

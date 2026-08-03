@@ -20,7 +20,7 @@ const DEFAULT_SNAPSHOT_LINES = 100;
 export const takeSnapshotTool = {
   name: 'take_snapshot',
   description:
-    'Capture DOM snapshot with stable UIDs. Retake after navigation. Output caps at maxLines (default 100); scope with selector or dump the full tree with saveTo.',
+    'Capture DOM snapshot with stable UIDs. A UID stays valid across snapshots until its element is removed or the page navigates. Output caps at maxLines (default 100); scope with selector or dump the full tree with saveTo.',
   annotations: {
     readOnlyHint: true,
   },
@@ -68,7 +68,7 @@ export const takeSnapshotTool = {
 
 export const resolveUidToSelectorTool = {
   name: 'resolve_uid_to_selector',
-  description: 'Resolve UID to CSS selector. Fails if stale.',
+  description: 'Resolve UID to CSS selector. Fails if the element is gone.',
   annotations: {
     readOnlyHint: true,
   },
@@ -86,7 +86,7 @@ export const resolveUidToSelectorTool = {
 
 export const clearSnapshotTool = {
   name: 'clear_snapshot',
-  description: 'Clear snapshot cache. Usually not needed.',
+  description: 'Clear snapshot UIDs. Usually not needed.',
   annotations: {
     readOnlyHint: false,
   },
@@ -160,7 +160,7 @@ export async function handleTakeSnapshot(args: unknown): Promise<McpToolResponse
         'snapshot',
         'txt'
       );
-      let output = `Snapshot (id=${snapshot.json.snapshotId}) saved to: ${saved.path} (${(saved.bytes / 1024).toFixed(1)}KB)`;
+      let output = `Snapshot saved to: ${saved.path} (${(saved.bytes / 1024).toFixed(1)}KB)`;
       if (snapshot.json.truncated) {
         output += ' [DOM truncated]';
       }
@@ -178,7 +178,7 @@ export async function handleTakeSnapshot(args: unknown): Promise<McpToolResponse
     const displayLines = truncated ? lines.slice(0, maxLines) : lines;
 
     // Build compact output
-    let output = `📸 Snapshot (id=${snapshot.json.snapshotId})`;
+    let output = '📸 Snapshot';
     if (selector) {
       output += ` [selector: ${selector}]`;
     }
@@ -229,7 +229,7 @@ export async function handleResolveUidToSelector(args: unknown): Promise<McpTool
     const firefox = await getFirefox();
 
     try {
-      const selector = firefox.resolveUidToSelector(uid);
+      const selector = await firefox.resolveUidToSelector(uid);
       return successResponse(`${uid} → ${selector}`);
     } catch (error) {
       throw handleUidError(error as Error, uid);
@@ -244,7 +244,7 @@ export async function handleClearSnapshot(_args: unknown): Promise<McpToolRespon
     const { getFirefox } = await import('../index.js');
     const firefox = await getFirefox();
 
-    firefox.clearSnapshot();
+    await firefox.clearSnapshot();
 
     return successResponse('🧹 Snapshot cleared');
   } catch (error) {

@@ -8,9 +8,11 @@ import {
   createTestFirefox,
   closeFirefox,
   waitForElementInSnapshot,
+  findNodesInSnapshot,
   waitForPageLoad,
 } from '../helpers/firefox.js';
 import type { FirefoxClient } from '@/firefox/index.js';
+import type { SnapshotNode } from '@/firefox/snapshot/types.js';
 import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -118,7 +120,7 @@ describe('Tab Management Integration Tests', () => {
     // Wait for form elements to appear in tab 2
     const emailElement = await waitForElementInSnapshot(
       firefox,
-      (entry) => entry.css.includes('#email') || entry.css.includes('email'),
+      (node) => node.id === 'email',
       10000
     );
 
@@ -126,9 +128,7 @@ describe('Tab Management Integration Tests', () => {
 
     // Take snapshot in tab 2 (form page)
     const snapshot2 = await firefox.takeSnapshot();
-    const formElements = snapshot2.json.uidMap.filter(
-      (entry) => entry.css.includes('#email') || entry.css.includes('email')
-    );
+    const formElements = findNodesInSnapshot(snapshot2.json.root, (node) => node.id === 'email');
 
     expect(formElements.length).toBeGreaterThan(0);
 
@@ -139,7 +139,7 @@ describe('Tab Management Integration Tests', () => {
     // Wait for button to appear in tab 1
     const clickBtnElement = await waitForElementInSnapshot(
       firefox,
-      (entry) => entry.css.includes('#clickBtn') || entry.css.includes('clickBtn'),
+      (node) => node.id === 'clickBtn',
       10000
     );
 
@@ -147,14 +147,17 @@ describe('Tab Management Integration Tests', () => {
 
     // Take snapshot in tab 1
     const snapshot1 = await firefox.takeSnapshot();
-    const simpleElements = snapshot1.json.uidMap.filter(
-      (entry) => entry.css.includes('#clickBtn') || entry.css.includes('clickBtn')
+    const simpleElements = findNodesInSnapshot(
+      snapshot1.json.root,
+      (node) => node.id === 'clickBtn'
     );
 
     expect(simpleElements.length).toBeGreaterThan(0);
 
-    // Snapshot IDs should be different
-    expect(snapshot1.json.snapshotId).not.toBe(snapshot2.json.snapshotId);
+    // Each tab has its own registry, so the two snapshots must not share UIDs
+    const uids = (root: SnapshotNode) => findNodesInSnapshot(root, () => true).map((n) => n.uid);
+    const uids1 = new Set(uids(snapshot1.json.root));
+    expect(uids(snapshot2.json.root).some((uid) => uids1.has(uid))).toBe(false);
   }, 30000);
 
   it('should get selected tab index', async () => {

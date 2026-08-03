@@ -2,7 +2,7 @@
  * Tree walker with iframe support (runs in browser context)
  */
 
-import type { SnapshotNode, UidEntry } from '../types.js';
+import type { SnapshotNode } from '../types.js';
 import { isRelevant, isVisible } from './elementCollector.js';
 import {
   getElementName,
@@ -10,7 +10,7 @@ import {
   getAriaAttributes,
   getComputedProperties,
 } from './attributeCollector.js';
-import { generateCssSelector, generateXPath } from './selectorGenerator.js';
+import { getUid, setUid } from './uidRegistry.js';
 
 /**
  * Configuration
@@ -31,8 +31,11 @@ export interface TreeWalkerOptions {
  */
 export interface TreeWalkerResult {
   tree: SnapshotNode | null;
-  uidMap: UidEntry[];
+  /** Number of elements included in the tree (each one has a UID) */
+  nodeCount: number;
   truncated: boolean;
+  /** Element id counter after this walk, to be passed to the next one */
+  nextElementId: number;
 }
 
 /**
@@ -48,13 +51,13 @@ interface WalkResult {
  */
 export function walkTree(
   rootElement: Element,
-  snapshotId: number,
+  nextElementId: number,
   options: TreeWalkerOptions = {}
 ): TreeWalkerResult {
   const { includeAll = false, includeIframes = true } = options;
 
-  let counter = 0;
-  const uidMap: UidEntry[] = [];
+  let nodeCount = 0;
+  let elementId = nextElementId;
   let truncated = false;
 
   function walk(el: Element, depth: number): WalkResult {
@@ -64,7 +67,7 @@ export function walkTree(
       return { node: null, relevantChildren: [] };
     }
 
-    if (counter >= MAX_NODES) {
+    if (nodeCount >= MAX_NODES) {
       truncated = true;
       return { node: null, relevantChildren: [] };
     }
@@ -107,7 +110,7 @@ export function walkTree(
     } else {
       // Walk regular children
       for (let i = 0; i < el.children.length; i++) {
-        if (counter >= MAX_NODES) {
+        if (nodeCount >= MAX_NODES) {
           truncated = true;
           break;
         }
@@ -135,15 +138,15 @@ export function walkTree(
       return { node: null, relevantChildren: childResults };
     }
 
-    // Element IS relevant - create node
-    const uid = `${snapshotId}_${counter++}`;
-    const css = generateCssSelector(el);
-    const xpath = generateXPath(el);
-
-    uidMap.push({ uid, css, xpath });
+    // Element IS relevant - create node.
+    // Reuse the UID from a previous walk so UIDs stay stable across snapshots.
+    const uid = getUid(el) ?? `e${elementId++}`;
+    setUid(uid, el);
+    nodeCount++;
 
     // Collect attributes
     const htmlEl = el as HTMLElement;
+    const idAttr = el.id;
     const roleAttr = el.getAttribute('role');
     const nameAttr = getElementName(el);
     const textAttr = getTextContent(el);
@@ -156,6 +159,7 @@ export function walkTree(
     const node: SnapshotNode = {
       uid,
       tag,
+      ...(idAttr && { id: idAttr }),
       ...(roleAttr && { role: roleAttr }),
       ...(nameAttr && { name: nameAttr }),
       ...(valueAttr && { value: valueAttr }),
@@ -194,7 +198,8 @@ export function walkTree(
 
   return {
     tree: result.node,
-    uidMap,
+    nodeCount,
     truncated,
+    nextElementId: elementId,
   };
 }

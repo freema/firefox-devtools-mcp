@@ -1,170 +1,66 @@
 /**
  * UID Resolver
- * Handles UID validation, resolution to selectors/elements, and element caching
+ * Resolves UIDs by asking the content page for the element the UID was assigned to
+ * during the snapshot (see injected/uidRegistry.ts)
  */
 
-import { By, WebDriver, WebElement } from 'selenium-webdriver';
+import { WebDriver, WebElement } from 'selenium-webdriver';
 import { logDebug } from '../../utils/logger.js';
-import type { UidEntry } from './types.js';
 
-interface WebElementCacheEntry {
-  selector: string;
-  xpath?: string;
-  cachedElement: WebElement;
-  snapshotId: number;
-  timestamp: number;
-}
+const RESOLVE_SCRIPT = 'return window.__resolveUid ? window.__resolveUid(arguments[0]) : null;';
+const SELECTOR_SCRIPT =
+  'return window.__uidToSelector ? window.__uidToSelector(arguments[0]) : null;';
+const CLEAR_SCRIPT = 'if (window.__clearUidRegistry) { window.__clearUidRegistry(); }';
 
 /**
  * UID Resolver class
  * Separated from SnapshotManager for better modularity
  */
 export class UidResolver {
-  private uidToEntry = new Map<string, UidEntry>();
-  private elementCache = new Map<string, WebElementCacheEntry>();
-  private currentSnapshotId = 0;
-
   constructor(private driver: WebDriver) {}
 
   /**
-   * Update current snapshot ID
+   * Forget all UID associations in the page, making existing UIDs unresolvable.
+   * Best effort: the registry dies with the page anyway.
    */
-  setSnapshotId(snapshotId: number): void {
-    this.currentSnapshotId = snapshotId;
-  }
-
-  /**
-   * Get current snapshot ID
-   */
-  getSnapshotId(): number {
-    return this.currentSnapshotId;
-  }
-
-  /**
-   * Store UID mappings from snapshot result
-   */
-  storeUidMappings(uidMap: UidEntry[]): void {
-    this.uidToEntry.clear();
-    for (const entry of uidMap) {
-      this.uidToEntry.set(entry.uid, entry);
+  async clear(): Promise<void> {
+    try {
+      await this.driver.executeScript(CLEAR_SCRIPT);
+      logDebug('Snapshot UIDs cleared');
+    } catch {
+      logDebug('Unable to clear snapshot UIDs (page may be navigating)');
     }
   }
 
   /**
-   * Clear all UID mappings and cache
+   * Resolve UID to a CSS selector, generated on demand from the element it points at
    */
-  clear(): void {
-    this.uidToEntry.clear();
-    this.elementCache.clear();
-    logDebug('Snapshot UIDs cleared');
+  async resolveUidToSelector(uid: string): Promise<string> {
+    const selector = await this.driver.executeScript<string | null>(SELECTOR_SCRIPT, uid);
+    if (!selector) {
+      throw new Error(notFoundMessage(uid));
+    }
+
+    return selector;
   }
 
   /**
-   * Validate UID (staleness check)
-   */
-  validateUid(uid: string): void {
-    const parts = uid.split('_');
-    if (parts.length < 2 || !parts[0]) {
-      throw new Error(`Invalid UID format: ${uid}`);
-    }
-
-    const uidSnapshotId = parseInt(parts[0], 10);
-    if (isNaN(uidSnapshotId)) {
-      throw new Error(`Invalid UID format: ${uid}`);
-    }
-
-    if (uidSnapshotId !== this.currentSnapshotId) {
-      throw new Error(
-        `This uid is from a stale snapshot (snapshot ${uidSnapshotId}, current ${this.currentSnapshotId}). Take a fresh snapshot.`
-      );
-    }
-  }
-
-  /**
-   * Resolve UID to CSS selector (with staleness check)
-   */
-  resolveUidToSelector(uid: string): string {
-    this.validateUid(uid);
-
-    const entry = this.uidToEntry.get(uid);
-    if (!entry) {
-      throw new Error(`UID not found: ${uid}. Take a fresh snapshot first.`);
-    }
-
-    return entry.css;
-  }
-
-  /**
-   * Resolve UID to element (with staleness check and caching)
-   * Tries CSS first, falls back to XPath
+   * Resolve UID to the element it was assigned to during the snapshot
    */
   async resolveUidToElement(uid: string): Promise<WebElement> {
-    this.validateUid(uid);
-
-    const entry = this.uidToEntry.get(uid);
-    if (!entry) {
-      throw new Error(`UID not found: ${uid}. Take a fresh snapshot first.`);
+    const element = await this.driver.executeScript<WebElement | null>(RESOLVE_SCRIPT, uid);
+    if (!element) {
+      throw new Error(notFoundMessage(uid));
     }
 
-    // Check cache
-    const cached = this.elementCache.get(uid);
-    if (cached?.cachedElement) {
-      try {
-        // Validate element is still alive
-        await cached.cachedElement.isDisplayed();
-        logDebug(`Using cached element for UID: ${uid}`);
-        return cached.cachedElement;
-      } catch {
-        // Element is stale, re-find it
-        logDebug(`Cached element stale for UID: ${uid}, re-finding...`);
-      }
-    }
-
-    // Try CSS selector first
-    try {
-      const element = await this.driver.findElement(By.css(entry.css));
-
-      // Update cache
-      this.elementCache.set(uid, {
-        selector: entry.css,
-        ...(entry.xpath && { xpath: entry.xpath }),
-        cachedElement: element,
-        snapshotId: this.currentSnapshotId,
-        timestamp: Date.now(),
-      });
-
-      logDebug(`Found element by CSS for UID: ${uid}`);
-      return element;
-    } catch {
-      logDebug(`CSS selector failed for UID: ${uid}, trying XPath fallback...`);
-
-      // Fallback to XPath if available
-      const xpathSelector = entry.xpath;
-      if (xpathSelector) {
-        try {
-          const element = await this.driver.findElement(By.xpath(xpathSelector));
-
-          // Update cache
-          this.elementCache.set(uid, {
-            selector: entry.css,
-            ...(xpathSelector && { xpath: xpathSelector }),
-            cachedElement: element,
-            snapshotId: this.currentSnapshotId,
-            timestamp: Date.now(),
-          });
-
-          logDebug(`Found element by XPath for UID: ${uid}`);
-          return element;
-        } catch {
-          throw new Error(
-            `Element not found for UID: ${uid}. The element may have changed. Take a fresh snapshot.`
-          );
-        }
-      }
-
-      throw new Error(
-        `Element not found for UID: ${uid}. The element may have changed. Take a fresh snapshot.`
-      );
-    }
+    logDebug(`Resolved element for UID: ${uid}`);
+    return element;
   }
+}
+
+function notFoundMessage(uid: string): string {
+  return (
+    `UID not found: ${uid}. The element is gone from the page, or the page was reloaded. ` +
+    'Take a fresh snapshot first.'
+  );
 }

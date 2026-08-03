@@ -2,17 +2,6 @@
  * Snapshot types and interfaces
  */
 
-import type { WebElement } from 'selenium-webdriver';
-
-/**
- * UID entry with CSS and XPath selectors
- */
-export interface UidEntry {
-  uid: string;
-  css: string;
-  xpath?: string;
-}
-
 /**
  * ARIA attributes
  */
@@ -49,6 +38,7 @@ export interface ComputedProperties {
 export interface SnapshotNode {
   uid: string;
   tag: string;
+  id?: string;
   role?: string;
   name?: string;
   value?: string;
@@ -68,10 +58,8 @@ export interface SnapshotNode {
  */
 export interface SnapshotJson {
   root: SnapshotNode;
-  snapshotId: number;
   timestamp: number;
   truncated?: boolean;
-  uidMap: UidEntry[];
 }
 
 /**
@@ -87,20 +75,10 @@ export interface Snapshot {
  */
 export interface InjectedScriptResult {
   tree: SnapshotNode | null;
-  uidMap: UidEntry[];
+  nodeCount: number;
+  nextElementId: number;
   error?: string;
   truncated?: boolean;
   selectorError?: string;
   debugLog?: Array<{ el: string; relevant: boolean; depth: number }>;
-}
-
-/**
- * Element cache entry
- */
-export interface ElementCacheEntry {
-  selector: string;
-  xpath?: string;
-  cachedElement?: WebElement;
-  snapshotId: number;
-  timestamp: number;
 }

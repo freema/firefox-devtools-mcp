@@ -98,9 +98,7 @@ describe('Snapshot Tools', () => {
       vi.doMock('../../src/index.js', () => ({
         args: { unrestrictedSavePaths: true },
         getFirefox: vi.fn().mockResolvedValue({
-          takeSnapshot: vi
-            .fn()
-            .mockResolvedValue({ json: { root: ROOT, snapshotId: 's1', truncated: false } }),
+          takeSnapshot: vi.fn().mockResolvedValue({ json: { root: ROOT, truncated: false } }),
         }),
       }));
     });
@@ -119,7 +117,7 @@ describe('Snapshot Tools', () => {
 
       expect(result.isError).toBeUndefined();
       const text = (result.content[0] as { type: 'text'; text: string }).text;
-      expect(text).toContain('Snapshot (id=s1) saved to:');
+      expect(text).toContain('Snapshot saved to:');
       const fileContent = readFileSync(filePath, 'utf8');
       expect(fileContent).toContain('uid=uid-1');
       expect(fileContent).toContain('uid=uid-2');

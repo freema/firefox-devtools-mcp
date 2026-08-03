@@ -28,7 +28,8 @@ export class SnapshotManager {
   private driver: WebDriver;
   private resolver: UidResolver;
   private injectedScript: string | null = null;
-  private currentSnapshotId = 0;
+  /** Counter handed to the injected script so UIDs stay unique across snapshots */
+  private nextElementId = 0;
 
   constructor(driver: WebDriver) {
     this.driver = driver;
@@ -86,17 +87,17 @@ export class SnapshotManager {
 
   /**
    * Take a snapshot of the current page
-   * Returns text and JSON with snapshotId, no DOM mutations
+   * Returns text and JSON, no DOM mutations
    */
   async takeSnapshot(options?: SnapshotOptions): Promise<Snapshot> {
-    const snapshotId = ++this.currentSnapshotId;
-    this.resolver.setSnapshotId(snapshotId);
-    this.resolver.clear();
-
-    logDebug(`Taking snapshot (ID: ${snapshotId})...`);
+    logDebug('Taking snapshot...');
 
     // Execute bundled injected script
-    const result = await this.executeInjectedScript(snapshotId, options);
+    const result = await this.executeInjectedScript(this.nextElementId, options);
+
+    if (typeof result?.nextElementId === 'number') {
+      this.nextElementId = result.nextElementId;
+    }
 
     logDebug(
       `Snapshot executeScript result: hasResult=${!!result}, hasTree=${!!result?.tree}, truncated=${result?.truncated || false}`
@@ -125,16 +126,11 @@ export class SnapshotManager {
       throw new Error(`Failed to generate snapshot: ${errorMsg}`);
     }
 
-    // Store UID mappings in resolver
-    this.resolver.storeUidMappings(result.uidMap);
-
     // Create snapshot object
     const snapshotJson: SnapshotJson = {
       root: result.tree,
-      snapshotId,
       timestamp: Date.now(),
       truncated: result.truncated || false,
-      uidMap: result.uidMap,
     };
 
     const snapshot: Snapshot = {
@@ -143,38 +139,38 @@ export class SnapshotManager {
     };
 
     logDebug(
-      `Snapshot created: ${result.uidMap.length} elements with UIDs${result.truncated ? ' (truncated)' : ''}`
+      `Snapshot created: ${result.nodeCount} elements with UIDs${result.truncated ? ' (truncated)' : ''}`
     );
 
     return snapshot;
   }
 
   /**
-   * Resolve UID to CSS selector (with staleness check)
+   * Resolve UID to a CSS selector generated on demand
    */
-  resolveUidToSelector(uid: string): string {
-    return this.resolver.resolveUidToSelector(uid);
+  async resolveUidToSelector(uid: string): Promise<string> {
+    return await this.resolver.resolveUidToSelector(uid);
   }
 
   /**
-   * Resolve UID to WebElement (with staleness check and caching)
+   * Resolve UID to the WebElement it was assigned to
    */
   async resolveUidToElement(uid: string): Promise<WebElement> {
     return await this.resolver.resolveUidToElement(uid);
   }
 
   /**
-   * Clear snapshot (called on navigation)
+   * Clear snapshot UIDs
    */
-  clear(): void {
-    this.resolver.clear();
+  async clear(): Promise<void> {
+    await this.resolver.clear();
   }
 
   /**
    * Execute bundled injected snapshot script
    */
   private async executeInjectedScript(
-    snapshotId: number,
+    nextElementId: number,
     options?: SnapshotOptions
   ): Promise<InjectedScriptResult> {
     const scriptSource = this.getInjectedScript();
@@ -187,15 +183,18 @@ export class SnapshotManager {
       // Only inject the bundle if not already present
       if (typeof window.__createSnapshot === 'undefined') {
         ${scriptSource}
-        // Register the createSnapshot function globally
+        // Register the snapshot and UID resolution functions globally
         if (typeof __SnapshotInjected !== 'undefined' && __SnapshotInjected.createSnapshot) {
           window.__createSnapshot = __SnapshotInjected.createSnapshot;
+          window.__resolveUid = __SnapshotInjected.resolveUid;
+          window.__uidToSelector = __SnapshotInjected.uidToSelector;
+          window.__clearUidRegistry = __SnapshotInjected.clearUidRegistry;
         }
       }
       // Call it with options
       return window.__createSnapshot(arguments[0], arguments[1]);
       `,
-      snapshotId,
+      nextElementId,
       options || {}
     );
 

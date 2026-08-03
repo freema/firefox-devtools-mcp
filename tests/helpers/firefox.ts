@@ -5,6 +5,7 @@
 
 import { FirefoxClient } from '@/firefox/index.js';
 import type { FirefoxLaunchOptions } from '@/firefox/types.js';
+import type { SnapshotNode } from '@/firefox/snapshot/types.js';
 
 /**
  * Creates a headless Firefox client for testing
@@ -85,20 +86,46 @@ export async function retry<T>(
 }
 
 /**
+ * Collect all snapshot nodes matching the predicate
+ */
+export function findNodesInSnapshot(
+  node: SnapshotNode,
+  predicate: (node: SnapshotNode) => boolean
+): SnapshotNode[] {
+  const matches = predicate(node) ? [node] : [];
+
+  for (const child of node.children) {
+    matches.push(...findNodesInSnapshot(child, predicate));
+  }
+
+  return matches;
+}
+
+/**
+ * Find the first snapshot node matching the predicate
+ */
+export function findNodeInSnapshot(
+  node: SnapshotNode,
+  predicate: (node: SnapshotNode) => boolean
+): SnapshotNode | undefined {
+  return findNodesInSnapshot(node, predicate)[0];
+}
+
+/**
  * Wait for element to appear in snapshot
  * Takes snapshots repeatedly until element matching the predicate is found
  */
 export async function waitForElementInSnapshot(
   firefox: FirefoxClient,
-  predicate: (entry: { uid: string; css: string; text?: string }) => boolean,
+  predicate: (node: SnapshotNode) => boolean,
   timeout = 5000,
   interval = 200
-): Promise<{ uid: string; css: string; text?: string }> {
+): Promise<SnapshotNode> {
   const startTime = Date.now();
 
   while (Date.now() - startTime < timeout) {
     const snapshot = await firefox.takeSnapshot();
-    const element = snapshot.json.uidMap.find(predicate);
+    const element = findNodeInSnapshot(snapshot.json.root, predicate);
 
     if (element) {
       return element;
