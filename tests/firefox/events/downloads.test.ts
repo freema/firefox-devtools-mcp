@@ -5,9 +5,9 @@ import { DownloadEvents } from '../../../src/firefox/events/downloads.js';
 const NOW = Date.now();
 
 function makeMockDriver() {
-  const handlers: Record<string, Function[]> = {};
+  const handlers: Record<string, ((data: string) => void)[]> = {};
   const mockWs = {
-    on: vi.fn((event: string, fn: Function) => {
+    on: vi.fn((event: string, fn: (data: string) => void) => {
       (handlers[event] ??= []).push(fn);
     }),
   };

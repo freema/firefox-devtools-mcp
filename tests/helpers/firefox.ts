@@ -14,9 +14,6 @@ export async function createTestFirefox(
 ): Promise<FirefoxClient> {
   const defaultOptions: FirefoxLaunchOptions = {
     headless: true,
-    enableBidiLogging: false,
-    width: 1280,
-    height: 720,
     ...options,
   };
 

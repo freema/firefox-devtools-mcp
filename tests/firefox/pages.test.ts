@@ -56,7 +56,7 @@ describe('PageManagement', () => {
     const sendBiDiCommand = vi.fn().mockResolvedValue({});
 
     const pages = new PageManagement(
-      driver,
+      driver as any,
       getCurrentContextId,
       setCurrentContextId,
       sendBiDiCommand

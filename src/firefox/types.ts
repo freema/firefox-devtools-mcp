@@ -79,7 +79,7 @@ export interface LogpointResult {
  */
 export interface FirefoxLaunchOptions {
   firefoxPath?: string | undefined;
-  headless: boolean;
+  headless?: boolean | undefined;
   profilePath?: string | undefined;
   viewport?: { width: number; height: number } | undefined;
   args?: string[] | undefined;

@@ -49,5 +49,16 @@
     "no-var": "error",
     "eqeqeq": ["error", "always"],
     "curly": ["error", "all"]
-  }
+  },
+  "overrides": [
+    {
+      "files": ["tests/**/*.ts"],
+      "parserOptions": {
+        "project": "./tests/tsconfig.json"
+      },
+      "rules": {
+        "no-console": "off"
+      }
+    }
+  ]
 }

@@ -89,7 +89,9 @@ describe('treeWalker', () => {
       const result = walkTree(document.body, 1);
       expect(result.tree).not.toBeNull();
       const findButton = (node: any): boolean => {
-        if (node.tag === 'button') return true;
+        if (node.tag === 'button') {
+          return true;
+        }
         return node.children?.some((c: any) => findButton(c)) ?? false;
       };
       expect(findButton(result.tree)).toBe(true);
@@ -138,9 +140,13 @@ describe('treeWalker', () => {
     it('sets truncated=true when MAX_DEPTH (10) is exceeded', () => {
       // Build a DOM tree 12 levels deep with semantic (relevant) nodes
       let html = '';
-      for (let i = 0; i < 12; i++) html += '<nav>';
+      for (let i = 0; i < 12; i++) {
+        html += '<nav>';
+      }
       html += '<button>deep</button>';
-      for (let i = 0; i < 12; i++) html += '</nav>';
+      for (let i = 0; i < 12; i++) {
+        html += '</nav>';
+      }
       document.body.innerHTML = html;
 
       const result = walkTree(document.body, 1);
@@ -177,10 +183,14 @@ describe('treeWalker', () => {
 
       const result = walkTree(document.body, 1, { includeIframes: true });
       const findIframe = (node: any): any => {
-        if (node.tag === 'iframe') return node;
+        if (node.tag === 'iframe') {
+          return node;
+        }
         for (const c of node.children || []) {
           const found = findIframe(c);
-          if (found) return found;
+          if (found) {
+            return found;
+          }
         }
         return null;
       };
@@ -199,10 +209,14 @@ describe('treeWalker', () => {
 
       const result = walkTree(document.body, 1, { includeIframes: false });
       const findIframe = (node: any): any => {
-        if (node.tag === 'iframe') return node;
+        if (node.tag === 'iframe') {
+          return node;
+        }
         for (const c of node.children || []) {
           const found = findIframe(c);
-          if (found) return found;
+          if (found) {
+            return found;
+          }
         }
         return null;
       };
