@@ -18,7 +18,7 @@
     "outDir": "./dist",
     "rootDir": "./src",
     "removeComments": true,
-    "noEmitOnError": true,
+    "noEmit": true,
     "noUnusedLocals": true,
     "noUnusedParameters": true,
     "noImplicitReturns": true,

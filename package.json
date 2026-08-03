@@ -20,7 +20,7 @@
     "start": "node dist/index.js",
     "setup": "node scripts/setup-mcp-config.js",
     "clean": "rm -rf dist",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "tsc",
     "typecheck:tests": "tsc -p tests/tsconfig.json",
     "lint": "eslint src tests --ext .ts",
     "lint:fix": "eslint src tests --ext .ts --fix",
