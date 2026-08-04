@@ -178,7 +178,7 @@ export async function handleTakeSnapshot(args: unknown): Promise<McpToolResponse
     const displayLines = truncated ? lines.slice(0, maxLines) : lines;
 
     // Build compact output
-    let output = '📸 Snapshot';
+    let output = 'Snapshot';
     if (selector) {
       output += ` [selector: ${selector}]`;
     }

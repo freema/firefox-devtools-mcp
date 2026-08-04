@@ -32,10 +32,16 @@ export function getUid(el: Element): string | undefined {
   return getRegistry().elementToUid.get(el);
 }
 
-export function setUid(uid: string, el: Element): void {
+/**
+ * Remember the UIDs a tree walk assigned, so they can be resolved and reused later
+ */
+export function registerUids(uids: Map<string, Element>): void {
   const registry = getRegistry();
-  registry.uidToElement.set(uid, new WeakRef(el));
-  registry.elementToUid.set(el, uid);
+
+  for (const [uid, el] of uids) {
+    registry.uidToElement.set(uid, new WeakRef(el));
+    registry.elementToUid.set(el, uid);
+  }
 }
 
 /**

@@ -2,7 +2,11 @@
 
 import { describe, it, expect, vi, beforeAll, afterEach } from 'vitest';
 import { walkTree } from '@/firefox/snapshot/injected/treeWalker.js';
-import { clearRegistry, lookupElement } from '@/firefox/snapshot/injected/uidRegistry.js';
+import {
+  clearRegistry,
+  lookupElement,
+  registerUids,
+} from '@/firefox/snapshot/injected/uidRegistry.js';
 import type { SnapshotNode } from '@/firefox/snapshot/types.js';
 
 beforeAll(() => {
@@ -71,6 +75,16 @@ describe('treeWalker', () => {
       const result = walkTree(document.body, 1);
       // button + body = at least 2
       expect(result.nodeCount).toBeGreaterThanOrEqual(2);
+    });
+
+    it('includes the root element even when it is not relevant on its own', () => {
+      document.body.innerHTML = '<aside><button>OK</button></aside>';
+
+      const result = walkTree(document.querySelector('aside')!, 1);
+      expect(result.tree).not.toBeNull();
+      expect(result.tree!.tag).toBe('aside');
+      expect(result.tree!.children.map((c) => c.tag)).toEqual(['button']);
+      expect(result.nodeCount).toBe(2);
     });
 
     it('records the id attribute on nodes', () => {
@@ -202,6 +216,7 @@ describe('treeWalker', () => {
       document.body.innerHTML = html;
 
       const first = walkTree(document.body, 1);
+      registerUids(first.newUids);
       const second = walkTree(document.body, first.nextElementId);
 
       expect(second.truncated).toBe(true);
@@ -214,6 +229,7 @@ describe('treeWalker', () => {
       document.body.innerHTML = '<button>A</button><button>B</button>';
 
       const first = walkTree(document.body, 0);
+      registerUids(first.newUids);
       const second = walkTree(document.body, first.nextElementId);
 
       const childUids = (result: typeof first) => result.tree!.children.map((c) => c.uid);
@@ -221,12 +237,14 @@ describe('treeWalker', () => {
       expect(childUids(second)).toEqual(childUids(first));
       expect(second.nodeCount).toBe(first.nodeCount);
       expect(second.nextElementId).toBe(first.nextElementId);
+      expect(second.newUids.size).toBe(0);
     });
 
     it('assigns fresh uids to elements added after the first walk', () => {
       document.body.innerHTML = '<button>A</button>';
 
       const first = walkTree(document.body, 0);
+      registerUids(first.newUids);
       const firstUids = first.tree!.children.map((c) => c.uid);
 
       document.body.insertAdjacentHTML('beforeend', '<button>B</button>');
@@ -235,12 +253,14 @@ describe('treeWalker', () => {
 
       expect(secondUids[0]).toBe(firstUids[0]);
       expect(secondUids[1]).toBe(`e${first.nextElementId}`);
+      expect([...second.newUids.keys()]).toEqual([`e${first.nextElementId}`]);
     });
 
     it('assigns fresh uids after the registry is cleared', () => {
       document.body.innerHTML = '<button>A</button>';
 
       const first = walkTree(document.body, 0);
+      registerUids(first.newUids);
       clearRegistry();
       const second = walkTree(document.body, first.nextElementId);
 
@@ -248,12 +268,16 @@ describe('treeWalker', () => {
       expect(collectUids(second.tree!).some((uid) => firstUids.has(uid))).toBe(false);
     });
 
-    it('registers walked elements so their uid resolves back to them', () => {
+    it('returns the walked elements keyed by uid without touching the registry', () => {
       document.body.innerHTML = '<button id="go">A</button>';
 
       const result = walkTree(document.body, 1);
       const btn = result.tree!.children.find((c) => c.tag === 'button');
 
+      expect(result.newUids.get(btn!.uid)).toBe(document.getElementById('go'));
+      expect(lookupElement(btn!.uid)).toBeNull();
+
+      registerUids(result.newUids);
       expect(lookupElement(btn!.uid)).toBe(document.getElementById('go'));
     });
 
@@ -261,6 +285,7 @@ describe('treeWalker', () => {
       document.body.innerHTML = '<button id="go">A</button>';
 
       const result = walkTree(document.body, 1);
+      registerUids(result.newUids);
       const btn = result.tree!.children.find((c) => c.tag === 'button');
       document.getElementById('go')!.remove();
 

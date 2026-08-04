@@ -14,8 +14,6 @@ const NETWORK_TTL_MS = 5 * 60 * 1000; // 5 minutes TTL for old requests
 const MAX_ENCODED_DATA_SIZE = 10 * 1000 * 1000; // 10 MB
 
 export interface NetworkEventsOptions {
-  /** Callback triggered on navigation events (for auto-clear) */
-  onNavigate?: () => void;
   /** Auto-clear network requests on navigation (default: true when monitoring is enabled) */
   autoClearOnNavigate?: boolean;
   /** Register a data collector so request/response bodies can be fetched (default: true) */
@@ -87,9 +85,6 @@ export class NetworkEvents {
           // Only clear if monitoring is enabled and autoClear is on
           if (this.enabled && this.options.autoClearOnNavigate) {
             this.clearRequests();
-          }
-          if (this.options.onNavigate) {
-            this.options.onNavigate();
           }
           return;
         }

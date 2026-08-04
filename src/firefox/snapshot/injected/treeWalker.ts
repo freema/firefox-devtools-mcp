@@ -10,7 +10,7 @@ import {
   getAriaAttributes,
   getComputedProperties,
 } from './attributeCollector.js';
-import { getUid, setUid } from './uidRegistry.js';
+import { getUid } from './uidRegistry.js';
 
 /**
  * Configuration
@@ -36,6 +36,11 @@ export interface TreeWalkerResult {
   truncated: boolean;
   /** Element id counter after this walk, to be passed to the next one */
   nextElementId: number;
+  /**
+   * UIDs newly assigned by this walk. The caller adds them to the UID registry once the snapshot
+   * has been created successfully, so a walk that fails leaves no UIDs behind.
+   */
+  newUids: Map<string, Element>;
 }
 
 /**
@@ -59,6 +64,7 @@ export function walkTree(
   let nodeCount = 0;
   let elementId = nextElementId;
   let truncated = false;
+  const newUids = new Map<string, Element>();
 
   function walk(el: Element, depth: number): WalkResult {
     // Check limits
@@ -73,8 +79,7 @@ export function walkTree(
     }
 
     // Check relevance (except root)
-    const tag = el.tagName.toLowerCase();
-    const isRoot = tag === 'body' || tag === 'html';
+    const isRoot = depth === 0;
 
     // Determine if element is relevant based on mode
     let elementIsRelevant: boolean;
@@ -90,6 +95,7 @@ export function walkTree(
     const childResults: SnapshotNode[] = [];
 
     // Handle iframes
+    const tag = el.tagName.toLowerCase();
     if (tag === 'iframe' && includeIframes && elementIsRelevant) {
       try {
         const iframe = el as HTMLIFrameElement;
@@ -140,8 +146,11 @@ export function walkTree(
 
     // Element IS relevant - create node.
     // Reuse the UID from a previous walk so UIDs stay stable across snapshots.
-    const uid = getUid(el) ?? `e${elementId++}`;
-    setUid(uid, el);
+    let uid = getUid(el);
+    if (uid === undefined) {
+      uid = `e${elementId++}`;
+      newUids.set(uid, el);
+    }
     nodeCount++;
 
     // Collect attributes
@@ -201,5 +210,6 @@ export function walkTree(
     nodeCount,
     truncated,
     nextElementId: elementId,
+    newUids,
   };
 }
