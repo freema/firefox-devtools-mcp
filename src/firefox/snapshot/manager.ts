@@ -90,7 +90,18 @@ export class SnapshotManager {
    * Returns text and JSON, no DOM mutations
    */
   async takeSnapshot(options?: SnapshotOptions): Promise<Snapshot> {
-    logDebug('Taking snapshot...');
+    if (options?.selector || options?.includeAll) {
+      const optionsOutput: string[] = [];
+      if (options.selector) {
+        optionsOutput.push(`selector: ${options.selector}`);
+      }
+      if (options.includeAll) {
+        optionsOutput.push('include all');
+      }
+      logDebug(`Taking snapshot (${optionsOutput.join(', ')})...`);
+    } else {
+      logDebug('Taking snapshot...');
+    }
 
     // Execute bundled injected script
     const result = await this.executeInjectedScript(this.nextElementId, options);

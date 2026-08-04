@@ -11,8 +11,6 @@ const MAX_CONSOLE_MESSAGES = 1000; // Maximum number of messages to keep
 const CONSOLE_TTL_MS = 5 * 60 * 1000; // 5 minutes TTL for old messages
 
 export interface ConsoleEventsOptions {
-  /** Callback triggered on navigation events (for auto-clear) */
-  onNavigate?: () => void;
   /** Auto-clear console on navigation (default: false - changed to prevent losing logs) */
   autoClearOnNavigate?: boolean;
 }
@@ -79,9 +77,6 @@ export class ConsoleEvents {
         ) {
           if (this.options.autoClearOnNavigate) {
             this.clearMessages();
-          }
-          if (this.options.onNavigate) {
-            this.options.onNavigate();
           }
         }
       } catch {

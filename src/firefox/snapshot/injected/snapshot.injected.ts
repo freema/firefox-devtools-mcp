@@ -5,7 +5,7 @@
 
 import { walkTree, type TreeWalkerOptions } from './treeWalker.js';
 import type { TreeWalkerResult } from './treeWalker.js';
-import { clearRegistry, lookupElement } from './uidRegistry.js';
+import { clearRegistry, lookupElement, registerUids } from './uidRegistry.js';
 import { generateCssSelector } from './selectorGenerator.js';
 
 /**
@@ -18,7 +18,7 @@ export interface CreateSnapshotOptions extends TreeWalkerOptions {
 /**
  * Result from snapshot creation
  */
-export interface CreateSnapshotResult extends TreeWalkerResult {
+export interface CreateSnapshotResult extends Omit<TreeWalkerResult, 'newUids'> {
   selectorError?: string;
 }
 
@@ -65,11 +65,15 @@ export function createSnapshot(
     if (options?.includeAll !== undefined) {
       treeOptions.includeAll = options.includeAll;
     }
-    const result = walkTree(rootElement, nextElementId, treeOptions);
+    const { newUids, ...result } = walkTree(rootElement, nextElementId, treeOptions);
 
     if (!result.tree) {
       throw new Error('Failed to generate tree');
     }
+
+    // Only remember the new UIDs now that the snapshot is complete: the caller stores the returned
+    // nextElementId, so UIDs from a failed snapshot must not stay resolvable.
+    registerUids(newUids);
 
     return result;
   } catch {

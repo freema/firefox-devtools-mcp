@@ -136,6 +136,22 @@ describe('snapshot.injected - createSnapshot', () => {
       expect(document.querySelector(selector!)).toBe(document.getElementById('go'));
     });
 
+    it('does not remember uids when the walk throws', () => {
+      document.body.innerHTML = '<button id="first">A</button><button id="boom">B</button>';
+      // The first button is walked (and assigned e1) before the second one blows up
+      Object.defineProperty(document.getElementById('boom'), 'tagName', {
+        get() {
+          throw new Error('boom');
+        },
+      });
+
+      const result = createSnapshot(1);
+
+      expect(result.tree).toBeNull();
+      expect(result.nextElementId).toBe(1);
+      expect(resolveUid('e1')).toBeNull();
+    });
+
     it('returns null for unknown uids', () => {
       expect(resolveUid('e99')).toBeNull();
       expect(uidToSelector('e99')).toBeNull();
