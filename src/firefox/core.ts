@@ -4,7 +4,16 @@
 
 import { Builder, Browser, Capabilities, WebDriver } from 'selenium-webdriver';
 import firefox from 'selenium-webdriver/firefox.js';
-import { mkdirSync, openSync, closeSync, existsSync, readdirSync, statSync } from 'node:fs';
+import {
+  mkdirSync,
+  openSync,
+  closeSync,
+  existsSync,
+  readdirSync,
+  statSync,
+  readFileSync,
+} from 'node:fs';
+import { connect as netConnect } from 'node:net';
 import { homedir } from 'node:os';
 import { join, delimiter } from 'node:path';
 import type { FirefoxLaunchOptions } from './types.js';
@@ -60,6 +69,63 @@ async function findGeckodriverInNpmPackage(): Promise<string | null> {
   } catch {
     return null;
   }
+}
+
+function lookupMarionettePort(): number | void {
+  const instancesDir = join(homedir(), '.firefox-devtools-mcp', 'instances');
+  if (!existsSync(instancesDir)) {
+    logDebug(`Failed to lookup Marionette port: ${instancesDir} doesn't exist.`);
+    return;
+  }
+  const files = readdirSync(instancesDir);
+  const portFiles = files.filter((f) => /^\d+\.port$/.test(f));
+  const mostRecent = portFiles
+    .map((f) => ({
+      name: f,
+      path: join(instancesDir, f),
+      mtime: statSync(join(instancesDir, f)).mtimeMs,
+    }))
+    .sort((a, b) => b.mtime - a.mtime)[0];
+  if (mostRecent) {
+    const pid = Number(mostRecent.name.substring(0, mostRecent.name.length - 5));
+    if (!checkProcess(pid)) {
+      logDebug(`Failed to lookup Marionette port: No process with PID ${pid} is running.`);
+      return;
+    }
+    logDebug(`Reading Marionette port from ${mostRecent.path}`);
+    const content = readFileSync(mostRecent.path, 'utf-8').trim();
+    if (/^\d+$/.test(content)) {
+      return Number(content);
+    } else {
+      logDebug(`Failed to lookup Marionette port: "${content}" is not a number.`);
+    }
+  } else {
+    logDebug(`Failed to lookup Marionette port: No port file found in ${instancesDir}.`);
+  }
+}
+
+function checkProcess(pid: number): boolean {
+  try {
+    // this will only check for the process' existance but not kill it
+    process.kill(pid, 0);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function checkPort(port: number, timeoutMs = 1000): Promise<string | null> {
+  return new Promise<string | null>((resolve) => {
+    const socket = netConnect({ host: '127.0.0.1', port });
+    const done = (reason: string | null) => {
+      socket.destroy();
+      resolve(reason);
+    };
+    socket.setTimeout(timeoutMs);
+    socket.once('connect', () => done(null));
+    socket.once('timeout', () => done(`connection to 127.0.0.1:${port} timed out`));
+    socket.once('error', (error: Error) => done(error.message));
+  });
 }
 
 /**
@@ -136,7 +202,37 @@ export class FirefoxCore {
       const serviceBuilder = new firefox.ServiceBuilder(geckodriverPath);
       this.driver = firefox.Driver.createSession(caps, serviceBuilder.build());
     } else if (this.options.connectExisting) {
-      const port = this.options.marionettePort ?? 2828;
+      let port = this.options.marionettePort ?? 2828;
+      if (this.options.lookupMarionettePort) {
+        logDebug('Looking up Marionette port');
+        const lookedUpPort = lookupMarionettePort();
+        if (lookedUpPort !== undefined) {
+          port = lookedUpPort;
+        } else {
+          throw new Error(
+            'Marionette port not found: please enable Firefox remote control for AI tooling using the AI assistant companion button.'
+          );
+        }
+      }
+      logDebug(`Using Marionette port ${port}`);
+
+      // Fail fast with an actionable message instead of letting geckodriver
+      // retry the connection for a minute and report a bare socket error.
+      const failure = await checkPort(port);
+      if (failure) {
+        if (this.options.lookupMarionettePort) {
+          throw new Error(
+            `No Marionette listener on 127.0.0.1:${port} (${failure}). ` +
+              'Please enable Firefox remote control for AI tooling using the AI assistant companion button.'
+          );
+        } else {
+          throw new Error(
+            `No Marionette listener on 127.0.0.1:${port} (${failure}). Start Firefox with ` +
+              'both flags: firefox --marionette --remote-debugging-port, or pass the port it ' +
+              'is actually using via --marionette-port.'
+          );
+        }
+      }
 
       const geckodriverPath = await findGeckodriver();
       logDebug(`Using geckodriver: ${geckodriverPath}`);

@@ -136,6 +136,14 @@ export const cliOptions = {
     description: 'Marionette port to connect to when using --connect-existing (default: 2828)',
     default: Number(process.env.MARIONETTE_PORT ?? '2828'),
   },
+  lookupMarionettePort: {
+    type: 'boolean',
+    hidden: true,
+    description:
+      "Lookup the port of a Marionette instance started by Firefox's AI assistant " +
+      'companion, instead of using --marionette-port. Only applies when --connect-existing is set.',
+    default: (process.env.LOOKUP_MARIONETTE_PORT ?? 'false') === 'true',
+  },
   env: {
     type: 'array',
     description:

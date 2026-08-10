@@ -13,7 +13,7 @@ import { tmpdir } from 'node:os';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const pkg = JSON.parse(readFileSync(resolve(root, 'package.json'), 'utf8'));
-const manifest = JSON.parse(readFileSync(resolve(root, 'manifest.json'), 'utf8'));
+const manifest = JSON.parse(readFileSync(resolve(root, 'manifest.mcpb.json'), 'utf8'));
 
 console.log('Building server...');
 execSync('npm run build', { cwd: root, stdio: 'inherit' });
