@@ -3,7 +3,10 @@ import {
   evaluatePrivilegedScriptTool,
   handleEvaluatePrivilegedScript,
   handleSelectPrivilegedContext,
+  readKitFileTool,
+  handleReadKitFile,
 } from '../../src/tools/privileged-context.js';
+import { listKitDocs, listKitFiles, readKitFile } from '../../src/utils/kit.js';
 
 // Mock the index module (used by handler tests)
 const mockGetFirefox = vi.hoisted(() => vi.fn());
@@ -64,6 +67,43 @@ describe('Privileged Context Tool Definitions', () => {
       expect(properties?.preview.type).toBe('number');
       expect(required).not.toContain('preview');
     });
+  });
+
+  describe('readKitFileTool', () => {
+    it('should have correct name and be read-only', () => {
+      expect(readKitFileTool.name).toBe('read_kit_file');
+      expect(readKitFileTool.annotations.readOnlyHint).toBe(true);
+    });
+
+    it('should require name and enumerate the shipped sources plus recipe docs', () => {
+      const { properties, required } = readKitFileTool.inputSchema;
+      expect(required).toContain('name');
+      expect(properties?.name.enum).toEqual([...listKitFiles(), ...listKitDocs()]);
+      expect(properties?.name.enum).toContain('loader.js');
+      expect(properties?.name.enum).toContain('recipe-rejection-observer.md');
+    });
+  });
+});
+
+describe('handleReadKitFile', () => {
+  it('should return the kit file verbatim', async () => {
+    const result = await handleReadKitFile({ name: 'hook.js' });
+
+    expect(result.isError).toBeUndefined();
+    expect(result.content[0].text).toBe(readKitFile('hook.js'));
+  });
+
+  it('should reject names outside the kit listing', async () => {
+    const result = await handleReadKitFile({ name: '../package.json' });
+
+    expect(result.isError).toBe(true);
+    expect(result.content[0].text).toContain('Unknown kit resource');
+  });
+
+  it('should reject a missing name', async () => {
+    const result = await handleReadKitFile({});
+
+    expect(result.isError).toBe(true);
   });
 });
 
