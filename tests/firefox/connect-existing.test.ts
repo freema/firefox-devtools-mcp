@@ -56,6 +56,22 @@ describe('FirefoxCore connect() BiDi endpoint check', () => {
   const mockEnableBidi = vi.fn();
   const mockOptionsAddArguments = vi.fn();
 
+  // Fake socket for the Marionette port probe: emits `event` on the next tick.
+  const mockNetConnect = vi.fn();
+  const makeSocket = (event: 'connect' | 'timeout' | 'error', error?: Error) => {
+    const handlers = new Map<string, (arg?: unknown) => void>();
+    return {
+      setTimeout: vi.fn(),
+      destroy: vi.fn(),
+      once: vi.fn((name: string, handler: (arg?: unknown) => void) => {
+        handlers.set(name, handler);
+        if (name === event) {
+          setImmediate(() => handlers.get(event)?.(error));
+        }
+      }),
+    };
+  };
+
   // Builds a mock WebDriver whose getCapabilities() resolves to a
   // Capabilities-like object backed by the given values.
   const makeDriver = (capabilityValues: Record<string, unknown>) => ({
@@ -69,6 +85,9 @@ describe('FirefoxCore connect() BiDi endpoint check', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.resetModules();
+
+    mockNetConnect.mockReturnValue(makeSocket('connect'));
+    vi.doMock('node:net', () => ({ connect: mockNetConnect }));
 
     vi.doMock('selenium-webdriver/firefox.js', () => ({
       default: {
@@ -150,6 +169,41 @@ describe('FirefoxCore connect() BiDi endpoint check', () => {
     expect(mockCapabilitiesSet).toHaveBeenCalledWith('webSocketUrl', true);
     expect(core.getFirefoxVersion()).toBe('142.0');
     expect(core.getCurrentContextId()).toBe('mock-context-id');
+  });
+
+  it('should fail fast when nothing listens on the Marionette port', async () => {
+    mockNetConnect.mockReturnValue(
+      makeSocket('error', Object.assign(new Error('connect ECONNREFUSED 127.0.0.1:2828')))
+    );
+
+    const { FirefoxCore } = await import('@/firefox/core.js');
+    const core = new FirefoxCore({ connectExisting: true, marionettePort: 2828 });
+
+    const connectPromise = core.connect();
+    await expect(connectPromise).rejects.toThrow(/No Marionette listener on 127\.0\.0\.1:2828/);
+    await expect(connectPromise).rejects.toThrow(/ECONNREFUSED/);
+
+    // geckodriver is never started, so no session is created
+    expect(mockCreateSession).not.toHaveBeenCalled();
+  });
+
+  it('should fail fast when the Marionette port does not respond', async () => {
+    mockNetConnect.mockReturnValue(makeSocket('timeout'));
+
+    const { FirefoxCore } = await import('@/firefox/core.js');
+    const core = new FirefoxCore({ connectExisting: true, marionettePort: 2828 });
+
+    await expect(core.connect()).rejects.toThrow(/timed out/);
+    expect(mockCreateSession).not.toHaveBeenCalled();
+  });
+
+  it('should not probe the Marionette port in launch mode', async () => {
+    const { FirefoxCore } = await import('@/firefox/core.js');
+    const core = new FirefoxCore({ headless: true });
+
+    await core.connect();
+
+    expect(mockNetConnect).not.toHaveBeenCalled();
   });
 
   it('should not apply the check in launch mode', async () => {

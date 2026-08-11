@@ -124,6 +124,7 @@ export async function getFirefox(): Promise<FirefoxDevTools> {
       acceptInsecureCerts: args.acceptInsecureCerts,
       connectExisting: args.connectExisting,
       marionettePort: args.marionettePort,
+      lookupMarionettePort: args.lookupMarionettePort,
       env: envVars,
       logFile: args.outputFile ?? undefined,
       prefs,

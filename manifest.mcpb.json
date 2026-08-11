@@ -21,7 +21,8 @@
       "command": "node",
       "args": [
         "${__dirname}/dist/index.js",
-        "--auto-profile",
+        "--connect-existing",
+        "--lookup-marionette-port",
         "--tool-preset",
         "developer",
         "--pref",
