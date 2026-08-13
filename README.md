@@ -28,19 +28,17 @@ See [SECURITY.md](SECURITY.md) for a full breakdown of risks and how to report v
 - Node.js ≥ 20.19.0
 - Firefox 100+ installed (auto‑detected, or pass `--firefox-path`)
 
-## Install and use with Claude Code (npx)
+## Install and use with Claude Code or Codex (npx)
 
-Recommended: use npx so you always run the latest published version from npm.
+Recommended: use `npx` so you run the latest published version from npm.
 
-Option A — Claude Code CLI
+### Option A — CLI
+
+#### Claude Code
 
 ```bash
 claude mcp add firefox-devtools npx @mozilla/firefox-devtools-mcp@latest
-```
 
-Pass options either as args or env vars. Examples:
-
-```bash
 # Headless + viewport via args
 claude mcp add firefox-devtools npx @mozilla/firefox-devtools-mcp@latest -- --headless --viewport 1280x720
 
@@ -50,13 +48,27 @@ claude mcp add firefox-devtools npx @mozilla/firefox-devtools-mcp@latest \
   --env FIREFOX_HEADLESS=true
 ```
 
-Option B — Edit Claude Code settings JSON
+#### Codex
 
-Add to your Claude Code config file:
+```bash
+codex mcp add firefox-devtools -- npx @mozilla/firefox-devtools-mcp@latest
 
-- macOS: `~/Library/Application Support/Claude/Code/mcp_settings.json`
-- Linux: `~/.config/claude/code/mcp_settings.json`
-- Windows: `%APPDATA%\Claude\Code\mcp_settings.json`
+# Headless + viewport via args
+codex mcp add firefox-devtools -- \
+  npx @mozilla/firefox-devtools-mcp@latest -- --headless --viewport 1280x720
+
+# Or via environment variables
+codex mcp add firefox-devtools \
+  --env START_URL=https://example.com \
+  --env FIREFOX_HEADLESS=true \
+  -- npx @mozilla/firefox-devtools-mcp@latest
+```
+
+### Option B — Edit the configuration file
+
+#### Claude Code
+
+Add to Claude Code’s mcp_settings.json:
 
 ```json
 {
@@ -72,7 +84,20 @@ Add to your Claude Code config file:
 }
 ```
 
-Option C — Helper script (local dev build)
+#### Codex
+
+Add to ~/.codex/config.toml:
+
+```toml
+[mcp_servers.firefox-devtools]
+command = "npx"
+args = ["-y", "@mozilla/firefox-devtools-mcp@latest", "--headless", "--viewport", "1280x720"]
+
+[mcp_servers.firefox-devtools.env]
+START_URL = "about:blank"
+```
+
+### Option C — Helper script (local dev build)
 
 ```bash
 npm run setup
