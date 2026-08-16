@@ -19,7 +19,7 @@ Browser MCP servers carry inherent risks. A few key practices:
 
 - **Use a dedicated Firefox profile.** Never run the server against your regular profile — the agent has access to whatever the browser can reach, including cookies and saved sessions.
 - **Be cautious about which sites you visit.** Pages can return content designed to manipulate the agent (prompt injection). Stick to sites you control or trust.
-- **Enable only the tool modules you need.** Higher presets such as `--tool-preset developer` (script, debugging) and `--tool-preset mozilla` (privileged context) significantly expand what the agent can do.
+- **Enable only the tool modules you need.** The default `basic` preset already includes `evaluate_script`; `--tool-preset slim` drops it. Higher presets such as `--tool-preset developer` (debugging, network, console, profiler) and `--tool-preset mozilla` (privileged context) expand what the agent can do further.
 
 See [SECURITY.md](SECURITY.md) for a full breakdown of risks and how to report vulnerabilities.
 
@@ -138,6 +138,7 @@ You can pass flags or environment variables (names on the right):
 - `--enable-privileged-context` — _deprecated, use `--tool-preset mozilla` or `--tools ... privileged prefs`._  Selects the `mozilla` tool preset. Requires `MOZ_REMOTE_ALLOW_SYSTEM_ACCESS=1` (`ENABLE_PRIVILEGED_CONTEXT=true`)
 - `--android-device` — enable Firefox for Android mode; value is the ADB device serial (e.g. `emulator-5554`). Run `adb devices` to list connected devices. Omit the value or use `auto` to select the single connected device automatically.
 - `--android-package` — Android app package name, default `org.mozilla.firefox`. Other packages: `org.mozilla.firefox_beta` for Firefox Beta, `org.mozilla.fenix` for Firefox Nightly, `org.mozilla.fenix.debug` for Firefox Nightly Debug, `org.mozilla.geckoview_example` for geckoview (`ANDROID_PACKAGE`)
+- `--unrestricted-save-paths` — let the `saveTo` parameter write anywhere on disk instead of the default roots. See [Saving bulky output to disk](#saving-bulky-output-to-disk) and the security note in [SECURITY.md](SECURITY.md). (`UNRESTRICTED_SAVE_PATHS=true`)
 - `--log-file` — write MCP server logs to a file instead of stderr. Useful for debugging sessions with MCP clients that hide server output. Set `DEBUG=*` to also include verbose debug logs. Example: `--log-file /tmp/firefox-mcp.log`
 
 
@@ -147,20 +148,24 @@ Tools are grouped into modules. You choose which modules to expose either with a
 (`--tool-preset`) or with an explicit list (`--tools`). When both are given, `--tools` wins and
 the preset is ignored.
 
-Modules: `pages`, `snapshot`, `input`, `network`, `console`, `screenshot`, `utilities`,
-`management`, `webextension`, `profiler`, `screencast`, `script`, `debugging`, `prefs`,
-`privileged`.
+Modules: `pages`, `snapshot`, `input`, `network`, `console`, `screenshot`, `downloads`,
+`utilities`, `management`, `webextension`, `profiler`, `screencast`, `script`, `debugging`,
+`prefs`, `privileged`.
 
 Presets (each is a superset of the previous):
 
-- `slim` — `pages`, `snapshot`, `input`, `network`, `console`
-- `basic` (default) — `slim` plus `screenshot`, `utilities`, `management`, `webextension`, `profiler`, `screencast`
-- `developer` — `basic` plus `script`, `debugging`
+- `slim` — `pages`, `snapshot`, `input`, `screenshot`
+- `basic` (default) — `slim` plus `downloads`, `script`, `utilities`, `management`, `webextension`, `screencast`
+- `developer` — `basic` plus `debugging`, `network`, `console`, `profiler`
 - `mozilla` — `developer` plus `prefs`, `privileged`
 - `all` — every module
 
+Note that `basic`, the default, includes `script` and therefore the `evaluate_script` tool.
+See [SECURITY.md](SECURITY.md#tool-modules-and-presets) for what that means for the attack
+surface, and use `--tool-preset slim` or an explicit `--tools` list to drop it.
+
 ```bash
-# Use the developer preset (adds script and debugging tools)
+# Use the developer preset (adds network, console, debugging and profiler tools)
 npx @mozilla/firefox-devtools-mcp --tool-preset developer
 
 # Enable only the modules you need
@@ -168,7 +173,8 @@ npx @mozilla/firefox-devtools-mcp --tools pages network console
 ```
 
 The `prefs` and `privileged` modules require `MOZ_REMOTE_ALLOW_SYSTEM_ACCESS=1` and are only
-available in the Mozilla-internal build; the public package silently skips them even if requested.
+available in the Mozilla-internal build. The public package skips them even if requested and
+logs a warning naming the modules it dropped.
 
 ### Useful preferences (`--pref`)
 
@@ -228,7 +234,8 @@ Both flags are required because the MCP uses both WebDriver Classic (`--marionet
 - Script: evaluate_script (optional `sandbox` for an isolated realm; optional `saveTo` for bulky results)
 - Privileged Context: list/select privileged ("chrome") contexts, evaluate_privileged_script (requires `MOZ_REMOTE_ALLOW_SYSTEM_ACCESS=1`)
 - WebExtension: install_extension, uninstall_extension, list_extensions (list requires `MOZ_REMOTE_ALLOW_SYSTEM_ACCESS=1`)
-- Firefox Management: get_firefox_info, get_firefox_output, restart_firefox, set_firefox_prefs, get_firefox_prefs
+- Firefox Management: get_firefox_info, get_firefox_output, restart_firefox
+- Firefox Preferences: get_firefox_prefs, set_firefox_prefs (requires `MOZ_REMOTE_ALLOW_SYSTEM_ACCESS=1`)
 - Profiler: profiler_is_active, profiler_start (preset or explicit config), profiler_stop (saves profile to downloads directory)
 - Screencast: screencast_start (records the page viewport to a video file in the downloads directory), screencast_stop (requires Firefox 154+)
 - Utilities: accept/dismiss dialog, history back/forward, set viewport
