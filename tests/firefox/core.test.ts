@@ -286,6 +286,25 @@ describe('FirefoxCore', () => {
   });
 });
 
+describe('FirefoxCore connect() Android app data wipe opt-in', () => {
+  it('should refuse to launch on Android without androidWipeAppData', async () => {
+    const core = new FirefoxCore({ androidDevice: 'auto' });
+
+    await expect(core.connect()).rejects.toThrow(
+      /wipes all data of org\.mozilla\.firefox.*--android-wipe-app-data/s
+    );
+  });
+
+  it('should name the target package in the error', async () => {
+    const core = new FirefoxCore({
+      androidDevice: 'emulator-5554',
+      androidPackage: 'org.mozilla.fenix',
+    });
+
+    await expect(core.connect()).rejects.toThrow(/wipes all data of org\.mozilla\.fenix/);
+  });
+});
+
 // Tests for connect() behavior with mocked Selenium
 describe('FirefoxCore connect() profile handling', () => {
   // Mock selenium-webdriver/firefox.js at module level
