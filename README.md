@@ -137,6 +137,7 @@ You can pass flags or environment variables (names on the right):
 - `--enable-script` — _deprecated, use `--tool-preset developer` or `--tools ... script debugging`._ Selects the `developer` tool preset. (`ENABLE_SCRIPT=true`)
 - `--enable-privileged-context` — _deprecated, use `--tool-preset mozilla` or `--tools ... privileged prefs`._  Selects the `mozilla` tool preset. Requires `MOZ_REMOTE_ALLOW_SYSTEM_ACCESS=1` (`ENABLE_PRIVILEGED_CONTEXT=true`)
 - `--android-device` — enable Firefox for Android mode; value is the ADB device serial (e.g. `emulator-5554`). Run `adb devices` to list connected devices. Omit the value or use `auto` to select the single connected device automatically.
+- `--android-wipe-app-data` — confirm that Android mode wipes all data of the target app. Required together with `--android-device`. (`ANDROID_WIPE_APP_DATA=true`)
 - `--android-package` — Android app package name, default `org.mozilla.firefox`. Other packages: `org.mozilla.firefox_beta` for Firefox Beta, `org.mozilla.fenix` for Firefox Nightly, `org.mozilla.fenix.debug` for Firefox Nightly Debug, `org.mozilla.geckoview_example` for geckoview (`ANDROID_PACKAGE`)
 - `--unrestricted-save-paths` — let the `saveTo` parameter write anywhere on disk instead of the default roots. See [Saving bulky output to disk](#saving-bulky-output-to-disk) and the security note in [SECURITY.md](SECURITY.md). (`UNRESTRICTED_SAVE_PATHS=true`)
 - `--log-file` — write MCP server logs to a file instead of stderr. Useful for debugging sessions with MCP clients that hide server output. Set `DEBUG=*` to also include verbose debug logs. Example: `--log-file /tmp/firefox-mcp.log`
@@ -186,18 +187,27 @@ logs a warning naming the modules it dropped.
 
 Use `--android-device` to automate Firefox running on an Android device. Requires `adb` on your PATH and geckodriver, which is managed automatically.
 
+> **Warning:** Android mode wipes all data of the target app before every session.
+> Tabs, history, bookmarks, passwords, cookies and settings are all lost. geckodriver runs
+> `adb shell pm clear <package>` when creating the session and offers no way to skip it,
+> then runs the session on its own temporary profile which is deleted afterwards.
+> Because of this, `--android-device` requires `--android-wipe-app-data`, and you should
+> install a build dedicated to automation rather than automating the browser you use.
+> [Bug 2064088](https://bugzilla.mozilla.org/show_bug.cgi?id=2064088) tracks adding an
+> option to geckodriver to keep the existing app data.
+
 ```bash
 # List connected devices
 adb devices
 
 # Launch Firefox for Android on the single connected device
-npx @mozilla/firefox-devtools-mcp --android-device auto
+npx @mozilla/firefox-devtools-mcp --android-device auto --android-wipe-app-data
 
 # Target a specific device
-npx @mozilla/firefox-devtools-mcp --android-device <serial>
+npx @mozilla/firefox-devtools-mcp --android-device <serial> --android-wipe-app-data
 
 # Use Firefox Nightly instead
-npx @mozilla/firefox-devtools-mcp --android-device <serial> --android-package org.mozilla.fenix
+npx @mozilla/firefox-devtools-mcp --android-device <serial> --android-package org.mozilla.fenix --android-wipe-app-data
 ```
 
 Port forwarding between the host and device is handled automatically by geckodriver.

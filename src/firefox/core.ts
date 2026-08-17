@@ -166,9 +166,25 @@ export class FirefoxCore {
    */
   async connect(): Promise<void> {
     const isAndroid = this.options.androidDevice !== undefined;
+    const androidPackage = this.options.androidPackage ?? 'org.mozilla.firefox';
+
+    if (isAndroid && !this.options.androidWipeAppData) {
+      // geckodriver runs "adb shell pm clear <package>" before every Android session
+      // (AndroidHandler::prepare) and offers no way to opt out, so launching wipes the
+      // data of the target app instead of only using its own temporary profile.
+      // Bug 2064088 tracks adding an opt-out to geckodriver.
+      throw new Error(
+        `Firefox for Android mode wipes all data of ${androidPackage} ` +
+          'on the device: tabs, history, bookmarks, passwords, cookies and settings are all lost, ' +
+          'because geckodriver clears the app data before every session and cannot be configured to skip it. ' +
+          'Pass --android-wipe-app-data (or ANDROID_WIPE_APP_DATA=true) to confirm. ' +
+          'Prefer a build dedicated to automation, for instance --android-package org.mozilla.fenix for Nightly.'
+      );
+    }
 
     if (isAndroid) {
       log('Launching Firefox for Android via ADB...');
+      log(`Wiping all data of ${androidPackage} on the device`);
     } else if (this.options.connectExisting) {
       log('Connecting to existing Firefox via Marionette...');
     } else {
@@ -182,8 +198,7 @@ export class FirefoxCore {
       const geckodriverPath = await findGeckodriver();
       logDebug(`Using geckodriver: ${geckodriverPath}`);
 
-      const pkg = this.options.androidPackage ?? 'org.mozilla.firefox';
-      const mozOptions: Record<string, unknown> = { androidPackage: pkg };
+      const mozOptions: Record<string, unknown> = { androidPackage };
       const deviceSerial = this.options.androidDevice;
       if (deviceSerial && deviceSerial !== 'auto') {
         mozOptions.androidDeviceSerial = deviceSerial;

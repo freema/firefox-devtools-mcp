@@ -172,6 +172,13 @@ export const cliOptions = {
       'Android app package name (default: org.mozilla.firefox). Use org.mozilla.fenix for Nightly.',
     default: process.env.ANDROID_PACKAGE ?? 'org.mozilla.firefox',
   },
+  androidWipeAppData: {
+    type: 'boolean',
+    description:
+      'Confirm that connecting to Firefox for Android wipes all data of the target app (tabs, ' +
+      'history, bookmarks, passwords, settings). Required with --android-device.',
+    default: (process.env.ANDROID_WIPE_APP_DATA ?? 'false') === 'true',
+  },
   logFile: {
     type: 'string',
     description:
