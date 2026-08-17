@@ -4,6 +4,134 @@
 
 import { By, Key, WebDriver, WebElement } from 'selenium-webdriver';
 
+/**
+ * Key names accepted by press_key, mapped to the WebDriver unicode code points
+ * that selenium exposes as `Key.*`. Names are matched case-insensitively.
+ * `enter` and `return` are deliberately distinct, matching selenium: `return` is
+ * the main keyboard key, `enter` is the numpad one.
+ */
+const KEY_MAP: Record<string, string> = {
+  cancel: Key.CANCEL,
+  help: Key.HELP,
+  backspace: Key.BACK_SPACE,
+  tab: Key.TAB,
+  clear: Key.CLEAR,
+  return: Key.RETURN,
+  enter: Key.ENTER,
+  pause: Key.PAUSE,
+  escape: Key.ESCAPE,
+  esc: Key.ESCAPE,
+  space: Key.SPACE,
+  pageup: Key.PAGE_UP,
+  pagedown: Key.PAGE_DOWN,
+  end: Key.END,
+  home: Key.HOME,
+  arrowleft: Key.ARROW_LEFT,
+  left: Key.ARROW_LEFT,
+  arrowup: Key.ARROW_UP,
+  up: Key.ARROW_UP,
+  arrowright: Key.ARROW_RIGHT,
+  right: Key.ARROW_RIGHT,
+  arrowdown: Key.ARROW_DOWN,
+  down: Key.ARROW_DOWN,
+  insert: Key.INSERT,
+  delete: Key.DELETE,
+  semicolon: Key.SEMICOLON,
+  equals: Key.EQUALS,
+  numpad0: Key.NUMPAD0,
+  numpad1: Key.NUMPAD1,
+  numpad2: Key.NUMPAD2,
+  numpad3: Key.NUMPAD3,
+  numpad4: Key.NUMPAD4,
+  numpad5: Key.NUMPAD5,
+  numpad6: Key.NUMPAD6,
+  numpad7: Key.NUMPAD7,
+  numpad8: Key.NUMPAD8,
+  numpad9: Key.NUMPAD9,
+  multiply: Key.MULTIPLY,
+  add: Key.ADD,
+  separator: Key.SEPARATOR,
+  subtract: Key.SUBTRACT,
+  decimal: Key.DECIMAL,
+  divide: Key.DIVIDE,
+  f1: Key.F1,
+  f2: Key.F2,
+  f3: Key.F3,
+  f4: Key.F4,
+  f5: Key.F5,
+  f6: Key.F6,
+  f7: Key.F7,
+  f8: Key.F8,
+  f9: Key.F9,
+  f10: Key.F10,
+  f11: Key.F11,
+  f12: Key.F12,
+};
+
+const MODIFIER_MAP: Record<string, string> = {
+  ctrl: Key.CONTROL,
+  control: Key.CONTROL,
+  alt: Key.ALT,
+  shift: Key.SHIFT,
+  meta: Key.META,
+  cmd: Key.META,
+  command: Key.META,
+  win: Key.META,
+  super: Key.META,
+};
+
+export interface KeyCombo {
+  modifiers: string[];
+  key: string;
+}
+
+/**
+ * Parse a combination such as "ctrl+shift+t" into its modifiers and its single
+ * non-modifier key. Any number of modifiers is allowed, but exactly one key is:
+ * "ctrl+k+l" is rejected rather than silently dropping one of the two.
+ * Unrecognised names are rejected too, so that a mistyped key name does not turn
+ * into typed text.
+ * @param combo Key name, single character, or "+"-separated combination
+ */
+export function parseKeyCombo(combo: string): KeyCombo {
+  const trimmed = combo.trim();
+  // A lone character is taken literally so that "+" itself can be pressed.
+  const parts = [...trimmed].length === 1 ? [trimmed] : trimmed.split('+');
+
+  const modifiers: string[] = [];
+  let key: string | undefined;
+
+  for (const part of parts) {
+    const name = part.trim();
+    if (name === '') {
+      continue;
+    }
+
+    const modifier = MODIFIER_MAP[name.toLowerCase()];
+    if (modifier) {
+      modifiers.push(modifier);
+      continue;
+    }
+
+    const mapped = KEY_MAP[name.toLowerCase()];
+    if (mapped === undefined && [...name].length > 1) {
+      throw new Error(`press_key: unknown key "${name}" in "${combo}"`);
+    }
+    if (key !== undefined) {
+      throw new Error(
+        `press_key: "${combo}" has more than one non-modifier key. Use any number of modifiers but a single key, for example "ctrl+shift+t".`
+      );
+    }
+    key = mapped ?? name;
+  }
+
+  if (key === undefined) {
+    throw new Error(`press_key: no key specified in "${combo}"`);
+  }
+
+  return { modifiers, key };
+}
+
 export class DomInteractions {
   constructor(
     private driver: WebDriver,
@@ -285,6 +413,38 @@ export class DomInteractions {
     await el.sendKeys(filePath);
 
     // Wait for events to propagate
+    await this.waitForEventsAfterAction();
+  }
+
+  /**
+   * Press a single key, optionally with modifiers.
+   * @param key Key name or combination, such as "Escape", "F5" or "ctrl+shift+t"
+   * @param uid Element UID to send the key to. Defaults to the focused element.
+   */
+  async pressKey(key: string, uid?: string): Promise<void> {
+    const { modifiers, key: mainKey } = parseKeyCombo(key);
+
+    if (uid) {
+      if (!this.resolveUid) {
+        throw new Error('pressKey: resolveUid callback not set. Ensure snapshot is initialized.');
+      }
+      const el = await this.resolveUid(uid);
+      await el.sendKeys(Key.chord(...modifiers, mainKey));
+    } else {
+      // Without an element to target, drive the WebDriver actions keyboard
+      // source directly so the key reaches whatever currently has focus.
+      const actions = this.driver.actions({ async: true });
+      for (const modifier of modifiers) {
+        actions.keyDown(modifier);
+      }
+      actions.keyDown(mainKey);
+      actions.keyUp(mainKey);
+      for (const modifier of [...modifiers].reverse()) {
+        actions.keyUp(modifier);
+      }
+      await actions.perform();
+    }
+
     await this.waitForEventsAfterAction();
   }
 

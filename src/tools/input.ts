@@ -147,6 +147,30 @@ export const uploadFileByUidTool = {
   },
 };
 
+export const pressKeyTool = {
+  name: 'press_key',
+  description:
+    'Press a single key, optionally with modifiers, to submit, dismiss, navigate or trigger a shortcut. Not for entering text: use fill_by_uid instead.',
+  annotations: {
+    readOnlyHint: false,
+  },
+  inputSchema: {
+    type: 'object',
+    properties: {
+      key: {
+        type: 'string',
+        description:
+          'One key, optionally preceded by "+"-separated modifiers, such as "Escape", "F5" or "ctrl+shift+t". Modifiers: ctrl, alt, shift, meta. Named keys: Enter (numpad), Return, Tab, Backspace, Delete, Insert, Space, Escape, Home, End, PageUp, PageDown, ArrowUp, ArrowDown, ArrowLeft, ArrowRight, F1-F12, Numpad0-Numpad9, Clear, Pause, Help, Cancel, Semicolon, Equals, Add, Subtract, Multiply, Divide, Decimal, Separator. Anything else must be a single character.',
+      },
+      uid: {
+        type: 'string',
+        description: 'Element UID from snapshot (default: the focused element)',
+      },
+    },
+    required: ['key'],
+  },
+};
+
 // Handlers
 export async function handleClickByUid(args: unknown): Promise<McpToolResponse> {
   try {
@@ -327,6 +351,31 @@ export async function handleUploadFileByUid(args: unknown): Promise<McpToolRespo
   }
 }
 
+export async function handlePressKey(args: unknown): Promise<McpToolResponse> {
+  try {
+    const { key, uid } = args as { key: string; uid?: string };
+
+    if (!key || typeof key !== 'string') {
+      throw new Error('key parameter is required and must be a string');
+    }
+
+    const { getFirefox } = await import('../index.js');
+    const firefox = await getFirefox();
+
+    try {
+      await firefox.pressKey(key, uid);
+      return successResponse(uid ? `press_key ${key} on ${uid}` : `press_key ${key}`);
+    } catch (error) {
+      if (uid) {
+        throw handleUidError(error as Error, uid);
+      }
+      throw error;
+    }
+  } catch (error) {
+    return errorResponse(error as Error);
+  }
+}
+
 export const module = defineModule({
   name: 'input',
   description: 'Interact with the page via UID-based clicks, typing, drag, and uploads.',
@@ -337,5 +386,6 @@ export const module = defineModule({
     [dragByUidToUidTool, handleDragByUidToUid],
     [fillFormByUidTool, handleFillFormByUid],
     [uploadFileByUidTool, handleUploadFileByUid],
+    [pressKeyTool, handlePressKey],
   ],
 });
