@@ -218,7 +218,7 @@ export const restartFirefoxTool = {
           type: 'string',
         },
         description:
-          'New environment variables in KEY=VALUE format (optional, e.g., ["MOZ_LOG=HTMLMediaElement:5", "MOZ_LOG_FILE=/tmp/ff.log"])',
+          'New environment variables in KEY=VALUE format (optional, e.g., ["MOZ_LOG=HTMLMediaElement:5", "MOZ_LOG_FILE=/tmp/ff.log"]). Unlike prefs, env does not merge: it replaces the map set at launch, so repeat every variable you still need — MOZ_REMOTE_ALLOW_SYSTEM_ACCESS=1 included, if privileged access came through it.',
       },
       headless: {
         type: 'boolean',

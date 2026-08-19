@@ -21,7 +21,7 @@ const moz = {
   bin: {
     'firefox-devtools-mcp-moz': './dist.moz/index.js',
   },
-  files: ['dist.moz', 'README.md', 'LICENSE', 'scripts', 'plugins'],
+  files: ['dist.moz', 'kit', 'README.md', 'LICENSE', 'scripts', 'plugins'],
   publishConfig: {
     access: 'public',
   },
