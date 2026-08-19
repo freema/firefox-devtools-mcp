@@ -5,6 +5,7 @@
 import type { FirefoxLaunchOptions, ConsoleMessage, LogpointResult } from './types.js';
 import { WebElement } from 'selenium-webdriver';
 import { FirefoxCore } from './core.js';
+import { BiDiFacade } from './bidi.js';
 import { logDebug } from '../utils/logger.js';
 import { remoteValueToNative } from '../utils/remote-value.js';
 import { ConsoleEvents, NetworkEvents, DebuggingEvents, DownloadEvents } from './events/index.js';
@@ -19,6 +20,7 @@ import { SnapshotManager, type Snapshot, type SnapshotOptions } from './snapshot
  */
 export class FirefoxClient {
   private core: FirefoxCore;
+  private bidi: BiDiFacade | null = null;
   private consoleEvents: ConsoleEvents | null = null;
   private networkEvents: NetworkEvents | null = null;
   private debuggingEvents: DebuggingEvents | null = null;
@@ -31,6 +33,13 @@ export class FirefoxClient {
     this.core = new FirefoxCore(options);
   }
 
+  getBidi(): BiDiFacade {
+    if (!this.bidi) {
+      throw new Error('Not connected');
+    }
+    return this.bidi;
+  }
+
   /**
    * Connect and initialize all modules
    */
@@ -39,36 +48,46 @@ export class FirefoxClient {
 
     const driver = this.core.getDriver();
 
+    this.bidi = new BiDiFacade(driver);
+
     // Initialize snapshot manager first
     this.snapshot = new SnapshotManager(driver);
 
-    // Initialize event modules with lifecycle hooks.
-    // BiDi (console/network events) is available in both launch and connect-existing
-    // modes, provided Firefox has its Remote Agent running. If webSocketUrl is absent
-    // from the session capabilities (e.g. Firefox started without --remote-debugging-port),
-    // the subscribe calls below will fail gracefully and the modules will be disabled.
-    const hasBidi = 'getBidi' in driver && typeof driver.getBidi === 'function';
+    this.consoleEvents = new ConsoleEvents(this.bidi, {
+      autoClearOnNavigate: false,
+    });
+    try {
+      await this.consoleEvents.subscribe();
+    } catch {
+      logDebug('Unable to subscribe to console events');
+      this.consoleEvents = null;
+    }
 
-    if (hasBidi) {
-      // Cast to any for BiDi-specific APIs that only exist on selenium WebDriver
-      this.consoleEvents = new ConsoleEvents(driver as any, {
-        autoClearOnNavigate: false,
-      });
+    this.networkEvents = new NetworkEvents(this.bidi, {
+      autoClearOnNavigate: false,
+      captureBodies: this.core.getOptions().captureNetworkBodies !== false,
+    });
+    try {
+      await this.networkEvents.subscribe();
+    } catch {
+      logDebug('Unable to subscribe to network events');
+      this.networkEvents = null;
+    }
 
-      this.networkEvents = new NetworkEvents(
-        driver as any,
-        {
-          autoClearOnNavigate: false,
-          captureBodies: this.core.getOptions().captureNetworkBodies !== false,
-        },
-        (method, params) => this.core.sendBiDiCommand(method, params ?? {})
-      );
+    this.debuggingEvents = new DebuggingEvents(this.bidi);
+    try {
+      await this.debuggingEvents.subscribe();
+    } catch {
+      logDebug('Unable to subscribe to debugging events');
+      this.debuggingEvents = null;
+    }
 
-      this.debuggingEvents = new DebuggingEvents(driver as any, (method, params) =>
-        this.core.sendBiDiCommand(method, params)
-      );
-
-      this.downloadEvents = new DownloadEvents(driver as any);
+    this.downloadEvents = new DownloadEvents(this.bidi);
+    try {
+      await this.downloadEvents.subscribe();
+    } catch {
+      logDebug('Unable to subscribe to download events');
+      this.downloadEvents = null;
     }
 
     // Initialize DOM with UID resolver callback
@@ -80,46 +99,8 @@ export class FirefoxClient {
       driver,
       () => this.core.getCurrentContextId(),
       (id: string) => this.core.setCurrentContextId(id),
-      (method: string, params: Record<string, any>) => this.core.sendBiDiCommand(method, params)
+      (method: string, params: Record<string, any>) => this.getBidi().sendCommand(method, params)
     );
-
-    // Subscribe to console and network events for ALL contexts (not just current).
-    // Failures here are non-fatal: Firefox may not have the Remote Agent / BiDi
-    // enabled (e.g. launched with --marionette only, no --remote-debugging-port),
-    // in which case webSocketUrl is absent from capabilities and getBidi() throws.
-    // We degrade gracefully so all non-BiDi tools still work.
-    if (this.consoleEvents) {
-      try {
-        await this.consoleEvents.subscribe(undefined);
-      } catch {
-        logDebug('Unable to subscribe to console events');
-        this.consoleEvents = null;
-      }
-    }
-    if (this.networkEvents) {
-      try {
-        await this.networkEvents.subscribe(undefined);
-      } catch {
-        logDebug('Unable to subscribe to network events');
-        this.networkEvents = null;
-      }
-    }
-    if (this.debuggingEvents) {
-      try {
-        await this.debuggingEvents.subscribe();
-      } catch {
-        logDebug('Unable to subscribe to debugging events');
-        this.debuggingEvents = null;
-      }
-    }
-    if (this.downloadEvents) {
-      try {
-        await this.downloadEvents.subscribe(undefined);
-      } catch {
-        logDebug('Unable to subscribe to download events');
-        this.downloadEvents = null;
-      }
-    }
   }
 
   // ============================================================================
@@ -133,7 +114,7 @@ export class FirefoxClient {
    * native value; throws on a script exception.
    */
   async evaluate(expression: string): Promise<unknown> {
-    const result = await this.core.sendBiDiCommand('script.evaluate', {
+    const result = await this.getBidi().sendCommand('script.evaluate', {
       expression,
       awaitPromise: true,
       target: { context: this.core.getCurrentContextId() },
@@ -424,7 +405,7 @@ export class FirefoxClient {
         : behavior === 'allowed'
           ? { type: 'allowed' }
           : { type: 'denied' };
-    await this.core.sendBiDiCommand('browser.setDownloadBehavior', { downloadBehavior });
+    await this.getBidi().sendCommand('browser.setDownloadBehavior', { downloadBehavior });
   }
 
   // ============================================================================
@@ -486,7 +467,7 @@ export class FirefoxClient {
    * @internal
    */
   async sendBiDiCommand(method: string, params: Record<string, any> = {}): Promise<any> {
-    return await this.core.sendBiDiCommand(method, params);
+    return await this.getBidi().sendCommand(method, params);
   }
 
   /**
@@ -537,7 +518,7 @@ export class FirefoxClient {
     if (!this.debuggingEvents) {
       throw new Error('Debugging events not available');
     }
-    const result = await this.core.sendBiDiCommand('moz:debugging.setBreakpoint', {
+    const result = await this.getBidi().sendCommand('moz:debugging.setBreakpoint', {
       location: { url, line },
     });
     const logpointId = (result as { breakpoint: string }).breakpoint;
@@ -552,7 +533,7 @@ export class FirefoxClient {
     if (!this.debuggingEvents) {
       throw new Error('Debugging events not available');
     }
-    await this.core.sendBiDiCommand('moz:debugging.removeBreakpoint', {
+    await this.getBidi().sendCommand('moz:debugging.removeBreakpoint', {
       breakpoint: logpointId,
     });
     this.debuggingEvents.removeLogpoint(logpointId);

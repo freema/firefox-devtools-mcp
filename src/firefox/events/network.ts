@@ -2,7 +2,7 @@
  * Network event handling with lifecycle hooks
  */
 
-import type { WebDriver } from 'selenium-webdriver';
+import type { BiDiFacade } from '../bidi.js';
 import { logDebug } from '../../utils/logger.js';
 
 // Memory protection constants
@@ -25,8 +25,6 @@ export type NetworkBodyResult =
   | { ok: true; type: 'base64' | 'string'; value: string }
   | { ok: false; reason: 'unsupported' | 'not-collected' | 'evicted' | 'aborted' | 'error' };
 
-type SendBiDiCommand = (method: string, params?: Record<string, any>) => Promise<any>;
-
 export class NetworkEvents {
   private networkRecords: Map<string, any> = new Map();
   private subscribed = false;
@@ -36,9 +34,8 @@ export class NetworkEvents {
   private collectorId: string | null = null;
 
   constructor(
-    private driver: WebDriver,
-    options: NetworkEventsOptions = {},
-    private sendCommand?: SendBiDiCommand
+    private bidi: BiDiFacade,
+    options: NetworkEventsOptions = {}
   ) {
     this.options = {
       autoClearOnNavigate: true,
@@ -50,122 +47,107 @@ export class NetworkEvents {
    * Subscribe to BiDi network events and navigation lifecycle
    * Enables monitoring by default (always-on capture)
    */
-  async subscribe(contextId?: string): Promise<void> {
+  async subscribe(): Promise<void> {
     if (this.subscribed) {
       return;
     }
 
-    const bidi = await this.driver.getBidi();
-
     // Subscribe to network events
-    await bidi.subscribe('network.beforeRequestSent', contextId ? [contextId] : undefined);
-    await bidi.subscribe('network.responseStarted', contextId ? [contextId] : undefined);
-    await bidi.subscribe('network.responseCompleted', contextId ? [contextId] : undefined);
+    await this.bidi.subscribe([
+      'network.beforeRequestSent',
+      'network.responseStarted',
+      'network.responseCompleted',
+    ]);
 
     // Subscribe to navigation events for lifecycle hooks
-    try {
-      await bidi.subscribe('browsingContext.load', contextId ? [contextId] : undefined);
-      await bidi.subscribe('browsingContext.domContentLoaded', contextId ? [contextId] : undefined);
-    } catch {
-      logDebug(
-        'Navigation events subscription skipped (may not be available in this Firefox version)'
-      );
-    }
+    await this.bidi.subscribe(['browsingContext.load', 'browsingContext.domContentLoaded']);
 
-    const ws: any = bidi.socket;
-    ws.on('message', (data: any) => {
-      try {
-        const payload = JSON.parse(data.toString());
-
-        // Handle navigation lifecycle events
-        if (
-          payload?.method === 'browsingContext.load' ||
-          payload?.method === 'browsingContext.domContentLoaded'
-        ) {
-          // Only clear if monitoring is enabled and autoClear is on
-          if (this.enabled && this.options.autoClearOnNavigate) {
-            this.clearRequests();
-          }
-          return;
-        }
-
-        // Only collect network events when explicitly enabled
-        if (!this.enabled) {
-          return;
-        }
-
-        // Handle beforeRequestSent
-        if (payload?.method === 'network.beforeRequestSent') {
-          const req = payload.params;
-          const requestId = req.request?.request || req.requestId;
-
-          if (!requestId) {
-            return;
-          }
-
-          this.requestStartTimes.set(requestId, Date.now());
-
-          const record = {
-            id: requestId,
-            url: req.request?.url || '',
-            method: req.request?.method || 'GET',
-            timestamp: Date.now(),
-            resourceType: this.guessResourceType(req.request?.url || ''),
-            isXHR: req.initiator?.type === 'xmlhttprequest' || req.initiator?.type === 'fetch',
-            requestHeaders: this.parseHeaders(req.request?.headers || []),
-            timings: {
-              requestTime: Date.now(),
-            },
-          };
-
-          this.networkRecords.set(requestId, record);
-          logDebug(`Network request [${record.method}]: ${record.url}`);
-        }
-
-        // Handle responseStarted
-        if (payload?.method === 'network.responseStarted') {
-          const resp = payload.params;
-          const requestId = resp.request?.request || resp.requestId;
-
-          if (!requestId) {
-            return;
-          }
-
-          const existing = this.networkRecords.get(requestId);
-          if (existing) {
-            existing.status = resp.response?.status;
-            existing.statusText = resp.response?.statusText || '';
-            existing.responseHeaders = this.parseHeaders(resp.response?.headers || []);
-          }
-        }
-
-        // Handle responseCompleted
-        if (payload?.method === 'network.responseCompleted') {
-          const resp = payload.params;
-          const requestId = resp.request?.request || resp.requestId;
-
-          if (!requestId) {
-            return;
-          }
-
-          const existing = this.networkRecords.get(requestId);
-          const startTime = this.requestStartTimes.get(requestId);
-
-          if (existing && startTime) {
-            existing.timings.responseTime = Date.now();
-            existing.timings.duration = Date.now() - startTime;
-
-            if (!existing.status && resp.response?.status) {
-              existing.status = resp.response.status;
-              existing.statusText = resp.response.statusText || '';
-            }
-          }
-
-          this.requestStartTimes.delete(requestId);
-        }
-      } catch {
-        // Ignore parse errors
+    const onLoadEvent = () => {
+      // Only clear if monitoring is enabled and autoClear is on
+      if (this.enabled && this.options.autoClearOnNavigate) {
+        this.clearRequests();
       }
+    };
+    this.bidi.on('browsingContext.domContentLoaded', onLoadEvent);
+    this.bidi.on('browsingContext.load', onLoadEvent);
+
+    this.bidi.on('network.beforeRequestSent', (req) => {
+      // Only collect network events when explicitly enabled
+      if (!this.enabled) {
+        return;
+      }
+
+      const requestId = req.request?.request || req.requestId;
+
+      if (!requestId) {
+        return;
+      }
+
+      this.requestStartTimes.set(requestId, Date.now());
+
+      const record = {
+        id: requestId,
+        url: req.request?.url || '',
+        method: req.request?.method || 'GET',
+        timestamp: Date.now(),
+        resourceType: this.guessResourceType(req.request?.url || ''),
+        isXHR: req.initiator?.type === 'xmlhttprequest' || req.initiator?.type === 'fetch',
+        requestHeaders: this.parseHeaders(req.request?.headers || []),
+        timings: {
+          requestTime: Date.now(),
+        },
+      };
+
+      this.networkRecords.set(requestId, record);
+      logDebug(`Network request [${record.method}]: ${record.url}`);
+    });
+
+    this.bidi.on('network.responseStarted', (resp) => {
+      // Only collect network events when explicitly enabled
+      if (!this.enabled) {
+        return;
+      }
+
+      const requestId = resp.request?.request || resp.requestId;
+
+      if (!requestId) {
+        return;
+      }
+
+      const existing = this.networkRecords.get(requestId);
+      if (existing) {
+        existing.status = resp.response?.status;
+        existing.statusText = resp.response?.statusText || '';
+        existing.responseHeaders = this.parseHeaders(resp.response?.headers || []);
+      }
+    });
+
+    this.bidi.on('network.responseCompleted', (resp) => {
+      // Only collect network events when explicitly enabled
+      if (!this.enabled) {
+        return;
+      }
+
+      const requestId = resp.request?.request || resp.requestId;
+
+      if (!requestId) {
+        return;
+      }
+
+      const existing = this.networkRecords.get(requestId);
+      const startTime = this.requestStartTimes.get(requestId);
+
+      if (existing && startTime) {
+        existing.timings.responseTime = Date.now();
+        existing.timings.duration = Date.now() - startTime;
+
+        if (!existing.status && resp.response?.status) {
+          existing.status = resp.response.status;
+          existing.statusText = resp.response.statusText || '';
+        }
+      }
+
+      this.requestStartTimes.delete(requestId);
     });
 
     await this.registerDataCollector();
@@ -187,12 +169,8 @@ export class NetworkEvents {
       return;
     }
 
-    if (!this.sendCommand) {
-      return;
-    }
-
     try {
-      const result = await this.sendCommand('network.addDataCollector', {
+      const result = await this.bidi.sendCommand('network.addDataCollector', {
         dataTypes: ['request', 'response'],
         maxEncodedDataSize: MAX_ENCODED_DATA_SIZE,
       });
@@ -215,12 +193,12 @@ export class NetworkEvents {
    * when the body was never collected, evicted, or the browser lacks support.
    */
   async fetchBody(requestId: string, dataType: 'request' | 'response'): Promise<NetworkBodyResult> {
-    if (!this.sendCommand || !this.collectorId) {
+    if (!this.collectorId) {
       return { ok: false, reason: 'unsupported' };
     }
 
     try {
-      const result = await this.sendCommand('network.getData', {
+      const result = await this.bidi.sendCommand('network.getData', {
         request: requestId,
         dataType,
       });
