@@ -11,7 +11,7 @@ import type { ToolModule } from '../../src/tools/module.js';
 
 // Tool files whose exports are not modules; everything else in src/tools is
 // expected to declare a module via defineModule.
-const NON_MODULE_FILES = new Set(['index.ts', 'module.ts', 'registry.ts']);
+const NON_MODULE_FILES = new Set(['index.ts', 'instructions.ts', 'module.ts', 'registry.ts']);
 const TOOLS_DIR = new URL('../../src/tools/', import.meta.url);
 
 describe('Tool registry', () => {
