@@ -234,6 +234,9 @@ Both flags are required because the MCP uses both WebDriver Classic (`--marionet
 
 ## Tool overview
 
+See [docs/tools.md](docs/tools.md) for the full list of tools by module, with
+descriptions and parameters (generated from the source).
+
 - Pages: list/new/navigate/select/close/get_page_text (get_page_text supports optional `saveTo`)
 - Snapshot/UID: take/resolve/clear (take supports optional `saveTo`)
 - Input: click/hover/fill/drag/upload/form fill
