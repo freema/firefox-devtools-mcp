@@ -2,7 +2,7 @@
  * moz:debugging event handling
  */
 
-import type { WebDriver } from 'selenium-webdriver';
+import type { BiDiFacade } from '../bidi.js';
 import type { LogpointResult } from '../types.js';
 import { logDebug } from '../../utils/logger.js';
 
@@ -19,50 +19,34 @@ export class DebuggingEvents {
   private logpoints: Map<string, LogpointEntry> = new Map();
   private subscribed = false;
 
-  constructor(
-    private driver: WebDriver,
-    private sendBiDiCommand: (method: string, params: Record<string, any>) => Promise<any>
-  ) {}
+  constructor(private bidi: BiDiFacade) {}
 
   /**
    * Subscribe to moz:debugging events
    */
-  async subscribe(contextId?: string): Promise<void> {
+  async subscribe(): Promise<void> {
     if (this.subscribed) {
       return;
     }
 
-    const bidi = await this.driver.getBidi();
     try {
-      await bidi.subscribe('moz:debugging.paused', contextId ? [contextId] : undefined);
-      await bidi.subscribe('moz:debugging.resumed', contextId ? [contextId] : undefined);
+      await this.bidi.subscribe(['moz:debugging.paused', 'moz:debugging.resumed']);
     } catch {
       logDebug(
         'Debugging events subscription skipped (may not be available in this Firefox version)'
       );
     }
 
-    const ws: any = bidi.socket;
-    ws.on('message', (data: any) => {
-      try {
-        const payload = JSON.parse(data.toString());
-
-        if (payload?.method === 'moz:debugging.paused') {
-          const { context, url, line, column } = payload.params;
-          const logpointId = this.findLogpointByLocation(url, line);
-          if (logpointId) {
-            void this.handleLogpointPause(context, logpointId);
-            return;
-          }
-          logDebug(`moz:Debugging paused in context: ${context} at ${url}:${line}:${column}`);
-        }
-
-        if (payload?.method === 'moz:debugging.resumed') {
-          logDebug(`moz:Debugging resumed in context: ${payload.params.context}`);
-        }
-      } catch {
-        // Ignore event processing failures
+    this.bidi.on('moz:debugging.paused', ({ context, url, line, column }) => {
+      const logpointId = this.findLogpointByLocation(url, line);
+      if (logpointId) {
+        void this.handleLogpointPause(context, logpointId);
+        return;
       }
+      logDebug(`moz:Debugging paused in context: ${context} at ${url}:${line}:${column}`);
+    });
+    this.bidi.on('moz:debugging.resumed', (entry) => {
+      logDebug(`moz:Debugging resumed in context: ${entry.context}`);
     });
 
     this.subscribed = true;
@@ -106,7 +90,7 @@ export class DebuggingEvents {
     try {
       // Bug 2047506: script.callFunction fails when paused, use script.evaluate
       // for now.
-      const result = await this.sendBiDiCommand('script.evaluate', {
+      const result = await this.bidi.sendCommand('script.evaluate', {
         expression: entry.expression,
         target: { context: contextId },
         awaitPromise: false,
@@ -144,7 +128,7 @@ export class DebuggingEvents {
           logDebug(`Logpoint ${logpointId}: result buffer capped at ${MAX_LOGPOINT_RESULTS}`);
         }
       }
-      await this.sendBiDiCommand('moz:debugging.resume', { context: contextId }).catch((err) => {
+      await this.bidi.sendCommand('moz:debugging.resume', { context: contextId }).catch((err) => {
         logDebug(`Failed to resume after logpoint: ${String(err)}`);
       });
     }
