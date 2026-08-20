@@ -13,6 +13,7 @@ import {
   statSync,
   readFileSync,
 } from 'node:fs';
+import { execFileSync } from 'node:child_process';
 import { connect as netConnect } from 'node:net';
 import { homedir } from 'node:os';
 import { join, delimiter } from 'node:path';
@@ -150,6 +151,36 @@ async function findGeckodriver(): Promise<string> {
   return found;
 }
 
+const keepAppDataSupport = new Map<string, boolean>();
+
+/**
+ * Detects whether a geckodriver binary supports --android-keep-app-data (bug 2064088).
+ * Probes --help rather than --version because local and try builds report the same
+ * version as the release they branched from. Unknown arguments are fatal for
+ * geckodriver, so the flag can only be passed when the probe confirms it.
+ */
+function supportsAndroidKeepAppData(geckodriverPath: string): boolean {
+  const cached = keepAppDataSupport.get(geckodriverPath);
+  if (cached !== undefined) {
+    return cached;
+  }
+
+  let supported = false;
+  try {
+    const help = execFileSync(geckodriverPath, ['--help'], {
+      encoding: 'utf8',
+      timeout: 5000,
+      stdio: ['ignore', 'pipe', 'pipe'],
+    });
+    supported = help.includes('--android-keep-app-data');
+  } catch (error) {
+    logDebug(`Failed to probe geckodriver --help: ${(error as Error).message}`);
+  }
+
+  keepAppDataSupport.set(geckodriverPath, supported);
+  return supported;
+}
+
 export class FirefoxCore {
   private currentContextId: string | null = null;
   private driver: WebDriver | null = null;
@@ -168,23 +199,42 @@ export class FirefoxCore {
     const isAndroid = this.options.androidDevice !== undefined;
     const androidPackage = this.options.androidPackage ?? 'org.mozilla.firefox';
 
-    if (isAndroid && !this.options.androidWipeAppData) {
+    // Resolve geckodriver up front on Android: whether the session wipes the app data
+    // depends on the flags supported by that specific binary.
+    // Pre-setting the path also makes selenium-webdriver skip getBinaryPaths(), which
+    // would otherwise discover the desktop Firefox binary and inject it into
+    // moz:firefoxOptions.binary - conflicting with androidPackage.
+    let androidGeckodriverPath = '';
+    let keepAppData = false;
+    if (isAndroid) {
+      androidGeckodriverPath = await findGeckodriver();
+      logDebug(`Using geckodriver: ${androidGeckodriverPath}`);
+      keepAppData =
+        !this.options.androidWipeAppData && supportsAndroidKeepAppData(androidGeckodriverPath);
+    }
+
+    if (isAndroid && !this.options.androidWipeAppData && !keepAppData) {
       // geckodriver runs "adb shell pm clear <package>" before every Android session
-      // (AndroidHandler::prepare) and offers no way to opt out, so launching wipes the
-      // data of the target app instead of only using its own temporary profile.
-      // Bug 2064088 tracks adding an opt-out to geckodriver.
+      // (AndroidHandler::prepare), so launching wipes the data of the target app instead
+      // of only using its own temporary profile. Bug 2064088 added --android-keep-app-data
+      // as an opt-out, but this geckodriver does not support it yet.
       throw new Error(
         `Firefox for Android mode wipes all data of ${androidPackage} ` +
           'on the device: tabs, history, bookmarks, passwords, cookies and settings are all lost, ' +
-          'because geckodriver clears the app data before every session and cannot be configured to skip it. ' +
-          'Pass --android-wipe-app-data (or ANDROID_WIPE_APP_DATA=true) to confirm. ' +
+          'because this geckodriver clears the app data before every session and does not support ' +
+          '--android-keep-app-data. Upgrade geckodriver, or pass --android-wipe-app-data ' +
+          '(or ANDROID_WIPE_APP_DATA=true) to confirm. ' +
           'Prefer a build dedicated to automation, for instance --android-package org.mozilla.fenix for Nightly.'
       );
     }
 
     if (isAndroid) {
       log('Launching Firefox for Android via ADB...');
-      log(`Wiping all data of ${androidPackage} on the device`);
+      if (keepAppData) {
+        log(`Keeping the existing data of ${androidPackage} on the device`);
+      } else {
+        log(`Wiping all data of ${androidPackage} on the device`);
+      }
     } else if (this.options.connectExisting) {
       log('Connecting to existing Firefox via Marionette...');
     } else {
@@ -192,12 +242,6 @@ export class FirefoxCore {
     }
 
     if (isAndroid) {
-      // Pre-set the geckodriver path so selenium-webdriver skips getBinaryPaths(),
-      // which would otherwise discover the desktop Firefox binary and inject it into
-      // moz:firefoxOptions.binary — conflicting with androidPackage.
-      const geckodriverPath = await findGeckodriver();
-      logDebug(`Using geckodriver: ${geckodriverPath}`);
-
       const mozOptions: Record<string, unknown> = { androidPackage };
       const deviceSerial = this.options.androidDevice;
       if (deviceSerial && deviceSerial !== 'auto') {
@@ -214,7 +258,10 @@ export class FirefoxCore {
         caps.set('acceptInsecureCerts', true);
       }
 
-      const serviceBuilder = new firefox.ServiceBuilder(geckodriverPath);
+      const serviceBuilder = new firefox.ServiceBuilder(androidGeckodriverPath);
+      if (keepAppData) {
+        serviceBuilder.addArguments('--android-keep-app-data');
+      }
       this.driver = firefox.Driver.createSession(caps, serviceBuilder.build());
     } else if (this.options.connectExisting) {
       let port = this.options.marionettePort ?? 2828;

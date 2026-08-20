@@ -287,7 +287,61 @@ describe('FirefoxCore', () => {
 });
 
 describe('FirefoxCore connect() Android app data wipe opt-in', () => {
+  const mockAddArguments = vi.fn();
+  const mockCreateSession = vi.fn();
+
+  // Builds the module mocks, with a geckodriver --help output that either advertises
+  // --android-keep-app-data or not.
+  const mockAndroidEnv = (keepAppDataSupported: boolean) => {
+    vi.doMock('node:child_process', () => ({
+      execFileSync: vi.fn(
+        () =>
+          `Options:\n${keepAppDataSupported ? '      --android-keep-app-data\n' : ''}  -h, --help\n`
+      ),
+    }));
+
+    vi.doMock('node:fs', () => ({
+      existsSync: vi.fn((p: unknown) => String(p).includes('geckodriver')),
+      mkdirSync: vi.fn(),
+      openSync: vi.fn().mockReturnValue(3),
+      closeSync: vi.fn(),
+      readdirSync: vi.fn(() => []),
+      statSync: vi.fn(),
+      readFileSync: vi.fn(),
+    }));
+
+    vi.doMock('selenium-webdriver/firefox.js', () => ({
+      default: {
+        ServiceBuilder: class {
+          addArguments = mockAddArguments;
+          build = vi.fn();
+        },
+        Driver: { createSession: mockCreateSession },
+      },
+    }));
+
+    vi.doMock('selenium-webdriver', () => ({
+      Capabilities: class {
+        set = vi.fn();
+      },
+      Builder: class {},
+      Browser: { FIREFOX: 'firefox' },
+    }));
+  };
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.resetModules();
+    mockCreateSession.mockReturnValue({
+      getCapabilities: vi.fn(() => ({ get: vi.fn(() => '123.4') })),
+      getWindowHandle: vi.fn().mockResolvedValue('mock-context-id'),
+      get: vi.fn().mockResolvedValue(undefined),
+    });
+  });
+
   it('should refuse to launch on Android without androidWipeAppData', async () => {
+    mockAndroidEnv(false);
+    const { FirefoxCore } = await import('@/firefox/core.js');
     const core = new FirefoxCore({ androidDevice: 'auto' });
 
     await expect(core.connect()).rejects.toThrow(
@@ -296,12 +350,34 @@ describe('FirefoxCore connect() Android app data wipe opt-in', () => {
   });
 
   it('should name the target package in the error', async () => {
+    mockAndroidEnv(false);
+    const { FirefoxCore } = await import('@/firefox/core.js');
     const core = new FirefoxCore({
       androidDevice: 'emulator-5554',
       androidPackage: 'org.mozilla.fenix',
     });
 
     await expect(core.connect()).rejects.toThrow(/wipes all data of org\.mozilla\.fenix/);
+  });
+
+  it('should launch without androidWipeAppData when geckodriver supports --android-keep-app-data', async () => {
+    mockAndroidEnv(true);
+    const { FirefoxCore } = await import('@/firefox/core.js');
+    const core = new FirefoxCore({ androidDevice: 'auto' });
+
+    await core.connect();
+
+    expect(mockAddArguments).toHaveBeenCalledWith('--android-keep-app-data');
+  });
+
+  it('should not pass --android-keep-app-data when androidWipeAppData is set', async () => {
+    mockAndroidEnv(true);
+    const { FirefoxCore } = await import('@/firefox/core.js');
+    const core = new FirefoxCore({ androidDevice: 'auto', androidWipeAppData: true });
+
+    await core.connect();
+
+    expect(mockAddArguments).not.toHaveBeenCalled();
   });
 });
 

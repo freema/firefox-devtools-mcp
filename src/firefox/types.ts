@@ -97,7 +97,7 @@ export interface FirefoxLaunchOptions {
   androidDevice?: string | undefined;
   /** Android app package name (default: org.mozilla.firefox) */
   androidPackage?: string | undefined;
-  /** Acknowledge that Android mode wipes all data of the target app; required to launch on Android */
+  /** Wipe all data of the target app on Android; required when geckodriver lacks --android-keep-app-data */
   androidWipeAppData?: boolean | undefined;
   /** Capture network request/response bodies via BiDi data collectors (default: true) */
   captureNetworkBodies?: boolean | undefined;

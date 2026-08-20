@@ -175,8 +175,9 @@ export const cliOptions = {
   androidWipeAppData: {
     type: 'boolean',
     description:
-      'Confirm that connecting to Firefox for Android wipes all data of the target app (tabs, ' +
-      'history, bookmarks, passwords, settings). Required with --android-device.',
+      'Wipe all data of the target Android app (tabs, history, bookmarks, passwords, settings) ' +
+      'before each session. Required with --android-device when geckodriver does not support ' +
+      '--android-keep-app-data.',
     default: (process.env.ANDROID_WIPE_APP_DATA ?? 'false') === 'true',
   },
   logFile: {
