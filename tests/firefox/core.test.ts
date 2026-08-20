@@ -2,6 +2,8 @@
  * Unit tests for FirefoxCore module
  */
 
+import { join } from 'node:path';
+import { MCP_PROFILE_DIR_NAME } from '@/firefox/profile.js';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { FirefoxCore } from '@/firefox/core.js';
 import type { FirefoxLaunchOptions } from '@/firefox/types.js';
@@ -378,7 +380,7 @@ describe('FirefoxCore connect() profile handling', () => {
     // The MCP uses a dedicated subfolder, not the raw profilePath
     expect(mockAddArguments).toHaveBeenCalledWith(
       '--profile',
-      '/path/to/test/profile/firefox_devtools_mcp_profile'
+      join('/path/to/test/profile', MCP_PROFILE_DIR_NAME)
     );
   });
 });

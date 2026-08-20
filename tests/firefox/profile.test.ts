@@ -2,6 +2,7 @@
  * Unit tests for profile path resolution
  */
 
+import { join } from 'node:path';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 vi.mock('node:fs', () => ({
@@ -21,8 +22,6 @@ import { resolveProfilePath, isFirefoxProfile, MCP_PROFILE_DIR_NAME } from '@/fi
 const mockExistsSync = vi.mocked(fs.existsSync);
 const mockMkdirSync = vi.mocked(fs.mkdirSync);
 const mockCopyFileSync = vi.mocked(fs.copyFileSync);
-
-const SEP = '/';
 
 describe('isFirefoxProfile', () => {
   beforeEach(() => {
@@ -55,7 +54,7 @@ describe('resolveProfilePath', () => {
   it('returns the MCP subfolder path', () => {
     mockExistsSync.mockReturnValue(false);
     const result = resolveProfilePath('/custom/profiles');
-    expect(result.path).toBe(`/custom/profiles${SEP}${MCP_PROFILE_DIR_NAME}`);
+    expect(result.path).toBe(join('/custom/profiles', MCP_PROFILE_DIR_NAME));
   });
 
   it('returns null warning for a non-Firefox directory', () => {
@@ -73,7 +72,7 @@ describe('resolveProfilePath', () => {
   it('creates the MCP subfolder when it does not exist yet', () => {
     mockExistsSync.mockReturnValue(false);
     resolveProfilePath('/custom/profiles');
-    expect(mockMkdirSync).toHaveBeenCalledWith(`/custom/profiles${SEP}${MCP_PROFILE_DIR_NAME}`, {
+    expect(mockMkdirSync).toHaveBeenCalledWith(join('/custom/profiles', MCP_PROFILE_DIR_NAME), {
       recursive: true,
     });
   });
@@ -81,7 +80,7 @@ describe('resolveProfilePath', () => {
   it('does not create the directory when it already exists', () => {
     // Simulate: no profile indicators in parent, but MCP subfolder already exists.
     mockExistsSync.mockImplementation(
-      (p: unknown) => String(p) === `/custom/profiles${SEP}${MCP_PROFILE_DIR_NAME}`
+      (p: unknown) => String(p) === join('/custom/profiles', MCP_PROFILE_DIR_NAME)
     );
     resolveProfilePath('/custom/profiles');
     expect(mockMkdirSync).not.toHaveBeenCalled();
@@ -97,8 +96,8 @@ describe('resolveProfilePath', () => {
     });
     resolveProfilePath('/real/profile');
     expect(mockCopyFileSync).toHaveBeenCalledWith(
-      `/real/profile${SEP}prefs.js`,
-      `/real/profile${SEP}${MCP_PROFILE_DIR_NAME}${SEP}prefs.js`
+      join('/real/profile', 'prefs.js'),
+      join('/real/profile', MCP_PROFILE_DIR_NAME, 'prefs.js')
     );
   });
 
