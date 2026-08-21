@@ -1,7 +1,8 @@
 ---
 name: screenshot
-description: Take a screenshot of a URL or the current page. Use when the user asks to capture, screenshot, or photograph a web page or URL.
+description: Take a screenshot of a URL or the current page
 argument-hint: [url or uid]
+disable-model-invocation: true
 ---
 
 # /firefox-devtools-mcp:screenshot

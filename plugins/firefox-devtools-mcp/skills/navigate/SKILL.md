@@ -2,6 +2,7 @@
 name: navigate
 description: Navigate Firefox to a URL and take a DOM snapshot for interaction
 argument-hint: <url>
+disable-model-invocation: true
 ---
 
 # /firefox-devtools-mcp:navigate

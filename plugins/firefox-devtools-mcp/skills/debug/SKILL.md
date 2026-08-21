@@ -1,6 +1,8 @@
 ---
+name: debug
 description: Show console errors and failed network requests
 argument-hint: [console|network|all]
+disable-model-invocation: true
 ---
 
 # /firefox-devtools-mcp:debug
