@@ -7,8 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.10.1] - 2026-08-21
+
 ### Added
 - `web-performance` plugin skill to capture a Firefox performance profile, analyze it with `profiler-cli`, trace findings to the user's source, and verify fixes by re-profiling
+- The server now advertises instructions in the initialize response, describing its capabilities and the enabled tool modules
 
 ## [0.10.0] - 2026-08-18
 
