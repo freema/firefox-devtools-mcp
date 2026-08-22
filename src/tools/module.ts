@@ -8,11 +8,29 @@
 
 import type { McpToolResponse } from '../types/common.js';
 
+export interface JsonSchemaProperty {
+  type: string | readonly string[];
+  description?: string;
+  enum?: readonly string[];
+  /** Schema of array elements (when type is 'array'). */
+  items?: JsonSchemaProperty;
+  /** Schema for values of an open-key object (prefs-style maps). */
+  additionalProperties?: { oneOf: Array<{ type: string }> };
+  properties?: Record<string, JsonSchemaProperty>;
+  required?: readonly string[];
+}
+
+export interface InputSchema {
+  type: string;
+  properties: Record<string, JsonSchemaProperty>;
+  required?: readonly string[];
+}
+
 export interface ToolDefinition {
   name: string;
   description: string;
   annotations?: { readOnlyHint?: boolean; [key: string]: unknown };
-  inputSchema: Record<string, unknown>;
+  inputSchema: InputSchema;
 }
 
 export type ToolHandler = (input: unknown) => Promise<McpToolResponse>;
