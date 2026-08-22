@@ -6,7 +6,11 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { existsSync, readFileSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
-import { listNetworkRequestsTool, getNetworkRequestTool } from '../../src/tools/network.js';
+import {
+  listNetworkRequestsTool,
+  getNetworkRequestTool,
+  setNetworkCacheTool,
+} from '../../src/tools/network.js';
 
 describe('Network Tools', () => {
   describe('Tool Definitions', () => {
@@ -23,6 +27,77 @@ describe('Network Tools', () => {
     it('should have valid input schemas', () => {
       expect(listNetworkRequestsTool.inputSchema.type).toBe('object');
       expect(getNetworkRequestTool.inputSchema.type).toBe('object');
+    });
+  });
+
+  describe('set_network_cache', () => {
+    let setCacheBehavior: ReturnType<typeof vi.fn>;
+
+    beforeEach(() => {
+      setCacheBehavior = vi.fn().mockResolvedValue(undefined);
+      vi.doMock('../../src/index.js', () => ({
+        args: {},
+        getFirefox: vi.fn().mockResolvedValue({ setCacheBehavior }),
+      }));
+    });
+
+    afterEach(() => {
+      vi.restoreAllMocks();
+      vi.resetModules();
+    });
+
+    const textOf = (r: { content: Array<{ type: string; text?: string }> }) =>
+      (r.content[0] as { type: 'text'; text: string }).text;
+
+    it('exposes a behavior enum and an optional scope', () => {
+      expect(setNetworkCacheTool.name).toBe('set_network_cache');
+      const { properties, required } = setNetworkCacheTool.inputSchema;
+      expect(properties?.behavior.enum).toEqual(['default', 'bypass']);
+      expect(properties?.scope.enum).toEqual(['tab', 'global']);
+      expect(required).toEqual(['behavior']);
+      expect(required).not.toContain('scope');
+    });
+
+    it('scopes to the selected tab by default', async () => {
+      const { handleSetNetworkCache } = await import('../../src/tools/network.js');
+      const result = await handleSetNetworkCache({ behavior: 'bypass' });
+
+      expect(setCacheBehavior).toHaveBeenCalledWith('bypass', { global: false });
+      expect(textOf(result)).toContain('selected tab');
+    });
+
+    it('applies browser-wide when scope is global', async () => {
+      const { handleSetNetworkCache } = await import('../../src/tools/network.js');
+      const result = await handleSetNetworkCache({ behavior: 'bypass', scope: 'global' });
+
+      expect(setCacheBehavior).toHaveBeenCalledWith('bypass', { global: true });
+      expect(textOf(result)).toContain('all tabs');
+    });
+
+    it('tells the caller how to restore caching after a bypass', async () => {
+      const { handleSetNetworkCache } = await import('../../src/tools/network.js');
+      const bypass = await handleSetNetworkCache({ behavior: 'bypass' });
+      expect(textOf(bypass)).toContain("behavior='default'");
+
+      const restore = await handleSetNetworkCache({ behavior: 'default' });
+      expect(setCacheBehavior).toHaveBeenLastCalledWith('default', { global: false });
+      expect(textOf(restore)).not.toContain("behavior='default' to restore");
+    });
+
+    it('rejects an unknown behavior instead of defaulting to cached', async () => {
+      const { handleSetNetworkCache } = await import('../../src/tools/network.js');
+      const result = await handleSetNetworkCache({ behavior: 'disabled' });
+
+      expect(textOf(result)).toContain('behavior must be one of default, bypass');
+      expect(setCacheBehavior).not.toHaveBeenCalled();
+    });
+
+    it('rejects an unknown scope instead of silently using the tab', async () => {
+      const { handleSetNetworkCache } = await import('../../src/tools/network.js');
+      const result = await handleSetNetworkCache({ behavior: 'bypass', scope: 'everything' });
+
+      expect(textOf(result)).toContain("scope must be 'tab' or 'global'");
+      expect(setCacheBehavior).not.toHaveBeenCalled();
     });
   });
 

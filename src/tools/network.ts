@@ -17,6 +17,7 @@ import { saveOutput } from '../utils/save-output.js';
 import { defineModule, defineToolHandler, type ToolDefinition } from './module.js';
 import type { McpToolResponse } from '../types/common.js';
 import type { NetworkBodyResult } from '../firefox/events/network.js';
+import { CACHE_BEHAVIORS, isCacheBehavior } from '../firefox/index.js';
 
 // Tool definitions
 export const listNetworkRequestsTool = {
@@ -130,6 +131,31 @@ export const getNetworkRequestTool = {
     },
   },
 } satisfies ToolDefinition;
+
+export const setNetworkCacheTool = {
+  name: 'set_network_cache',
+  description:
+    "Control the HTTP cache. Use behavior='bypass' so every request goes to the network — useful for performance measurement and for verifying a change that a cached asset would otherwise hide. Applies to the selected tab unless scope='global'. Persists until set back to 'default'.",
+  annotations: {
+    readOnlyHint: false,
+  },
+  inputSchema: {
+    type: 'object' as const,
+    properties: {
+      behavior: {
+        type: 'string',
+        enum: [...CACHE_BEHAVIORS],
+        description: "'bypass' to skip the cache, 'default' to restore normal caching",
+      },
+      scope: {
+        type: 'string',
+        enum: ['tab', 'global'],
+        description: "'tab' (default) applies to the selected tab; 'global' applies browser-wide",
+      },
+    },
+    required: ['behavior'],
+  },
+};
 
 /**
  * Fetch a body without letting a missing facade method or transport error fail
@@ -576,11 +602,43 @@ export const handleGetNetworkRequest = defineToolHandler(
   }
 );
 
+export async function handleSetNetworkCache(args: unknown): Promise<McpToolResponse> {
+  try {
+    const { behavior, scope } = (args as { behavior?: unknown; scope?: unknown }) || {};
+
+    // An unrecognised value is rejected rather than defaulting: silently caching
+    // when the caller asked to bypass would quietly invalidate their measurement.
+    if (!isCacheBehavior(behavior)) {
+      return errorResponse(
+        `behavior must be one of ${CACHE_BEHAVIORS.join(', ')} (got ${JSON.stringify(behavior)})`
+      );
+    }
+    if (scope !== undefined && scope !== 'tab' && scope !== 'global') {
+      return errorResponse(`scope must be 'tab' or 'global' (got ${JSON.stringify(scope)})`);
+    }
+
+    const isGlobal = scope === 'global';
+
+    const { getFirefox } = await import('../index.js');
+    const firefox = await getFirefox();
+
+    await firefox.setCacheBehavior(behavior, { global: isGlobal });
+
+    return successResponse(
+      `cache ${behavior} (${isGlobal ? 'all tabs' : 'selected tab'})` +
+        (behavior === 'bypass' ? " — set behavior='default' to restore caching" : '')
+    );
+  } catch (error) {
+    return errorResponse(error instanceof Error ? error : new Error(String(error)));
+  }
+}
+
 export const module = defineModule({
   name: 'network',
-  description: 'List and inspect network requests.',
+  description: 'List and inspect network requests, and control the HTTP cache.',
   tools: [
     [listNetworkRequestsTool, handleListNetworkRequests],
     [getNetworkRequestTool, handleGetNetworkRequest],
+    [setNetworkCacheTool, handleSetNetworkCache],
   ],
 });
