@@ -11,7 +11,7 @@ import { remoteValueToNative } from '../utils/remote-value.js';
 import { ConsoleEvents, NetworkEvents, DebuggingEvents, DownloadEvents } from './events/index.js';
 import type { NetworkBodyResult } from './events/network.js';
 import { DomInteractions } from './dom.js';
-import { PageManagement } from './pages.js';
+import { PageManagement, type ReadinessState } from './pages.js';
 import { SnapshotManager, type Snapshot, type SnapshotOptions } from './snapshot/index.js';
 
 /**
@@ -232,11 +232,11 @@ export class FirefoxClient {
   // Pages / Navigation
   // ============================================================================
 
-  async navigate(url: string): Promise<void> {
+  async navigate(url: string, wait?: ReadinessState): Promise<void> {
     if (!this.pages) {
       throw new Error('Not connected');
     }
-    await this.pages.navigate(url);
+    await this.pages.navigate(url, wait);
   }
 
   async navigateBack(): Promise<void> {
@@ -302,11 +302,11 @@ export class FirefoxClient {
     return await this.pages.selectTab(index);
   }
 
-  async createNewPage(url: string): Promise<number> {
+  async createNewPage(url: string, wait?: ReadinessState): Promise<number> {
     if (!this.pages) {
       throw new Error('Not connected');
     }
-    return await this.pages.createNewPage(url);
+    return await this.pages.createNewPage(url, wait);
   }
 
   async closeTab(index: number): Promise<void> {

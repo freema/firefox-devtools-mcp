@@ -10,9 +10,45 @@ import {
 } from '../utils/response-helpers.js';
 import { saveOutput } from '../utils/save-output.js';
 import { defineModule } from './module.js';
+import { READINESS_STATES, isReadinessState, type ReadinessState } from '../firefox/pages.js';
 import type { McpToolResponse } from '../types/common.js';
 
 const DEFAULT_MAX_CONTENT_CHARS = 20_000;
+
+const WAIT_DESCRIPTION =
+  "When to return: 'none' (navigation started), 'interactive' (DOMContentLoaded), " +
+  "'complete' (load event fired, including subresources). Omit for the default: " +
+  "'interactive' for http/https/data/blob/file, 'none' for other schemes. Use " +
+  "'complete' when the page must be fully loaded, e.g. before stopping a performance recording.";
+
+const waitSchema = {
+  type: 'string',
+  enum: [...READINESS_STATES],
+  description: WAIT_DESCRIPTION,
+};
+
+/**
+ * Validate the optional `wait` argument.
+ *
+ * An unknown value is rejected rather than ignored: silently falling back to the
+ * default would leave the caller believing it waited for something it did not.
+ */
+function parseWait(value: unknown): ReadinessState | undefined {
+  if (value === undefined || value === null) {
+    return undefined;
+  }
+  if (!isReadinessState(value)) {
+    throw new Error(
+      `wait must be one of ${READINESS_STATES.join(', ')} (got ${JSON.stringify(value)})`
+    );
+  }
+  return value;
+}
+
+/** Echo the readiness state back only when the caller asked for one. */
+function waitSuffix(wait: ReadinessState | undefined): string {
+  return wait ? ` (waited for: ${wait})` : '';
+}
 
 // Tool definitions
 export const listPagesTool = {
@@ -40,6 +76,7 @@ export const newPageTool = {
         type: 'string',
         description: 'Target URL',
       },
+      wait: waitSchema,
     },
     required: ['url'],
   },
@@ -58,6 +95,7 @@ export const navigatePageTool = {
         type: 'string',
         description: 'Target URL',
       },
+      wait: waitSchema,
     },
     required: ['url'],
   },
@@ -175,18 +213,20 @@ export async function handleListPages(_args: unknown): Promise<McpToolResponse> 
 
 export async function handleNewPage(args: unknown): Promise<McpToolResponse> {
   try {
-    const { url } = args as { url: string };
+    const { url, wait } = args as { url: string; wait?: unknown };
 
     if (!url || typeof url !== 'string') {
       throw new Error('url parameter is required and must be a string');
     }
 
+    const waitFor = parseWait(wait);
+
     const { getFirefox } = await import('../index.js');
     const firefox = await getFirefox();
 
-    const newIdx = await firefox.createNewPage(url);
+    const newIdx = await firefox.createNewPage(url, waitFor);
 
-    return successResponse(`new page [${newIdx}] → ${url}`);
+    return successResponse(`new page [${newIdx}] → ${url}${waitSuffix(waitFor)}`);
   } catch (error) {
     return errorResponse(error as Error);
   }
@@ -194,11 +234,13 @@ export async function handleNewPage(args: unknown): Promise<McpToolResponse> {
 
 export async function handleNavigatePage(args: unknown): Promise<McpToolResponse> {
   try {
-    const { url } = args as { url: string };
+    const { url, wait } = args as { url: string; wait?: unknown };
 
     if (!url || typeof url !== 'string') {
       throw new Error('url parameter is required and must be a string');
     }
+
+    const waitFor = parseWait(wait);
 
     const { getFirefox } = await import('../index.js');
     const firefox = await getFirefox();
@@ -213,9 +255,9 @@ export async function handleNavigatePage(args: unknown): Promise<McpToolResponse
       throw new Error('No page selected');
     }
 
-    await firefox.navigate(url);
+    await firefox.navigate(url, waitFor);
 
-    return successResponse(`[${selectedIdx}] → ${url}`);
+    return successResponse(`[${selectedIdx}] → ${url}${waitSuffix(waitFor)}`);
   } catch (error) {
     return errorResponse(error as Error);
   }
