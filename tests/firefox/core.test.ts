@@ -317,6 +317,7 @@ describe('FirefoxCore connect() profile handling', () => {
   const mockWindowSize = vi.fn();
   const mockSetAcceptInsecureCerts = vi.fn();
   const mockSetStdio = vi.fn();
+  const mockServiceBuilderCtor = vi.fn();
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -333,7 +334,11 @@ describe('FirefoxCore connect() profile handling', () => {
           setAcceptInsecureCerts = mockSetAcceptInsecureCerts;
         },
         ServiceBuilder: class {
+          constructor(...args: unknown[]) {
+            mockServiceBuilderCtor(...args);
+          }
           setStdio = mockSetStdio;
+          addArguments = vi.fn();
         },
       },
     }));
@@ -382,5 +387,21 @@ describe('FirefoxCore connect() profile handling', () => {
       '--profile',
       join('/path/to/test/profile', MCP_PROFILE_DIR_NAME)
     );
+  });
+
+  // Bug 2062055: with no geckodriver path, selenium-webdriver falls back to its
+  // bundled selenium-manager, whose Linux binary is x86-64 only — so on aarch64
+  // the session dies with "Unable to obtain browser driver" even when a native
+  // geckodriver is in PATH. Resolving the path ourselves avoids that entirely.
+  it('should build the geckodriver service with an explicit binary path', async () => {
+    const { FirefoxCore } = await import('@/firefox/core.js');
+
+    const core = new FirefoxCore({ headless: true });
+    await core.connect();
+
+    expect(mockServiceBuilderCtor).toHaveBeenCalledTimes(1);
+    const [geckodriverPath] = mockServiceBuilderCtor.mock.calls[0] as [unknown];
+    expect(typeof geckodriverPath).toBe('string');
+    expect(String(geckodriverPath)).toContain('geckodriver');
   });
 });

@@ -349,18 +349,17 @@ export class FirefoxCore {
         }
       }
 
-      let serviceBuilder;
-      if (process.platform === 'win32') {
-        // On windows, firefox.ServiceBuilder() invoked from the MCP will hang.
-        // geckodriver has to be in the PATH. See Bug 2040849.
-        const geckodriverPath = await findGeckodriver();
-        logDebug(`Using geckodriver: ${geckodriverPath}`);
-        serviceBuilder = new firefox.ServiceBuilder(geckodriverPath);
-      } else {
-        // On other platforms, the default ServiceBuilder should locate and
-        // start geckodriver successfully.
-        serviceBuilder = new firefox.ServiceBuilder();
-      }
+      // Always resolve geckodriver ourselves rather than letting selenium-webdriver
+      // fall back to its bundled selenium-manager. The Linux selenium-manager
+      // shipped with selenium-webdriver 4.36.0 is an x86-64 binary, so on an
+      // aarch64 host it fails with "Exec format error" and the session dies with
+      // "Unable to obtain browser driver" even when a native geckodriver is in
+      // PATH. See Bug 2062055. On Windows the same call would hang instead
+      // (Bug 2040849). findGeckodriver() checks PATH, then the selenium cache,
+      // then downloads a platform-correct binary via the geckodriver package.
+      const geckodriverPath = await findGeckodriver();
+      logDebug(`Using geckodriver: ${geckodriverPath}`);
+      const serviceBuilder = new firefox.ServiceBuilder(geckodriverPath);
 
       if (this.logFilePath) {
         // Open file for appending, create if doesn't exist
