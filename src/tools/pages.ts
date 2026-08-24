@@ -218,12 +218,12 @@ export const handleNewPage = defineToolHandler(async function handleNewPage(
     throw new Error('url parameter is required and must be a string');
   }
 
+  const waitFor = parseWait(wait);
+
   const { getFirefox } = await import('../index.js');
   const firefox = await getFirefox();
 
-  const newIdx = await firefox.createNewPage(url);
-
-  const waitFor = parseWait(wait);
+  const newIdx = await firefox.createNewPage(url, waitFor);
 
   return successResponse(`new page [${newIdx}] → ${url}${waitSuffix(waitFor)}`);
 });
@@ -237,6 +237,8 @@ export const handleNavigatePage = defineToolHandler(async function handleNavigat
     throw new Error('url parameter is required and must be a string');
   }
 
+  const waitFor = parseWait(wait);
+
   const { getFirefox } = await import('../index.js');
   const firefox = await getFirefox();
 
@@ -245,11 +247,6 @@ export const handleNavigatePage = defineToolHandler(async function handleNavigat
   const tabs = firefox.getTabs();
   const selectedIdx = firefox.getSelectedTabIdx();
   const page = tabs[selectedIdx];
-
-  const waitFor = parseWait(wait);
-
-  // Refresh tabs to get latest list
-  await firefox.refreshTabs();
 
   if (!page) {
     throw new Error('No page selected');
