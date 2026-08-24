@@ -11,11 +11,7 @@ import {
   truncationFooter,
 } from '../utils/response-helpers.js';
 import { saveOutput } from '../utils/save-output.js';
-<<<<<<< HEAD
-import { defineModule, type ToolDefinition } from './module.js';
-=======
-import { defineModule, defineToolHandler } from './module.js';
->>>>>>> 63301d6 (refactor: use shared errors in network, console, and download tools)
+import { defineModule, defineToolHandler, type ToolDefinition } from './module.js';
 import type { McpToolResponse } from '../types/common.js';
 
 export const listConsoleMessagesTool = {
