@@ -2,10 +2,10 @@
  * Screenshot tools for visual capture
  */
 
-import { successResponse, errorResponse } from '../utils/response-helpers.js';
+import { successResponse } from '../utils/response-helpers.js';
 import { handleUidError } from '../utils/uid-helpers.js';
 import { saveOutput } from '../utils/save-output.js';
-import { defineModule, type ToolDefinition } from './module.js';
+import { defineModule, defineToolHandler, type ToolDefinition } from './module.js';
 import type { McpToolResponse } from '../types/common.js';
 
 const SAVE_TO_SCHEMA = {
@@ -76,14 +76,41 @@ function imageResponse(base64Png: string): McpToolResponse {
 }
 
 // Handlers
-export async function handleScreenshotPage(args: unknown): Promise<McpToolResponse> {
+export const handleScreenshotPage = defineToolHandler(async function handleScreenshotPage(
+  args: unknown
+): Promise<McpToolResponse> {
+  const { saveTo } = (args ?? {}) as { saveTo?: boolean | string };
+
+  const { getFirefox } = await import('../index.js');
+  const firefox = await getFirefox();
+
+  const base64Png = await firefox.takeScreenshotPage();
+
+  if (!base64Png || typeof base64Png !== 'string') {
+    throw new Error('Invalid screenshot data');
+  }
+
+  if (saveTo) {
+    return await saveScreenshot(base64Png, saveTo);
+  }
+
+  return imageResponse(base64Png);
+});
+
+export const handleScreenshotByUid = defineToolHandler(async function handleScreenshotByUid(
+  args: unknown
+): Promise<McpToolResponse> {
+  const { uid, saveTo } = args as { uid: string; saveTo?: boolean | string };
+
+  if (!uid || typeof uid !== 'string') {
+    throw new Error('uid required');
+  }
+
+  const { getFirefox } = await import('../index.js');
+  const firefox = await getFirefox();
+
   try {
-    const { saveTo } = (args ?? {}) as { saveTo?: boolean | string };
-
-    const { getFirefox } = await import('../index.js');
-    const firefox = await getFirefox();
-
-    const base64Png = await firefox.takeScreenshotPage();
+    const base64Png = await firefox.takeScreenshotByUid(uid);
 
     if (!base64Png || typeof base64Png !== 'string') {
       throw new Error('Invalid screenshot data');
@@ -95,40 +122,9 @@ export async function handleScreenshotPage(args: unknown): Promise<McpToolRespon
 
     return imageResponse(base64Png);
   } catch (error) {
-    return errorResponse(error as Error);
+    throw handleUidError(error as Error, uid);
   }
-}
-
-export async function handleScreenshotByUid(args: unknown): Promise<McpToolResponse> {
-  try {
-    const { uid, saveTo } = args as { uid: string; saveTo?: boolean | string };
-
-    if (!uid || typeof uid !== 'string') {
-      throw new Error('uid required');
-    }
-
-    const { getFirefox } = await import('../index.js');
-    const firefox = await getFirefox();
-
-    try {
-      const base64Png = await firefox.takeScreenshotByUid(uid);
-
-      if (!base64Png || typeof base64Png !== 'string') {
-        throw new Error('Invalid screenshot data');
-      }
-
-      if (saveTo) {
-        return await saveScreenshot(base64Png, saveTo);
-      }
-
-      return imageResponse(base64Png);
-    } catch (error) {
-      throw handleUidError(error as Error, uid);
-    }
-  } catch (error) {
-    return errorResponse(error as Error);
-  }
-}
+});
 
 export const module = defineModule({
   name: 'screenshot',
