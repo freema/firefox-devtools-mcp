@@ -2,15 +2,15 @@
  * Page navigation and management tools for MCP
  */
 
-import {
-  successResponse,
-  errorResponse,
-  previewExcerpt,
-  truncationFooter,
-} from '../utils/response-helpers.js';
+import { successResponse, previewExcerpt, truncationFooter } from '../utils/response-helpers.js';
 import { saveOutput } from '../utils/save-output.js';
 import { READINESS_STATES, isReadinessState, type ReadinessState } from '../firefox/pages.js';
-import { defineModule, type JsonSchemaProperty, type ToolDefinition } from './module.js';
+import {
+  defineModule,
+  defineToolHandler,
+  type JsonSchemaProperty,
+  type ToolDefinition,
+} from './module.js';
 import type { McpToolResponse } from '../types/common.js';
 
 const DEFAULT_MAX_CONTENT_CHARS = 20_000;
@@ -196,152 +196,145 @@ function formatPageList(
 }
 
 // Handlers
-export async function handleListPages(_args: unknown): Promise<McpToolResponse> {
-  try {
-    const { getFirefox } = await import('../index.js');
-    const firefox = await getFirefox();
+export const handleListPages = defineToolHandler(async function handleListPages(
+  _args: unknown
+): Promise<McpToolResponse> {
+  const { getFirefox } = await import('../index.js');
+  const firefox = await getFirefox();
 
-    await firefox.refreshTabs();
-    const tabs = firefox.getTabs();
-    const selectedIdx = firefox.getSelectedTabIdx();
+  await firefox.refreshTabs();
+  const tabs = firefox.getTabs();
+  const selectedIdx = firefox.getSelectedTabIdx();
 
-    return successResponse(formatPageList(tabs, selectedIdx));
-  } catch (error) {
-    return errorResponse(error as Error);
+  return successResponse(formatPageList(tabs, selectedIdx));
+});
+
+export const handleNewPage = defineToolHandler(async function handleNewPage(
+  args: unknown
+): Promise<McpToolResponse> {
+  const { url, wait } = args as { url: string; wait?: unknown };
+
+  if (!url || typeof url !== 'string') {
+    throw new Error('url parameter is required and must be a string');
   }
-}
 
-export async function handleNewPage(args: unknown): Promise<McpToolResponse> {
-  try {
-    const { url, wait } = args as { url: string; wait?: unknown };
+  const { getFirefox } = await import('../index.js');
+  const firefox = await getFirefox();
 
-    if (!url || typeof url !== 'string') {
-      throw new Error('url parameter is required and must be a string');
-    }
+  const newIdx = await firefox.createNewPage(url);
 
-    const waitFor = parseWait(wait);
+  const waitFor = parseWait(wait);
 
-    const { getFirefox } = await import('../index.js');
-    const firefox = await getFirefox();
+  return successResponse(`new page [${newIdx}] → ${url}${waitSuffix(waitFor)}`);
+});
 
-    const newIdx = await firefox.createNewPage(url, waitFor);
+export const handleNavigatePage = defineToolHandler(async function handleNavigatePage(
+  args: unknown
+): Promise<McpToolResponse> {
+  const { url, wait } = args as { url: string; wait?: unknown };
 
-    return successResponse(`new page [${newIdx}] → ${url}${waitSuffix(waitFor)}`);
-  } catch (error) {
-    return errorResponse(error as Error);
+  if (!url || typeof url !== 'string') {
+    throw new Error('url parameter is required and must be a string');
   }
-}
 
-export async function handleNavigatePage(args: unknown): Promise<McpToolResponse> {
-  try {
-    const { url, wait } = args as { url: string; wait?: unknown };
+  const { getFirefox } = await import('../index.js');
+  const firefox = await getFirefox();
 
-    if (!url || typeof url !== 'string') {
-      throw new Error('url parameter is required and must be a string');
-    }
+  // Refresh tabs to get latest list
+  await firefox.refreshTabs();
+  const tabs = firefox.getTabs();
+  const selectedIdx = firefox.getSelectedTabIdx();
+  const page = tabs[selectedIdx];
 
-    const waitFor = parseWait(wait);
+  const waitFor = parseWait(wait);
 
-    const { getFirefox } = await import('../index.js');
-    const firefox = await getFirefox();
+  // Refresh tabs to get latest list
+  await firefox.refreshTabs();
 
-    // Refresh tabs to get latest list
-    await firefox.refreshTabs();
-    const tabs = firefox.getTabs();
-    const selectedIdx = firefox.getSelectedTabIdx();
-    const page = tabs[selectedIdx];
-
-    if (!page) {
-      throw new Error('No page selected');
-    }
-
-    await firefox.navigate(url, waitFor);
-
-    return successResponse(`[${selectedIdx}] → ${url}${waitSuffix(waitFor)}`);
-  } catch (error) {
-    return errorResponse(error as Error);
+  if (!page) {
+    throw new Error('No page selected');
   }
-}
 
-export async function handleSelectPage(args: unknown): Promise<McpToolResponse> {
-  try {
-    const { pageIdx, url, title } = args as { pageIdx?: number; url?: string; title?: string };
+  await firefox.navigate(url, waitFor);
 
-    const { getFirefox } = await import('../index.js');
-    const firefox = await getFirefox();
+  return successResponse(`[${selectedIdx}] → ${url}${waitSuffix(waitFor)}`);
+});
 
-    // Refresh tabs to get latest list
-    await firefox.refreshTabs();
-    const tabs = firefox.getTabs();
+export const handleSelectPage = defineToolHandler(async function handleSelectPage(
+  args: unknown
+): Promise<McpToolResponse> {
+  const { pageIdx, url, title } = args as { pageIdx?: number; url?: string; title?: string };
 
-    let selectedIdx: number;
+  const { getFirefox } = await import('../index.js');
+  const firefox = await getFirefox();
 
-    // Priority 1: Select by index
-    if (typeof pageIdx === 'number') {
-      selectedIdx = pageIdx;
-    }
-    // Priority 2: Select by URL pattern
-    else if (url && typeof url === 'string') {
-      const urlLower = url.toLowerCase();
-      const foundIdx = tabs.findIndex((tab) => tab.url?.toLowerCase().includes(urlLower));
-      if (foundIdx === -1) {
-        throw new Error(`No page matching URL "${url}"`);
-      }
-      selectedIdx = foundIdx;
-    }
-    // Priority 3: Select by title pattern
-    else if (title && typeof title === 'string') {
-      const titleLower = title.toLowerCase();
-      const foundIdx = tabs.findIndex((tab) => tab.title?.toLowerCase().includes(titleLower));
-      if (foundIdx === -1) {
-        throw new Error(`No page matching title "${title}"`);
-      }
-      selectedIdx = foundIdx;
-    } else {
-      throw new Error('Provide pageIdx, url, or title');
-    }
+  // Refresh tabs to get latest list
+  await firefox.refreshTabs();
+  const tabs = firefox.getTabs();
 
-    // Validate the selected index
-    if (!tabs[selectedIdx]) {
-      throw new Error(`Page [${selectedIdx}] not found`);
-    }
+  let selectedIdx: number;
 
-    // Select the tab
-    await firefox.selectTab(selectedIdx);
-
-    return successResponse(`selected [${selectedIdx}]`);
-  } catch (error) {
-    return errorResponse(error as Error);
+  // Priority 1: Select by index
+  if (typeof pageIdx === 'number') {
+    selectedIdx = pageIdx;
   }
-}
-
-export async function handleClosePage(args: unknown): Promise<McpToolResponse> {
-  try {
-    const { pageIdx } = args as { pageIdx: number };
-
-    if (typeof pageIdx !== 'number') {
-      throw new Error('pageIdx parameter is required and must be a number');
+  // Priority 2: Select by URL pattern
+  else if (url && typeof url === 'string') {
+    const urlLower = url.toLowerCase();
+    const foundIdx = tabs.findIndex((tab) => tab.url?.toLowerCase().includes(urlLower));
+    if (foundIdx === -1) {
+      throw new Error(`No page matching URL "${url}"`);
     }
-
-    const { getFirefox } = await import('../index.js');
-    const firefox = await getFirefox();
-
-    // Refresh tabs to get latest list
-    await firefox.refreshTabs();
-    const tabs = firefox.getTabs();
-    const pageToClose = tabs[pageIdx];
-
-    if (!pageToClose) {
-      throw new Error(`Page with index ${pageIdx} not found`);
-    }
-
-    await firefox.closeTab(pageIdx);
-
-    return successResponse(`closed [${pageIdx}]`);
-  } catch (error) {
-    return errorResponse(error as Error);
+    selectedIdx = foundIdx;
   }
-}
+  // Priority 3: Select by title pattern
+  else if (title && typeof title === 'string') {
+    const titleLower = title.toLowerCase();
+    const foundIdx = tabs.findIndex((tab) => tab.title?.toLowerCase().includes(titleLower));
+    if (foundIdx === -1) {
+      throw new Error(`No page matching title "${title}"`);
+    }
+    selectedIdx = foundIdx;
+  } else {
+    throw new Error('Provide pageIdx, url, or title');
+  }
+
+  // Validate the selected index
+  if (!tabs[selectedIdx]) {
+    throw new Error(`Page [${selectedIdx}] not found`);
+  }
+
+  // Select the tab
+  await firefox.selectTab(selectedIdx);
+
+  return successResponse(`selected [${selectedIdx}]`);
+});
+
+export const handleClosePage = defineToolHandler(async function handleClosePage(
+  args: unknown
+): Promise<McpToolResponse> {
+  const { pageIdx } = args as { pageIdx: number };
+
+  if (typeof pageIdx !== 'number') {
+    throw new Error('pageIdx parameter is required and must be a number');
+  }
+
+  const { getFirefox } = await import('../index.js');
+  const firefox = await getFirefox();
+
+  // Refresh tabs to get latest list
+  await firefox.refreshTabs();
+  const tabs = firefox.getTabs();
+  const pageToClose = tabs[pageIdx];
+
+  if (!pageToClose) {
+    throw new Error(`Page with index ${pageIdx} not found`);
+  }
+
+  await firefox.closeTab(pageIdx);
+
+  return successResponse(`closed [${pageIdx}]`);
+});
 
 async function respondWithContent(
   content: string,
@@ -383,20 +376,18 @@ async function respondWithContent(
   return successResponse(content.slice(0, maxLength) + '\n\n' + footer);
 }
 
-export async function handleGetPageText(args: unknown): Promise<McpToolResponse> {
-  try {
-    const { getFirefox } = await import('../index.js');
-    const firefox = await getFirefox();
+export const handleGetPageText = defineToolHandler(async function handleGetPageText(
+  args: unknown
+): Promise<McpToolResponse> {
+  const { getFirefox } = await import('../index.js');
+  const firefox = await getFirefox();
 
-    const text = (await firefox.evaluate(
-      'document.body ? document.body.innerText : document.documentElement.innerText'
-    )) as string | null | undefined;
+  const text = (await firefox.evaluate(
+    'document.body ? document.body.innerText : document.documentElement.innerText'
+  )) as string | null | undefined;
 
-    return respondWithContent(text ?? '', args, 'page-text', 'txt');
-  } catch (error) {
-    return errorResponse(error as Error);
-  }
-}
+  return respondWithContent(text ?? '', args, 'page-text', 'txt');
+});
 
 export const module = defineModule({
   name: 'pages',
