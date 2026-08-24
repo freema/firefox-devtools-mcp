@@ -7,6 +7,7 @@
  */
 
 import type { McpToolResponse } from '../types/common.js';
+import { errorResponse } from '../utils/response-helpers.js';
 
 export type JsonSchemaType = 'array' | 'boolean' | 'integer' | 'number' | 'object' | 'string';
 
@@ -61,6 +62,18 @@ export interface ModuleConfig {
   privileged?: boolean;
   /** Each entry pairs a tool definition with its handler. */
   tools: Array<[ToolDefinition, ToolHandler]>;
+}
+
+export function defineToolHandler<TArgs extends unknown[]>(
+  handler: (...args: TArgs) => Promise<McpToolResponse>
+): (...args: TArgs) => Promise<McpToolResponse> {
+  return async (...args: TArgs): Promise<McpToolResponse> => {
+    try {
+      return await handler(...args);
+    } catch (error) {
+      return errorResponse(error instanceof Error ? error : String(error));
+    }
+  };
 }
 
 export function defineModule(config: ModuleConfig): ToolModule {
