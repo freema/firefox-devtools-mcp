@@ -1,7 +1,7 @@
 import { successResponse, errorResponse } from '../utils/response-helpers.js';
 import { compareVersions } from '../utils/version.js';
 import type { FirefoxDevTools } from '../firefox/index.js';
-import { defineModule, type ToolDefinition } from './module.js';
+import { defineModule, defineToolHandler, type ToolDefinition } from './module.js';
 import type { McpToolResponse } from '../types/common.js';
 
 const MIN_FIREFOX_VERSION = '154.0';
@@ -62,8 +62,8 @@ export const screencastStartTool = {
   },
 } satisfies ToolDefinition;
 
-export async function handleScreencastStart(args: unknown): Promise<McpToolResponse> {
-  try {
+export const handleScreencastStart = defineToolHandler(
+  async (args: unknown): Promise<McpToolResponse> => {
     const { context, frameRate, width, height, mimeType } = (args ?? {}) as {
       context?: string;
       frameRate?: number;
@@ -108,10 +108,8 @@ export async function handleScreencastStart(args: unknown): Promise<McpToolRespo
     return successResponse(
       `Screencast started (id: ${result.screencast}). Recording to: ${result.path}`
     );
-  } catch (error) {
-    return errorResponse(error as Error);
   }
-}
+);
 
 // ============================================================================
 // Tool: screencast_stop
@@ -136,8 +134,8 @@ export const screencastStopTool = {
   },
 } satisfies ToolDefinition;
 
-export async function handleScreencastStop(args: unknown): Promise<McpToolResponse> {
-  try {
+export const handleScreencastStop = defineToolHandler(
+  async (args: unknown): Promise<McpToolResponse> => {
     const { screencast } = (args ?? {}) as { screencast?: string };
 
     const { getFirefox } = await import('../index.js');
@@ -170,10 +168,8 @@ export async function handleScreencastStop(args: unknown): Promise<McpToolRespon
     }
 
     return successResponse(`Screencast saved to: ${result.path}`);
-  } catch (error) {
-    return errorResponse(error as Error);
   }
-}
+);
 
 export const module = defineModule({
   name: 'screencast',

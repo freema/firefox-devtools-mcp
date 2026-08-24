@@ -6,7 +6,7 @@ import { successResponse, errorResponse, previewExcerpt } from '../utils/respons
 import { remoteValueToNative } from '../utils/remote-value.js';
 import { validateFunction } from '../utils/js-validation.js';
 import { saveOutput } from '../utils/save-output.js';
-import { defineModule, type ToolDefinition } from './module.js';
+import { defineModule, defineToolHandler, type ToolDefinition } from './module.js';
 import type { McpToolResponse } from '../types/common.js';
 
 export const evaluateScriptTool = {
@@ -71,8 +71,8 @@ const EvaluateResultType = {
   Success: 'success',
 };
 
-export async function handleEvaluateScript(args: unknown): Promise<McpToolResponse> {
-  try {
+export const handleEvaluateScript = defineToolHandler(
+  async (args: unknown): Promise<McpToolResponse> => {
     const {
       function: fnString,
       args: fnArgs,
@@ -180,10 +180,8 @@ export async function handleEvaluateScript(args: unknown): Promise<McpToolRespon
     } else {
       return errorResponse(`Unexpected script.callFunction result type: ${result.type}`);
     }
-  } catch (error) {
-    return errorResponse(error as Error);
   }
-}
+);
 
 export const module = defineModule({
   name: 'script',
