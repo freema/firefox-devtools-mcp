@@ -71,8 +71,10 @@ function cleanupUnix() {
   }
 }
 
-// Only matches Firefox instances whose command line carries --marionette,
-// so regular user-launched Firefox windows are never touched.
+/**
+ * Windows only. Retrieve all process ids matching the provided name and
+ * optional command line pattern.
+ */
 function findWindowsProcessIds(imageName: string, commandLinePattern?: string): number[] {
   const filter = commandLinePattern
     ? `Name='${imageName}' AND CommandLine LIKE '%${commandLinePattern}%'`
