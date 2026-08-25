@@ -1,7 +1,7 @@
 import { successResponse, errorResponse } from '../utils/response-helpers.js';
 import { compareVersions } from '../utils/version.js';
 import { remoteValueToNative } from '../utils/remote-value.js';
-import { defineModule } from './module.js';
+import { defineModule, type ToolDefinition } from './module.js';
 import type { McpToolResponse } from '../types/common.js';
 
 const MIN_VERSION = '153';
@@ -34,7 +34,7 @@ export const enableDebuggerTool = {
     readOnlyHint: false,
   },
   inputSchema: { type: 'object', properties: {} },
-};
+} satisfies ToolDefinition;
 
 export const listScriptsTool = {
   name: 'list_scripts',
@@ -44,7 +44,7 @@ export const listScriptsTool = {
     readOnlyHint: true,
   },
   inputSchema: { type: 'object', properties: {} },
-};
+} satisfies ToolDefinition;
 
 export const getScriptSourceTool = {
   name: 'get_script_source',
@@ -60,7 +60,7 @@ export const getScriptSourceTool = {
     },
     required: ['scriptUrl'],
   },
-};
+} satisfies ToolDefinition;
 
 export const setLogpointTool = {
   name: 'set_logpoint',
@@ -81,7 +81,7 @@ export const setLogpointTool = {
     },
     required: ['url', 'line', 'expression'],
   },
-};
+} satisfies ToolDefinition;
 
 export const removeLogpointTool = {
   name: 'remove_logpoint',
@@ -96,7 +96,7 @@ export const removeLogpointTool = {
     },
     required: ['logpoint'],
   },
-};
+} satisfies ToolDefinition;
 
 export const getLogpointResultsTool = {
   name: 'get_logpoint_results',
@@ -111,7 +111,7 @@ export const getLogpointResultsTool = {
     },
     required: ['logpoint'],
   },
-};
+} satisfies ToolDefinition;
 
 // ============================================================================
 // Handlers

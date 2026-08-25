@@ -5,7 +5,7 @@
 import { successResponse, errorResponse } from '../utils/response-helpers.js';
 import { handleUidError } from '../utils/uid-helpers.js';
 import { saveOutput } from '../utils/save-output.js';
-import { defineModule } from './module.js';
+import { defineModule, type ToolDefinition } from './module.js';
 import type { McpToolResponse } from '../types/common.js';
 
 const SAVE_TO_SCHEMA = {
@@ -27,7 +27,7 @@ export const screenshotPageTool = {
       saveTo: SAVE_TO_SCHEMA,
     },
   },
-};
+} satisfies ToolDefinition;
 
 export const screenshotByUidTool = {
   name: 'screenshot_by_uid',
@@ -46,7 +46,7 @@ export const screenshotByUidTool = {
     },
     required: ['uid'],
   },
-};
+} satisfies ToolDefinition;
 
 /**
  * Save screenshot to file and return text response with path.

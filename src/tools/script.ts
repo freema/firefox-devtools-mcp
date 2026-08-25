@@ -6,7 +6,7 @@ import { successResponse, errorResponse, previewExcerpt } from '../utils/respons
 import { remoteValueToNative } from '../utils/remote-value.js';
 import { validateFunction } from '../utils/js-validation.js';
 import { saveOutput } from '../utils/save-output.js';
-import { defineModule } from './module.js';
+import { defineModule, type ToolDefinition } from './module.js';
 import type { McpToolResponse } from '../types/common.js';
 
 export const evaluateScriptTool = {
@@ -59,7 +59,7 @@ export const evaluateScriptTool = {
     },
     required: ['function'],
   },
-};
+} satisfies ToolDefinition;
 
 // Constants
 const DEFAULT_TIMEOUT = 5000; // 5 seconds

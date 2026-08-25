@@ -6,7 +6,7 @@
 
 import { successResponse, errorResponse } from '../utils/response-helpers.js';
 import { generatePrefScript } from '../firefox/pref-utils.js';
-import { defineModule } from './module.js';
+import { defineModule, type ToolDefinition } from './module.js';
 import type { McpToolResponse } from '../types/common.js';
 
 // ============================================================================
@@ -34,7 +34,7 @@ export const setFirefoxPrefsTool = {
     },
     required: ['prefs'],
   },
-};
+} satisfies ToolDefinition;
 
 export async function handleSetFirefoxPrefs(args: unknown): Promise<McpToolResponse> {
   try {
@@ -145,7 +145,7 @@ export const getFirefoxPrefsTool = {
     },
     required: ['names'],
   },
-};
+} satisfies ToolDefinition;
 
 export async function handleGetFirefoxPrefs(args: unknown): Promise<McpToolResponse> {
   try {

@@ -11,7 +11,7 @@ import {
 } from '../utils/response-helpers.js';
 import { handleUidError } from '../utils/uid-helpers.js';
 import { saveOutput } from '../utils/save-output.js';
-import { defineModule } from './module.js';
+import { defineModule, type ToolDefinition } from './module.js';
 import type { McpToolResponse } from '../types/common.js';
 
 const DEFAULT_SNAPSHOT_LINES = 100;
@@ -64,7 +64,7 @@ export const takeSnapshotTool = {
       },
     },
   },
-};
+} satisfies ToolDefinition;
 
 export const resolveUidToSelectorTool = {
   name: 'resolve_uid_to_selector',
@@ -82,7 +82,7 @@ export const resolveUidToSelectorTool = {
     },
     required: ['uid'],
   },
-};
+} satisfies ToolDefinition;
 
 export const clearSnapshotTool = {
   name: 'clear_snapshot',
@@ -94,7 +94,7 @@ export const clearSnapshotTool = {
     type: 'object',
     properties: {},
   },
-};
+} satisfies ToolDefinition;
 
 // Handlers
 export async function handleTakeSnapshot(args: unknown): Promise<McpToolResponse> {

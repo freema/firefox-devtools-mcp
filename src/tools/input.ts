@@ -5,7 +5,7 @@
 
 import { successResponse, errorResponse } from '../utils/response-helpers.js';
 import { handleUidError } from '../utils/uid-helpers.js';
-import { defineModule } from './module.js';
+import { defineModule, type ToolDefinition } from './module.js';
 import type { McpToolResponse } from '../types/common.js';
 
 // Tool definitions
@@ -29,7 +29,7 @@ export const clickByUidTool = {
     },
     required: ['uid'],
   },
-};
+} satisfies ToolDefinition;
 
 export const hoverByUidTool = {
   name: 'hover_by_uid',
@@ -47,7 +47,7 @@ export const hoverByUidTool = {
     },
     required: ['uid'],
   },
-};
+} satisfies ToolDefinition;
 
 export const fillByUidTool = {
   name: 'fill_by_uid',
@@ -69,7 +69,7 @@ export const fillByUidTool = {
     },
     required: ['uid', 'value'],
   },
-};
+} satisfies ToolDefinition;
 
 export const dragByUidToUidTool = {
   name: 'drag_by_uid_to_uid',
@@ -91,7 +91,7 @@ export const dragByUidToUidTool = {
     },
     required: ['fromUid', 'toUid'],
   },
-};
+} satisfies ToolDefinition;
 
 export const fillFormByUidTool = {
   name: 'fill_form_by_uid',
@@ -123,7 +123,7 @@ export const fillFormByUidTool = {
     },
     required: ['elements'],
   },
-};
+} satisfies ToolDefinition;
 
 export const uploadFileByUidTool = {
   name: 'upload_file_by_uid',
@@ -145,7 +145,7 @@ export const uploadFileByUidTool = {
     },
     required: ['uid', 'filePath'],
   },
-};
+} satisfies ToolDefinition;
 
 // Handlers
 export async function handleClickByUid(args: unknown): Promise<McpToolResponse> {
