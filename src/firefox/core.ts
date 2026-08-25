@@ -15,7 +15,7 @@ import {
 } from 'node:fs';
 import { connect as netConnect } from 'node:net';
 import { homedir } from 'node:os';
-import { join, delimiter } from 'node:path';
+import { dirname, join, delimiter } from 'node:path';
 import type { FirefoxLaunchOptions } from './types.js';
 import { log, logDebug } from '../utils/logger.js';
 import { resolveProfilePath } from './profile.js';
@@ -363,6 +363,10 @@ export class FirefoxCore {
       }
 
       if (this.logFilePath) {
+        // Create the parent directory, as the generated-path branch above does.
+        // Without it a caller-supplied path whose directory is missing throws
+        // ENOENT from deep inside connect().
+        mkdirSync(dirname(this.logFilePath), { recursive: true });
         // Open file for appending, create if doesn't exist
         this.logFileFd = openSync(this.logFilePath, 'a');
         serviceBuilder.setStdio(['ignore', this.logFileFd, this.logFileFd]);
