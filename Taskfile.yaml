@@ -30,7 +30,7 @@ tasks:
   clean:
     desc: Clean build artifacts
     cmds:
-      - node -e "for (const p of ['dist', 'node_modules', 'package-lock.json']) require('node:fs').rmSync(p, { recursive: true, force: true })"
+      - node -e "for (const p of ['dist', 'node_modules', 'package-lock.json']) require('node:fs').rmSync(p, {recursive:true, force:true})"
 
   typecheck:
     desc: Run TypeScript type checking
@@ -89,7 +89,7 @@ tasks:
       - npm run inspector:dev
 
   bump-version:
-    desc: Bump version in package.json and plugin.json (usage: task bump-version -- 0.9.8)
+    desc: 'Bump version in package.json and plugin.json (usage: task bump-version -- 0.9.8)'
     cmds:
       - node scripts/bump-version.mjs {{.CLI_ARGS}}
 
