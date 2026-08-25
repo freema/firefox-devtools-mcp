@@ -30,6 +30,20 @@ async function isDirectory(path: string): Promise<boolean> {
 }
 
 /**
+ * Whether `candidate` is `root` or sits inside it. Compared case-insensitively
+ * on Windows, where `c:\Users\...` and `C:\Users\...` are the same directory —
+ * matching case exactly would reject valid paths, not catch escapes.
+ */
+export function isWithinRoot(root: string, candidate: string): boolean {
+  const normalize = (path: string) => (process.platform === 'win32' ? path.toLowerCase() : path);
+  const normalizedRoot = normalize(root);
+  const normalizedCandidate = normalize(candidate);
+  return (
+    normalizedCandidate === normalizedRoot || normalizedCandidate.startsWith(normalizedRoot + sep)
+  );
+}
+
+/**
  * Reject saveTo paths that escape the allowed roots, unless the server was
  * started with --unrestricted-save-paths. Relative paths must stay within the
  * current working directory; absolute paths must stay within
@@ -41,7 +55,7 @@ async function assertAllowedPath(saveTo: string, resolvedPath: string): Promise<
     return;
   }
   const root = isAbsolute(saveTo) ? homeRoot() : process.cwd();
-  if (resolvedPath !== root && !resolvedPath.startsWith(root + sep)) {
+  if (!isWithinRoot(root, resolvedPath)) {
     throw new Error(
       `saveTo "${saveTo}" resolves outside the allowed location (${resolvedPath}). Relative ` +
         `paths must stay within the current working directory and absolute paths within ` +
