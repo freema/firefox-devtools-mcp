@@ -28,17 +28,12 @@ function cleanup() {
   }
   isCleaningUp = true;
 
-  try {
-    if (isWindows) {
-      cleanupWindows();
-    } else {
-      cleanupUnix();
-    }
-  } catch {
-    // Ignore errors - processes might already be dead
-  } finally {
-    isCleaningUp = false;
+  if (isWindows) {
+    cleanupWindows();
+  } else {
+    cleanupUnix();
   }
+  isCleaningUp = false;
 }
 
 function cleanupUnix() {
