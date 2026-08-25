@@ -403,3 +403,77 @@ describe('FirefoxCore connect() profile handling', () => {
     expect(String(geckodriverPath)).toContain('geckodriver');
   });
 });
+
+describe('FirefoxCore connect() binary lookup failure', () => {
+  // Verbatim geckodriver wording; the capability name is the stable part.
+  const geckodriverMessage =
+    'Expected browser binary location, but unable to find binary in default location, ' +
+    "no 'moz:firefoxOptions.binary' capability provided, and no binary flag set on the command line";
+
+  function mockFailingBuild(message: string): void {
+    vi.doMock('selenium-webdriver/firefox.js', () => ({
+      default: {
+        Options: class {
+          enableBidi = vi.fn();
+          addArguments = vi.fn();
+          setBinary = vi.fn();
+          windowSize = vi.fn();
+          setAcceptInsecureCerts = vi.fn();
+        },
+        ServiceBuilder: class {
+          setStdio = vi.fn();
+          addArguments = vi.fn();
+        },
+      },
+    }));
+
+    vi.doMock('selenium-webdriver', () => ({
+      Builder: class {
+        forBrowser = vi.fn().mockReturnThis();
+        setFirefoxOptions = vi.fn().mockReturnThis();
+        setFirefoxService = vi.fn().mockReturnThis();
+        build = vi.fn().mockRejectedValue(new Error(message));
+      },
+      Browser: { FIREFOX: 'firefox' },
+    }));
+
+    vi.doMock('node:fs', () => ({
+      existsSync: vi.fn((p: unknown) => String(p).includes('geckodriver')),
+      mkdirSync: vi.fn(),
+      copyFileSync: vi.fn(),
+      openSync: vi.fn().mockReturnValue(3),
+      closeSync: vi.fn(),
+    }));
+
+    vi.doMock('@/firefox/windows-binary.js', () => ({
+      findFirefoxBinaryWindows: vi.fn(() => null),
+    }));
+  }
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.resetModules();
+  });
+
+  it('points at --firefox-path when geckodriver found no binary', async () => {
+    mockFailingBuild(geckodriverMessage);
+    const { FirefoxCore } = await import('@/firefox/core.js');
+
+    const core = new FirefoxCore({ headless: true });
+
+    await expect(core.connect()).rejects.toThrow(
+      /--firefox-path[\s\S]*Original error: Expected browser binary location/
+    );
+  });
+
+  it('passes other launch failures through unchanged', async () => {
+    const original = 'Process unexpectedly closed with status 1';
+    mockFailingBuild(original);
+    const { FirefoxCore } = await import('@/firefox/core.js');
+
+    const core = new FirefoxCore({ headless: true });
+
+    await expect(core.connect()).rejects.toThrow(original);
+    await expect(core.connect()).rejects.not.toThrow('--firefox-path');
+  });
+});
