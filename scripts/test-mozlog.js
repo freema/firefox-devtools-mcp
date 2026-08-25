@@ -2,11 +2,13 @@
 
 import { FirefoxDevTools } from '../dist/index.js';
 import { readFileSync, existsSync } from 'fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 
 async function test() {
   console.log('=== Test: MOZ_LOG and Script Injection (headless) ===\n');
 
-  const logFile = '/tmp/firefox-mozlog-test.log';
+  const logFile = join(tmpdir(), 'firefox-mozlog-test.log');
 
   const firefox = new FirefoxDevTools({
     headless: true,
