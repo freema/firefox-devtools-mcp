@@ -130,7 +130,11 @@ export const handleGetFirefoxInfo = defineToolHandler(async (_input: unknown) =>
   info.push('Firefox Instance Configuration');
   info.push('');
 
-  info.push(`Binary: ${options.firefoxPath ?? 'System Firefox (default)'}`);
+  const detectedBinary = firefox.getDetectedBinaryPath();
+  const binaryLabel =
+    options.firefoxPath ??
+    (detectedBinary ? `${detectedBinary} (auto-detected)` : 'System Firefox (default)');
+  info.push(`Binary: ${binaryLabel}`);
   info.push(`Firefox version: ${version ?? '(unknown)'}`);
   info.push(`Headless: ${options.headless ? 'Yes' : 'No'}`);
 

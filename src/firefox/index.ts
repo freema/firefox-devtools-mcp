@@ -592,6 +592,11 @@ export class FirefoxClient {
     return this.core.getOptions();
   }
 
+  /** Binary auto-detected at launch, when the caller supplied no --firefox-path. */
+  getDetectedBinaryPath(): string | undefined {
+    return this.core.getDetectedBinaryPath();
+  }
+
   // ============================================================================
   // Cleanup
   // ============================================================================

@@ -18,6 +18,7 @@ import { homedir } from 'node:os';
 import { dirname, join, delimiter } from 'node:path';
 import type { FirefoxLaunchOptions } from './types.js';
 import { log, logDebug } from '../utils/logger.js';
+import { findFirefoxBinaryWindows } from './windows-binary.js';
 import { resolveProfilePath } from './profile.js';
 
 // ---------------------------------------------------------------------------
@@ -150,8 +151,14 @@ async function findGeckodriver(): Promise<string> {
   return found;
 }
 
+/** geckodriver's "unable to find binary" error never mentions the fix. */
+const BINARY_NOT_FOUND_HINT =
+  'Unable to detect Firefox binary automatically, please provide the full path via ' +
+  '--firefox-path';
+
 export class FirefoxCore {
   private currentContextId: string | null = null;
+  private detectedBinaryPath: string | undefined;
   private driver: WebDriver | null = null;
   private firefoxVersion: string | null = null;
   private logFileFd: number | undefined;
@@ -319,6 +326,14 @@ export class FirefoxCore {
       }
       if (this.options.firefoxPath) {
         firefoxOptions.setBinary(this.options.firefoxPath);
+      } else if (process.platform === 'win32') {
+        // geckodriver misses per-user Windows installs.
+        const discoveredBinary = findFirefoxBinaryWindows();
+        if (discoveredBinary) {
+          logDebug(`Using auto-detected Firefox binary: ${discoveredBinary}`);
+          firefoxOptions.setBinary(discoveredBinary);
+          this.detectedBinaryPath = discoveredBinary;
+        }
       }
       if (this.options.args && this.options.args.length > 0) {
         firefoxOptions.addArguments(...this.options.args);
@@ -371,11 +386,20 @@ export class FirefoxCore {
         serviceBuilder.addArguments('--log', remoteLogLevel.toLowerCase());
       }
 
-      this.driver = await new Builder()
-        .forBrowser(Browser.FIREFOX)
-        .setFirefoxOptions(firefoxOptions)
-        .setFirefoxService(serviceBuilder)
-        .build();
+      try {
+        this.driver = await new Builder()
+          .forBrowser(Browser.FIREFOX)
+          .setFirefoxOptions(firefoxOptions)
+          .setFirefoxService(serviceBuilder)
+          .build();
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        // geckodriver names the capability it wanted when it found no binary.
+        if (message.includes('moz:firefoxOptions.binary')) {
+          throw new Error(`${BINARY_NOT_FOUND_HINT}\n\nOriginal error: ${message}`);
+        }
+        throw error;
+      }
     }
 
     log(
@@ -508,6 +532,11 @@ export class FirefoxCore {
    */
   getOptions(): FirefoxLaunchOptions {
     return this.options;
+  }
+
+  /** Binary auto-detected at launch, when the caller supplied no --firefox-path. */
+  getDetectedBinaryPath(): string | undefined {
+    return this.detectedBinaryPath;
   }
 
   /**

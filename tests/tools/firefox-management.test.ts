@@ -222,6 +222,7 @@ describe('Firefox Management Tools', () => {
           },
         }),
         getLogFilePath: vi.fn().mockReturnValue(undefined),
+        getDetectedBinaryPath: vi.fn().mockReturnValue(undefined),
         getFirefoxVersion: vi.fn().mockReturnValue('123.4'),
       };
 
@@ -245,6 +246,7 @@ describe('Firefox Management Tools', () => {
           headless: true,
         }),
         getLogFilePath: vi.fn().mockReturnValue(undefined),
+        getDetectedBinaryPath: vi.fn().mockReturnValue(undefined),
       };
 
       mockGetFirefox.mockResolvedValue(mockFirefoxNoPrefs);
@@ -255,6 +257,37 @@ describe('Firefox Management Tools', () => {
 
       const text = result.content[0].text;
       expect(text).not.toContain('Preferences:');
+    });
+
+    it('should report an auto-detected binary path', async () => {
+      const detected = 'C:\\Users\\me\\AppData\\Local\\Mozilla Firefox\\firefox.exe';
+      mockGetFirefox.mockResolvedValue({
+        getOptions: vi.fn().mockReturnValue({ headless: true }),
+        getFirefoxVersion: vi.fn().mockReturnValue('154.0'),
+        getLogFilePath: vi.fn().mockReturnValue(undefined),
+        getDetectedBinaryPath: vi.fn().mockReturnValue(detected),
+      });
+
+      const { handleGetFirefoxInfo } = await import('../../src/tools/firefox-management.js');
+
+      const result = await handleGetFirefoxInfo({});
+
+      expect(result.content[0].text).toContain(`Binary: ${detected} (auto-detected)`);
+    });
+
+    it('should fall back to the default label when no binary was detected', async () => {
+      mockGetFirefox.mockResolvedValue({
+        getOptions: vi.fn().mockReturnValue({ headless: true }),
+        getFirefoxVersion: vi.fn().mockReturnValue('154.0'),
+        getLogFilePath: vi.fn().mockReturnValue(undefined),
+        getDetectedBinaryPath: vi.fn().mockReturnValue(undefined),
+      });
+
+      const { handleGetFirefoxInfo } = await import('../../src/tools/firefox-management.js');
+
+      const result = await handleGetFirefoxInfo({});
+
+      expect(result.content[0].text).toContain('Binary: System Firefox (default)');
     });
   });
 });
