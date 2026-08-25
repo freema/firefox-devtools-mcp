@@ -83,7 +83,7 @@ function findWindowsProcessIds(imageName: string, commandLinePattern?: string): 
   const output = execFileSync(
     'powershell.exe',
     ['-NoProfile', '-NonInteractive', '-Command', script],
-    { encoding: 'utf-8', stdio: ['ignore', 'pipe', 'ignore'] }
+    { encoding: 'utf-8', stdio: ['ignore', 'pipe', 'ignore'], windowsHide: true }
   );
   return output
     .split(/\r?\n/)
