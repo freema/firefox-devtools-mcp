@@ -8,20 +8,22 @@
 
 import type { McpToolResponse } from '../types/common.js';
 
+export type JsonSchemaType = 'array' | 'boolean' | 'integer' | 'number' | 'object' | 'string';
+
 export interface JsonSchemaProperty {
-  type: string | readonly string[];
+  type: JsonSchemaType | readonly JsonSchemaType[];
   description?: string;
   enum?: readonly string[];
   /** Schema of array elements (when type is 'array'). */
   items?: JsonSchemaProperty;
   /** Schema for values of an open-key object (prefs-style maps). */
-  additionalProperties?: { oneOf: Array<{ type: string }> };
+  additionalProperties?: { oneOf: Array<{ type: JsonSchemaType }> };
   properties?: Record<string, JsonSchemaProperty>;
   required?: readonly string[];
 }
 
 export interface InputSchema {
-  type: string;
+  type: 'object';
   properties: Record<string, JsonSchemaProperty>;
   required?: readonly string[];
 }
