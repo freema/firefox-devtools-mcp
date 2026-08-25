@@ -4,7 +4,7 @@
  */
 
 import { successResponse, errorResponse, jsonResponse } from '../utils/response-helpers.js';
-import { defineModule } from './module.js';
+import { defineModule, type ToolDefinition } from './module.js';
 import type { McpToolResponse } from '../types/common.js';
 
 // Tool definitions
@@ -15,7 +15,7 @@ export const listDownloadsTool = {
     readOnlyHint: true,
   },
   inputSchema: {
-    type: 'object' as const,
+    type: 'object',
     properties: {
       status: {
         type: 'string',
@@ -37,23 +37,23 @@ export const listDownloadsTool = {
       },
     },
   },
-};
+} satisfies ToolDefinition;
 
 export const clearDownloadsTool = {
   name: 'clear_downloads',
   description: 'Clear the tracked downloads buffer.',
   inputSchema: {
-    type: 'object' as const,
+    type: 'object',
     properties: {},
   },
-};
+} satisfies ToolDefinition;
 
 export const setDownloadBehaviorTool = {
   name: 'set_download_behavior',
   description:
     'Control how downloads are handled: allow (save silently to the default download directory), deny (cancel), or reset to default. Avoids the native save-file dialog. Requires a recent Firefox.',
   inputSchema: {
-    type: 'object' as const,
+    type: 'object',
     properties: {
       behavior: {
         type: 'string',
@@ -64,7 +64,7 @@ export const setDownloadBehaviorTool = {
     },
     required: ['behavior'],
   },
-};
+} satisfies ToolDefinition;
 
 // Tool handlers
 export async function handleListDownloads(args: unknown): Promise<McpToolResponse> {

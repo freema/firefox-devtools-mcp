@@ -3,7 +3,7 @@
  */
 
 import { successResponse, errorResponse } from '../utils/response-helpers.js';
-import { defineModule } from './module.js';
+import { defineModule, type ToolDefinition } from './module.js';
 import type { McpToolResponse } from '../types/common.js';
 
 // Tool definitions - Dialogs
@@ -22,7 +22,7 @@ export const acceptDialogTool = {
       },
     },
   },
-};
+} satisfies ToolDefinition;
 
 export const dismissDialogTool = {
   name: 'dismiss_dialog',
@@ -34,7 +34,7 @@ export const dismissDialogTool = {
     type: 'object',
     properties: {},
   },
-};
+} satisfies ToolDefinition;
 
 // Tool definitions - History
 export const navigateHistoryTool = {
@@ -54,7 +54,7 @@ export const navigateHistoryTool = {
     },
     required: ['direction'],
   },
-};
+} satisfies ToolDefinition;
 
 // Tool definitions - Viewport
 export const setViewportSizeTool = {
@@ -77,7 +77,7 @@ export const setViewportSizeTool = {
     },
     required: ['width', 'height'],
   },
-};
+} satisfies ToolDefinition;
 
 // Handlers - Dialogs
 export async function handleAcceptDialog(args: unknown): Promise<McpToolResponse> {

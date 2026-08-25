@@ -5,7 +5,7 @@
 
 import { readFileSync, existsSync, statSync } from 'node:fs';
 import { errorResponse, successResponse } from '../utils/response-helpers.js';
-import { defineModule } from './module.js';
+import { defineModule, type ToolDefinition } from './module.js';
 
 // ============================================================================
 // Tool: get_firefox_logs
@@ -35,7 +35,7 @@ export const getFirefoxLogsTool = {
       },
     },
   },
-};
+} satisfies ToolDefinition;
 
 export async function handleGetFirefoxLogs(input: unknown) {
   try {
@@ -121,7 +121,7 @@ export const getFirefoxInfoTool = {
     type: 'object',
     properties: {},
   },
-};
+} satisfies ToolDefinition;
 
 export async function handleGetFirefoxInfo(_input: unknown) {
   try {
@@ -239,7 +239,7 @@ export const restartFirefoxTool = {
       },
     },
   },
-};
+} satisfies ToolDefinition;
 
 export async function handleRestartFirefox(input: unknown) {
   try {

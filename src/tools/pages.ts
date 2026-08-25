@@ -9,8 +9,8 @@ import {
   truncationFooter,
 } from '../utils/response-helpers.js';
 import { saveOutput } from '../utils/save-output.js';
-import { defineModule } from './module.js';
 import { READINESS_STATES, isReadinessState, type ReadinessState } from '../firefox/pages.js';
+import { defineModule, type JsonSchemaProperty, type ToolDefinition } from './module.js';
 import type { McpToolResponse } from '../types/common.js';
 
 const DEFAULT_MAX_CONTENT_CHARS = 20_000;
@@ -25,7 +25,7 @@ const waitSchema = {
   type: 'string',
   enum: [...READINESS_STATES],
   description: WAIT_DESCRIPTION,
-};
+} satisfies JsonSchemaProperty;
 
 /**
  * Validate the optional `wait` argument.
@@ -61,7 +61,7 @@ export const listPagesTool = {
     type: 'object',
     properties: {},
   },
-};
+} satisfies ToolDefinition;
 
 export const newPageTool = {
   name: 'new_page',
@@ -80,7 +80,7 @@ export const newPageTool = {
     },
     required: ['url'],
   },
-};
+} satisfies ToolDefinition;
 
 export const navigatePageTool = {
   name: 'navigate_page',
@@ -99,7 +99,7 @@ export const navigatePageTool = {
     },
     required: ['url'],
   },
-};
+} satisfies ToolDefinition;
 
 export const selectPageTool = {
   name: 'select_page',
@@ -125,7 +125,7 @@ export const selectPageTool = {
     },
     required: [],
   },
-};
+} satisfies ToolDefinition;
 
 export const closePageTool = {
   name: 'close_page',
@@ -143,7 +143,7 @@ export const closePageTool = {
     },
     required: ['pageIdx'],
   },
-};
+} satisfies ToolDefinition;
 
 export const getPageTextTool = {
   name: 'get_page_text',
@@ -153,7 +153,7 @@ export const getPageTextTool = {
     readOnlyHint: true,
   },
   inputSchema: {
-    type: 'object' as const,
+    type: 'object',
     properties: {
       maxLength: {
         type: 'number',
@@ -172,7 +172,7 @@ export const getPageTextTool = {
       },
     },
   },
-};
+} satisfies ToolDefinition;
 
 /**
  * Format page list compactly

@@ -10,7 +10,7 @@
  */
 
 import { successResponse, errorResponse } from '../utils/response-helpers.js';
-import { defineModule } from './module.js';
+import { defineModule, type ToolDefinition } from './module.js';
 import type { McpToolResponse } from '../types/common.js';
 
 // ============================================================================
@@ -49,7 +49,7 @@ export const installExtensionTool = {
     },
     required: ['type'],
   },
-};
+} satisfies ToolDefinition;
 
 export async function handleInstallExtension(args: unknown): Promise<McpToolResponse> {
   try {
@@ -124,7 +124,7 @@ export const uninstallExtensionTool = {
     },
     required: ['id'],
   },
-};
+} satisfies ToolDefinition;
 
 export async function handleUninstallExtension(args: unknown): Promise<McpToolResponse> {
   try {
@@ -182,7 +182,7 @@ export const listExtensionsTool = {
       },
     },
   },
-};
+} satisfies ToolDefinition;
 
 interface ExtensionInfo {
   id: string;

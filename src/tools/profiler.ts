@@ -1,7 +1,7 @@
 import { successResponse, errorResponse } from '../utils/response-helpers.js';
 import { compareVersions } from '../utils/version.js';
 import type { FirefoxDevTools } from '../firefox/index.js';
-import { defineModule } from './module.js';
+import { defineModule, type ToolDefinition } from './module.js';
 import type { McpToolResponse } from '../types/common.js';
 
 const MIN_FIREFOX_VERSION = '154.0';
@@ -40,7 +40,7 @@ export const profilerIsActiveTool = {
     type: 'object',
     properties: {},
   },
-};
+} satisfies ToolDefinition;
 
 export async function handleProfilerIsActive(_args: unknown): Promise<McpToolResponse> {
   try {
@@ -101,7 +101,7 @@ export const profilerStartTool = {
       },
     },
   },
-};
+} satisfies ToolDefinition;
 
 export async function handleProfilerStart(args: unknown): Promise<McpToolResponse> {
   try {
@@ -172,7 +172,7 @@ export const profilerStopTool = {
       },
     },
   },
-};
+} satisfies ToolDefinition;
 
 export async function handleProfilerStop(args: unknown): Promise<McpToolResponse> {
   try {

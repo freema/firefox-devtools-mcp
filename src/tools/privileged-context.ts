@@ -7,7 +7,7 @@ import { successResponse, errorResponse, previewExcerpt } from '../utils/respons
 import { validateFunction } from '../utils/js-validation.js';
 import { remoteValueToNative } from '../utils/remote-value.js';
 import { saveOutput } from '../utils/save-output.js';
-import { defineModule } from './module.js';
+import { defineModule, type ToolDefinition } from './module.js';
 // list_extensions lives with the other extension tools in webextension.ts, but
 // it needs parent access (AddonManager), so it is registered here under the
 // privileged module rather than the unprivileged webextension module.
@@ -25,7 +25,7 @@ export const listPrivilegedContextsTool = {
     type: 'object',
     properties: {},
   },
-};
+} satisfies ToolDefinition;
 
 export const selectPrivilegedContextTool = {
   name: 'select_privileged_context',
@@ -44,7 +44,7 @@ export const selectPrivilegedContextTool = {
     },
     required: ['contextId'],
   },
-};
+} satisfies ToolDefinition;
 
 export const evaluatePrivilegedScriptTool = {
   name: 'evaluate_privileged_script',
@@ -77,7 +77,7 @@ export const evaluatePrivilegedScriptTool = {
     },
     required: ['function', 'context'],
   },
-};
+} satisfies ToolDefinition;
 
 function formatContextList(contexts: any[]): string {
   if (contexts.length === 0) {
