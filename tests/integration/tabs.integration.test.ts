@@ -10,14 +10,10 @@ import {
   waitForElementInSnapshot,
   findNodesInSnapshot,
   waitForPageLoad,
+  fixtureUrl,
 } from '../helpers/firefox.js';
 import type { FirefoxClient } from '@/firefox/index.js';
 import type { SnapshotNode } from '@/firefox/snapshot/types.js';
-import { resolve } from 'node:path';
-import { fileURLToPath } from 'node:url';
-
-const __dirname = fileURLToPath(new URL('.', import.meta.url));
-const fixturesPath = resolve(__dirname, '../fixtures');
 
 describe('Tab Management Integration Tests', () => {
   let firefox: FirefoxClient;
@@ -31,7 +27,7 @@ describe('Tab Management Integration Tests', () => {
   });
 
   it('should list tabs', async () => {
-    const fixturePath = `file://${fixturesPath}/simple.html`;
+    const fixturePath = fixtureUrl('simple.html');
     await firefox.navigate(fixturePath);
 
     await firefox.refreshTabs();
@@ -47,7 +43,7 @@ describe('Tab Management Integration Tests', () => {
     const initialTabs = firefox.getTabs();
     const initialTabCount = initialTabs.length;
 
-    const fixturePath = `file://${fixturesPath}/simple.html`;
+    const fixturePath = fixtureUrl('simple.html');
     const newTabIndex = await firefox.createNewPage(fixturePath);
 
     await firefox.refreshTabs();
@@ -62,7 +58,7 @@ describe('Tab Management Integration Tests', () => {
     await firefox.refreshTabs();
 
     // Create second tab
-    const fixturePath = `file://${fixturesPath}/form.html`;
+    const fixturePath = fixtureUrl('form.html');
     const newTabIndex = await firefox.createNewPage(fixturePath);
 
     await firefox.refreshTabs();
@@ -86,7 +82,7 @@ describe('Tab Management Integration Tests', () => {
 
     if (initialTabs.length < 2) {
       // Create additional tab if needed
-      const fixturePath = `file://${fixturesPath}/simple.html`;
+      const fixturePath = fixtureUrl('simple.html');
       await firefox.createNewPage(fixturePath);
       await firefox.refreshTabs();
     }
@@ -106,8 +102,8 @@ describe('Tab Management Integration Tests', () => {
 
   it('should have snapshot isolation between tabs', async () => {
     // Create two tabs with different pages
-    const simplePath = `file://${fixturesPath}/simple.html`;
-    const formPath = `file://${fixturesPath}/form.html`;
+    const simplePath = fixtureUrl('simple.html');
+    const formPath = fixtureUrl('form.html');
 
     await firefox.navigate(simplePath);
     await waitForPageLoad();

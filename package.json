@@ -47,8 +47,7 @@
     "test:mozlog": "node scripts/test-mozlog.js",
     "test:navigation": "node scripts/test-navigation.js",
     "test:privileged": "node scripts/test-privileged-context.js",
-    "test:screenshot": "node scripts/test-screenshot.js",
-    "test:integration:win": "node scripts/run-integration-tests-windows.mjs"
+    "test:screenshot": "node scripts/test-screenshot.js"
   },
   "keywords": [
     "mcp",

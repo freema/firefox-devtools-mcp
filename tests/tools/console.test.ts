@@ -3,7 +3,8 @@
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { existsSync, readFileSync, rmSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
+import { removeDir } from '../helpers/fs.js';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { listConsoleMessagesTool, clearConsoleMessagesTool } from '../../src/tools/console.js';
@@ -100,7 +101,7 @@ describe('Console Tools', () => {
     afterEach(() => {
       vi.restoreAllMocks();
       if (existsSync(tempDir)) {
-        rmSync(tempDir, { recursive: true, force: true });
+        removeDir(tempDir);
       }
     });
 

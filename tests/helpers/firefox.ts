@@ -6,6 +6,9 @@
 import { FirefoxClient } from '@/firefox/index.js';
 import type { FirefoxLaunchOptions } from '@/firefox/types.js';
 import type { SnapshotNode } from '@/firefox/snapshot/types.js';
+// Aliased: several helpers below name a promise callback parameter `resolve`.
+import { resolve as resolvePath } from 'node:path';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 
 /**
  * Creates a headless Firefox client for testing
@@ -143,4 +146,20 @@ export async function waitForElementInSnapshot(
  */
 export async function waitForPageLoad(delayMs = 300): Promise<void> {
   await new Promise((resolve) => setTimeout(resolve, delayMs));
+}
+
+/**
+ * Absolute path to the shared fixtures directory.
+ */
+export const fixturesPath = resolvePath(
+  fileURLToPath(new URL('.', import.meta.url)),
+  '../fixtures'
+);
+
+/**
+ * Builds a file:// URL for a fixture. Interpolating `file://${path}` breaks on
+ * Windows (the drive letter parses as the host); pathToFileURL does not.
+ */
+export function fixtureUrl(fileName: string): string {
+  return pathToFileURL(resolvePath(fixturesPath, fileName)).href;
 }

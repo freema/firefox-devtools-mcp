@@ -1,8 +1,6 @@
 import { defineConfig } from 'vitest/config';
 import path from 'path';
 
-const isWindows = process.platform === 'win32';
-
 export default defineConfig({
   test: {
     globals: true,
@@ -32,11 +30,7 @@ export default defineConfig({
       },
     },
     include: ['tests/**/*.test.ts'],
-    // Skip integration tests on Windows due to selenium-webdriver hanging issue
-    // See: https://github.com/elastic/kibana/issues/52053
-    exclude: isWindows
-      ? ['node_modules', 'dist', 'tests/integration/**']
-      : ['node_modules', 'dist'],
+    exclude: ['node_modules', 'dist'],
   },
   resolve: {
     alias: {

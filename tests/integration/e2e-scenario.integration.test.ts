@@ -29,14 +29,11 @@ import {
   findNodeInSnapshot,
   waitForPageLoad,
   waitFor,
+  fixtureUrl,
 } from '../helpers/firefox.js';
 import type { FirefoxClient } from '@/firefox/index.js';
-import { resolve } from 'node:path';
-import { fileURLToPath } from 'node:url';
 
-const __dirname = fileURLToPath(new URL('.', import.meta.url));
-const fixturesPath = resolve(__dirname, '../fixtures');
-const appUrl = `file://${fixturesPath}/e2e-app.html`;
+const appUrl = fixtureUrl('e2e-app.html');
 
 // ---------------------------------------------------------------------------
 // Todo App Workflow
@@ -220,7 +217,7 @@ describe('E2E Scenario: Browser History', () => {
     expect(snapshot.text).toContain('E2E Test Application');
 
     // Navigate to page B
-    const simpleUrl = `file://${fixturesPath}/simple.html`;
+    const simpleUrl = fixtureUrl('simple.html');
     await firefox.navigate(simpleUrl);
     await waitForPageLoad();
 
@@ -478,7 +475,7 @@ describe('E2E Scenario: Network Monitoring', () => {
     firefox.clearNetworkRequests();
 
     // Navigate to network fixture which has fetch buttons
-    const networkUrl = `file://${fixturesPath}/network.html`;
+    const networkUrl = fixtureUrl('network.html');
     await firefox.navigate(networkUrl);
     await waitForPageLoad();
 
@@ -507,7 +504,7 @@ describe('E2E Scenario: Network Monitoring', () => {
     // Self-contained: generate a request first
     firefox.clearNetworkRequests();
 
-    const networkUrl = `file://${fixturesPath}/network.html`;
+    const networkUrl = fixtureUrl('network.html');
     await firefox.navigate(networkUrl);
     await waitForPageLoad();
 
@@ -578,7 +575,7 @@ describe('E2E Scenario: Tab Management', () => {
   });
 
   it('should open a new tab and switch between tabs', async () => {
-    const simpleUrl = `file://${fixturesPath}/simple.html`;
+    const simpleUrl = fixtureUrl('simple.html');
     const newTabIndex = await firefox.createNewPage(simpleUrl);
     await waitForPageLoad();
 
@@ -635,7 +632,7 @@ describe('E2E Scenario: Stale UID Detection', () => {
     expect(firstUid).toBeDefined();
 
     // Navigate away — UIDs become stale
-    await firefox.navigate(`file://${fixturesPath}/simple.html`);
+    await firefox.navigate(fixtureUrl('simple.html'));
     await waitForPageLoad();
 
     // Old UID should throw

@@ -9,13 +9,9 @@ import {
   closeFirefox,
   waitForElementInSnapshot,
   waitForPageLoad,
+  fixtureUrl,
 } from '../helpers/firefox.js';
 import type { FirefoxClient } from '@/firefox/index.js';
-import { resolve } from 'node:path';
-import { fileURLToPath } from 'node:url';
-
-const __dirname = fileURLToPath(new URL('.', import.meta.url));
-const fixturesPath = resolve(__dirname, '../fixtures');
 
 describe('Form Interaction Integration Tests', () => {
   let firefox: FirefoxClient;
@@ -29,7 +25,7 @@ describe('Form Interaction Integration Tests', () => {
   });
 
   it('should hover over element by UID', async () => {
-    const fixturePath = `file://${fixturesPath}/form.html`;
+    const fixturePath = fixtureUrl('form.html');
     await firefox.navigate(fixturePath);
 
     // Wait for page to be fully loaded
