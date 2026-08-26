@@ -5,6 +5,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { screenshotPageTool, screenshotByUidTool } from '../../src/tools/screenshot.js';
 import { existsSync, readFileSync, rmSync } from 'node:fs';
+import { removeDir } from '../helpers/fs.js';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
@@ -71,7 +72,7 @@ describe('Screenshot Tools', () => {
       vi.restoreAllMocks();
       for (const dir of [tempDir, MOCK_HOME]) {
         if (existsSync(dir)) {
-          rmSync(dir, { recursive: true, force: true });
+          removeDir(dir);
         }
       }
     });

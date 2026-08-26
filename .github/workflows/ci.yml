@@ -10,10 +10,11 @@ concurrency:
 
 jobs:
   test:
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
+        os: [ubuntu-latest, windows-latest]
         node-version: [20, 22]
 
     steps:
@@ -53,14 +54,14 @@ jobs:
         run: npm run test:coverage
 
       - name: Upload coverage reports to Codecov
-        if: matrix.node-version == 20
+        if: matrix.os == 'ubuntu-latest' && matrix.node-version == 20
         uses: codecov/codecov-action@v5
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           fail_ci_if_error: false
 
       - name: Upload artifacts
-        if: matrix.node-version == 20
+        if: matrix.os == 'ubuntu-latest' && matrix.node-version == 20
         uses: actions/upload-artifact@v7
         with:
           name: dist

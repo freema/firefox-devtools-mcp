@@ -3,7 +3,8 @@
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, readdirSync } from 'node:fs';
+import { removeDir } from '../helpers/fs.js';
 import { basename, join, relative, sep } from 'node:path';
 import { tmpdir } from 'node:os';
 
@@ -31,7 +32,7 @@ describe('saveOutput', () => {
   afterEach(() => {
     for (const dir of [tempDir, MOCK_HOME, cwdDir]) {
       if (existsSync(dir)) {
-        rmSync(dir, { recursive: true, force: true });
+        removeDir(dir);
       }
     }
   });

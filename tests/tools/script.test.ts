@@ -3,7 +3,8 @@
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { existsSync, readFileSync, rmSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
+import { removeDir } from '../helpers/fs.js';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { evaluateScriptTool } from '../../src/tools/script.js';
@@ -96,7 +97,7 @@ describe('Script Tools', () => {
       vi.restoreAllMocks();
       for (const dir of [tempDir, MOCK_HOME]) {
         if (existsSync(dir)) {
-          rmSync(dir, { recursive: true, force: true });
+          removeDir(dir);
         }
       }
     });

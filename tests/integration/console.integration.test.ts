@@ -10,13 +10,9 @@ import {
   waitFor,
   waitForElementInSnapshot,
   waitForPageLoad,
+  fixtureUrl,
 } from '../helpers/firefox.js';
 import type { FirefoxClient } from '@/firefox/index.js';
-import { resolve } from 'node:path';
-import { fileURLToPath } from 'node:url';
-
-const __dirname = fileURLToPath(new URL('.', import.meta.url));
-const fixturesPath = resolve(__dirname, '../fixtures');
 
 describe('Console Capture Integration Tests', () => {
   let firefox: FirefoxClient;
@@ -32,7 +28,7 @@ describe('Console Capture Integration Tests', () => {
   it('should capture console messages on page load', async () => {
     firefox.clearConsoleMessages();
 
-    const fixturePath = `file://${fixturesPath}/console.html`;
+    const fixturePath = fixtureUrl('console.html');
     await firefox.navigate(fixturePath);
     await waitForPageLoad();
 
@@ -58,7 +54,7 @@ describe('Console Capture Integration Tests', () => {
   }, 15000);
 
   it('should capture console.log from button click', async () => {
-    const fixturePath = `file://${fixturesPath}/console.html`;
+    const fixturePath = fixtureUrl('console.html');
     await firefox.navigate(fixturePath);
     await waitForPageLoad();
 
@@ -89,7 +85,7 @@ describe('Console Capture Integration Tests', () => {
   }, 15000);
 
   it('should capture console.warn from button click', async () => {
-    const fixturePath = `file://${fixturesPath}/console.html`;
+    const fixturePath = fixtureUrl('console.html');
     await firefox.navigate(fixturePath);
     await waitForPageLoad();
 
@@ -120,7 +116,7 @@ describe('Console Capture Integration Tests', () => {
   }, 15000);
 
   it('should capture console.error from button click', async () => {
-    const fixturePath = `file://${fixturesPath}/console.html`;
+    const fixturePath = fixtureUrl('console.html');
     await firefox.navigate(fixturePath);
     await waitForPageLoad();
 
@@ -151,7 +147,7 @@ describe('Console Capture Integration Tests', () => {
   }, 15000);
 
   it('should clear console messages', async () => {
-    const fixturePath = `file://${fixturesPath}/console.html`;
+    const fixturePath = fixtureUrl('console.html');
     await firefox.navigate(fixturePath);
     await waitForPageLoad();
 
@@ -174,7 +170,7 @@ describe('Console Capture Integration Tests', () => {
   it('should have timestamp in console messages', async () => {
     firefox.clearConsoleMessages();
 
-    const fixturePath = `file://${fixturesPath}/console.html`;
+    const fixturePath = fixtureUrl('console.html');
     await firefox.navigate(fixturePath);
     await waitForPageLoad();
 

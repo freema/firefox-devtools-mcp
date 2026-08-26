@@ -10,13 +10,9 @@ import {
   waitFor,
   waitForElementInSnapshot,
   waitForPageLoad,
+  fixtureUrl,
 } from '../helpers/firefox.js';
 import type { FirefoxClient } from '@/firefox/index.js';
-import { resolve } from 'node:path';
-import { fileURLToPath } from 'node:url';
-
-const __dirname = fileURLToPath(new URL('.', import.meta.url));
-const fixturesPath = resolve(__dirname, '../fixtures');
 
 describe('Network Monitoring Integration Tests', () => {
   let firefox: FirefoxClient;
@@ -33,7 +29,7 @@ describe('Network Monitoring Integration Tests', () => {
   it('should capture network requests on page load', async () => {
     firefox.clearNetworkRequests();
 
-    const fixturePath = `file://${fixturesPath}/network.html`;
+    const fixturePath = fixtureUrl('network.html');
     await firefox.navigate(fixturePath);
     await waitForPageLoad();
 
@@ -58,7 +54,7 @@ describe('Network Monitoring Integration Tests', () => {
   }, 15000);
 
   it('should capture fetch GET request', async () => {
-    const fixturePath = `file://${fixturesPath}/network.html`;
+    const fixturePath = fixtureUrl('network.html');
     await firefox.navigate(fixturePath);
     await waitForPageLoad();
 
@@ -89,7 +85,7 @@ describe('Network Monitoring Integration Tests', () => {
   }, 20000);
 
   it('should capture fetch POST request', async () => {
-    const fixturePath = `file://${fixturesPath}/network.html`;
+    const fixturePath = fixtureUrl('network.html');
     await firefox.navigate(fixturePath);
     await waitForPageLoad();
 
@@ -121,7 +117,7 @@ describe('Network Monitoring Integration Tests', () => {
   }, 20000);
 
   it('should capture XHR request', async () => {
-    const fixturePath = `file://${fixturesPath}/network.html`;
+    const fixturePath = fixtureUrl('network.html');
     await firefox.navigate(fixturePath);
     await waitForPageLoad();
 
@@ -148,7 +144,7 @@ describe('Network Monitoring Integration Tests', () => {
   }, 20000);
 
   it('should clear network requests', async () => {
-    const fixturePath = `file://${fixturesPath}/network.html`;
+    const fixturePath = fixtureUrl('network.html');
     await firefox.navigate(fixturePath);
     await waitForPageLoad();
 

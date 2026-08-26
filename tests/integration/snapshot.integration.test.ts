@@ -11,14 +11,10 @@ import {
   findNodeInSnapshot,
   findNodesInSnapshot,
   waitForPageLoad,
+  fixtureUrl,
 } from '../helpers/firefox.js';
 import type { FirefoxClient } from '@/firefox/index.js';
 import type { SnapshotNode } from '@/firefox/snapshot/types.js';
-import { resolve } from 'node:path';
-import { fileURLToPath } from 'node:url';
-
-const __dirname = fileURLToPath(new URL('.', import.meta.url));
-const fixturesPath = resolve(__dirname, '../fixtures');
 
 describe('Snapshot Integration Tests', () => {
   let firefox: FirefoxClient;
@@ -32,7 +28,7 @@ describe('Snapshot Integration Tests', () => {
   });
 
   it('should take snapshot and generate UIDs', async () => {
-    const fixturePath = `file://${fixturesPath}/simple.html`;
+    const fixturePath = fixtureUrl('simple.html');
     await firefox.navigate(fixturePath);
     await waitForPageLoad();
 
@@ -46,7 +42,7 @@ describe('Snapshot Integration Tests', () => {
   }, 10000);
 
   it('should resolve UID to selector', async () => {
-    const fixturePath = `file://${fixturesPath}/simple.html`;
+    const fixturePath = fixtureUrl('simple.html');
     await firefox.navigate(fixturePath);
     await waitForPageLoad();
 
@@ -65,7 +61,7 @@ describe('Snapshot Integration Tests', () => {
   }, 10000);
 
   it('should click element by UID', async () => {
-    const fixturePath = `file://${fixturesPath}/simple.html`;
+    const fixturePath = fixtureUrl('simple.html');
     await firefox.navigate(fixturePath);
     await waitForPageLoad();
 
@@ -83,7 +79,7 @@ describe('Snapshot Integration Tests', () => {
   }, 10000);
 
   it('should detect stale UIDs after navigation', async () => {
-    const fixturePath = `file://${fixturesPath}/simple.html`;
+    const fixturePath = fixtureUrl('simple.html');
     await firefox.navigate(fixturePath);
     await waitForPageLoad();
 
@@ -103,7 +99,7 @@ describe('Snapshot Integration Tests', () => {
   }, 10000);
 
   it('should assign fresh UIDs after navigation', async () => {
-    const fixturePath = `file://${fixturesPath}/simple.html`;
+    const fixturePath = fixtureUrl('simple.html');
     await firefox.navigate(fixturePath);
     await waitForPageLoad();
 
@@ -122,7 +118,7 @@ describe('Snapshot Integration Tests', () => {
   }, 10000);
 
   it('should handle double-click by UID', async () => {
-    const fixturePath = `file://${fixturesPath}/simple.html`;
+    const fixturePath = fixtureUrl('simple.html');
     await firefox.navigate(fixturePath);
     await waitForPageLoad();
 
@@ -140,7 +136,7 @@ describe('Snapshot Integration Tests', () => {
   }, 10000);
 
   it('should clear snapshot manually', async () => {
-    const fixturePath = `file://${fixturesPath}/simple.html`;
+    const fixturePath = fixtureUrl('simple.html');
     await firefox.navigate(fixturePath);
     await waitForPageLoad();
 
@@ -159,7 +155,7 @@ describe('Snapshot Integration Tests', () => {
   }, 10000);
 
   it('should return clear error for invalid CSS selector', async () => {
-    const fixturePath = `file://${fixturesPath}/selector.html`;
+    const fixturePath = fixtureUrl('selector.html');
     await firefox.navigate(fixturePath);
     await waitForPageLoad();
 
@@ -173,7 +169,7 @@ describe('Snapshot Integration Tests', () => {
   }, 10000);
 
   it('should exclude children of hidden parents even in includeAll mode', async () => {
-    const fixturePath = `file://${fixturesPath}/visibility.html`;
+    const fixturePath = fixtureUrl('visibility.html');
     await firefox.navigate(fixturePath);
     await waitForPageLoad();
 
@@ -198,7 +194,7 @@ describe('Snapshot Integration Tests', () => {
   }, 10000);
 
   it('should treat opacity 0.0 and variations as invisible', async () => {
-    const fixturePath = `file://${fixturesPath}/visibility.html`;
+    const fixturePath = fixtureUrl('visibility.html');
     await firefox.navigate(fixturePath);
     await waitForPageLoad();
 
@@ -224,7 +220,7 @@ describe('Snapshot Integration Tests', () => {
   }, 10000);
 
   it('should exclude children of visibility hidden parents', async () => {
-    const fixturePath = `file://${fixturesPath}/visibility.html`;
+    const fixturePath = fixtureUrl('visibility.html');
     await firefox.navigate(fixturePath);
     await waitForPageLoad();
 
