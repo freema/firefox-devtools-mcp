@@ -349,14 +349,8 @@ export class FirefoxCore {
         }
       }
 
-      // Always resolve geckodriver ourselves rather than letting selenium-webdriver
-      // fall back to its bundled selenium-manager. The Linux selenium-manager
-      // shipped with selenium-webdriver 4.36.0 is an x86-64 binary, so on an
-      // aarch64 host it fails with "Exec format error" and the session dies with
-      // "Unable to obtain browser driver" even when a native geckodriver is in
-      // PATH. See Bug 2062055. On Windows the same call would hang instead
-      // (Bug 2040849). findGeckodriver() checks PATH, then the selenium cache,
-      // then downloads a platform-correct binary via the geckodriver package.
+      // Always resolve geckodriver ourselves rather than relying on selenium
+      // entirely. See Bug 2062055, 2040849.
       const geckodriverPath = await findGeckodriver();
       logDebug(`Using geckodriver: ${geckodriverPath}`);
       const serviceBuilder = new firefox.ServiceBuilder(geckodriverPath);

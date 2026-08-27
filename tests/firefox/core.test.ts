@@ -389,10 +389,8 @@ describe('FirefoxCore connect() profile handling', () => {
     );
   });
 
-  // Bug 2062055: with no geckodriver path, selenium-webdriver falls back to its
-  // bundled selenium-manager, whose Linux binary is x86-64 only — so on aarch64
-  // the session dies with "Unable to obtain browser driver" even when a native
-  // geckodriver is in PATH. Resolving the path ourselves avoids that entirely.
+  // Bug 2062055: geckodriver path should always be resolved before calling
+  // the ServiceBuilder.
   it('should build the geckodriver service with an explicit binary path', async () => {
     const { FirefoxCore } = await import('@/firefox/core.js');
 
