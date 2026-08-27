@@ -160,11 +160,12 @@ export const pressKeyTool = {
       key: {
         type: 'string',
         description:
-          'One key, optionally preceded by "+"-separated modifiers, such as "Escape", "F5" or "ctrl+shift+t". Modifiers: ctrl, alt, shift, meta. Named keys: Enter (numpad), Return, Tab, Backspace, Delete, Insert, Space, Escape, Home, End, PageUp, PageDown, ArrowUp, ArrowDown, ArrowLeft, ArrowRight, F1-F12, Numpad0-Numpad9, Clear, Pause, Help, Cancel, Semicolon, Equals, Add, Subtract, Multiply, Divide, Decimal, Separator. Anything else must be a single character.',
+          'One key, optionally preceded by "+"-separated modifiers, such as "Escape", "Enter" or "ctrl+shift+t". Modifiers: ctrl, alt, shift, meta. Named keys: Enter, Return, NumpadEnter, Tab, Backspace, Delete, Insert, Space, Escape, Home, End, PageUp, PageDown, ArrowUp, ArrowDown, ArrowLeft, ArrowRight, F1-F12, Numpad0-Numpad9, Clear, Pause, Help, Cancel, Semicolon, Equals, Add, Subtract, Multiply, Divide, Decimal, Separator. Anything else must be a single character. Any number of modifiers, but only one key.',
       },
       uid: {
         type: 'string',
-        description: 'Element UID from snapshot (default: the focused element)',
+        description:
+          'Focusable element UID from snapshot to focus before pressing (default: the already focused element)',
       },
     },
     required: ['key'],
@@ -353,10 +354,14 @@ export async function handleUploadFileByUid(args: unknown): Promise<McpToolRespo
 
 export async function handlePressKey(args: unknown): Promise<McpToolResponse> {
   try {
-    const { key, uid } = args as { key: string; uid?: string };
+    const { key, uid } = (args as { key: string; uid?: string }) || {};
 
     if (!key || typeof key !== 'string') {
       throw new Error('key parameter is required and must be a string');
+    }
+
+    if (uid !== undefined && (!uid || typeof uid !== 'string')) {
+      throw new Error('uid parameter must be a non-empty string');
     }
 
     const { getFirefox } = await import('../index.js');
@@ -378,7 +383,8 @@ export async function handlePressKey(args: unknown): Promise<McpToolResponse> {
 
 export const module = defineModule({
   name: 'input',
-  description: 'Interact with the page via UID-based clicks, typing, drag, and uploads.',
+  description:
+    'Interact with the page via UID-based clicks, typing, key presses, drag, and uploads.',
   tools: [
     [clickByUidTool, handleClickByUid],
     [hoverByUidTool, handleHoverByUid],

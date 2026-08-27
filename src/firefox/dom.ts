@@ -5,10 +5,7 @@
 import { By, Key, WebDriver, WebElement } from 'selenium-webdriver';
 
 /**
- * Key names accepted by press_key, mapped to the WebDriver unicode code points
- * that selenium exposes as `Key.*`. Names are matched case-insensitively.
- * `enter` and `return` are deliberately distinct, matching selenium: `return` is
- * the main keyboard key, `enter` is the numpad one.
+ * Key names accepted by press_key. Names are matched case-insensitively.
  */
 const KEY_MAP: Record<string, string> = {
   cancel: Key.CANCEL,
@@ -17,7 +14,8 @@ const KEY_MAP: Record<string, string> = {
   tab: Key.TAB,
   clear: Key.CLEAR,
   return: Key.RETURN,
-  enter: Key.ENTER,
+  enter: Key.RETURN,
+  numpadenter: Key.ENTER,
   pause: Key.PAUSE,
   escape: Key.ESCAPE,
   esc: Key.ESCAPE,
@@ -107,13 +105,14 @@ export function parseKeyCombo(combo: string): KeyCombo {
       continue;
     }
 
-    const modifier = MODIFIER_MAP[name.toLowerCase()];
+    const lowerName = name.toLowerCase();
+    const modifier = Object.hasOwn(MODIFIER_MAP, lowerName) ? MODIFIER_MAP[lowerName] : undefined;
     if (modifier) {
       modifiers.push(modifier);
       continue;
     }
 
-    const mapped = KEY_MAP[name.toLowerCase()];
+    const mapped = Object.hasOwn(KEY_MAP, lowerName) ? KEY_MAP[lowerName] : undefined;
     if (mapped === undefined && [...name].length > 1) {
       throw new Error(`press_key: unknown key "${name}" in "${combo}"`);
     }
@@ -418,34 +417,51 @@ export class DomInteractions {
 
   /**
    * Press a single key, optionally with modifiers.
-   * @param key Key name or combination, such as "Escape", "F5" or "ctrl+shift+t"
-   * @param uid Element UID to send the key to. Defaults to the focused element.
+   * @param key Key name or combination, such as "Escape", "Enter" or "ctrl+shift+t"
+   * @param uid Element UID to focus first. Defaults to the focused element.
    */
   async pressKey(key: string, uid?: string): Promise<void> {
     const { modifiers, key: mainKey } = parseKeyCombo(key);
 
     if (uid) {
-      if (!this.resolveUid) {
-        throw new Error('pressKey: resolveUid callback not set. Ensure snapshot is initialized.');
-      }
-      const el = await this.resolveUid(uid);
-      await el.sendKeys(Key.chord(...modifiers, mainKey));
-    } else {
-      // Without an element to target, drive the WebDriver actions keyboard
-      // source directly so the key reaches whatever currently has focus.
-      const actions = this.driver.actions({ async: true });
-      for (const modifier of modifiers) {
-        actions.keyDown(modifier);
-      }
-      actions.keyDown(mainKey);
-      actions.keyUp(mainKey);
-      for (const modifier of [...modifiers].reverse()) {
-        actions.keyUp(modifier);
-      }
-      await actions.perform();
+      // If a uid was provided, focus the element first so that actions will be
+      // applied to it.
+      await this.focusByUid(uid);
     }
 
+    const actions = this.driver.actions({ async: true });
+    for (const modifier of modifiers) {
+      actions.keyDown(modifier);
+    }
+    actions.keyDown(mainKey);
+    actions.keyUp(mainKey);
+    for (const modifier of [...modifiers].reverse()) {
+      actions.keyUp(modifier);
+    }
+    await actions.perform();
+
     await this.waitForEventsAfterAction();
+  }
+
+  /**
+   * Focus the element for the provided uid. Throws if the element cannot be
+   * focused.
+   */
+  private async focusByUid(uid: string): Promise<void> {
+    if (!this.resolveUid) {
+      throw new Error('pressKey: resolveUid callback not set. Ensure snapshot is initialized.');
+    }
+    const el = await this.resolveUid(uid);
+    await this.waitForVisible(el, 5000);
+    const focused = await this.driver.executeScript(
+      'arguments[0].focus(); return arguments[0].getRootNode().activeElement === arguments[0];',
+      el
+    );
+    if (!focused) {
+      throw new Error(
+        `pressKey: uid ${uid} cannot receive keyboard focus. Target a focusable element, or omit uid to send the key to the currently focused element.`
+      );
+    }
   }
 
   /**
