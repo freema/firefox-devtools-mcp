@@ -161,6 +161,17 @@ describe('Input Tools', () => {
       expect(pressKey).not.toHaveBeenCalled();
     });
 
+    it('should reject a uid that is not a non-empty string', async () => {
+      const { handlePressKey } = await import('../../src/tools/input.js');
+
+      for (const uid of ['', 42]) {
+        const result = await handlePressKey({ key: 'Enter', uid });
+        expect(result.isError).toBe(true);
+        expect(textOf(result)).toContain('uid parameter must be a non-empty string');
+      }
+      expect(pressKey).not.toHaveBeenCalled();
+    });
+
     it('should report a stale uid as such', async () => {
       pressKey.mockRejectedValue(new Error('UID uid-9 not found in snapshot'));
       const { handlePressKey } = await import('../../src/tools/input.js');

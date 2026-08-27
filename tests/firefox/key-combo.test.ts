@@ -8,10 +8,14 @@ import { parseKeyCombo } from '../../src/firefox/dom.js';
 
 describe('parseKeyCombo', () => {
   describe('named keys', () => {
-    it('maps return and enter to the distinct selenium keys', () => {
+    it('maps enter and return to the main keyboard key', () => {
       expect(Key.RETURN).not.toBe(Key.ENTER);
       expect(parseKeyCombo('Return')).toEqual({ modifiers: [], key: Key.RETURN });
-      expect(parseKeyCombo('Enter')).toEqual({ modifiers: [], key: Key.ENTER });
+      expect(parseKeyCombo('Enter')).toEqual({ modifiers: [], key: Key.RETURN });
+    });
+
+    it('keeps the numpad enter reachable under its own name', () => {
+      expect(parseKeyCombo('NumpadEnter')).toEqual({ modifiers: [], key: Key.ENTER });
     });
 
     it('matches key names case-insensitively', () => {

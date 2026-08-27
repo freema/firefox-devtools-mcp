@@ -60,6 +60,7 @@ take_snapshot  # Get fresh UIDs
 | Click | `click_by_uid` |
 | Hover | `hover_by_uid` |
 | Type | `fill_by_uid`, `fill_form_by_uid` |
+| Press key | `press_key` |
 | Drag | `drag_by_uid_to_uid` |
 | Dialogs | `accept_dialog`, `dismiss_dialog` |
 | Screenshot | `screenshot_page`, `screenshot_by_uid` |
