@@ -12,20 +12,12 @@ import { ConsoleEvents, NetworkEvents, DebuggingEvents, DownloadEvents } from '.
 import type { NetworkBodyResult } from './events/network.js';
 import { DomInteractions } from './dom.js';
 import { PageManagement, type ReadinessState } from './pages.js';
+import { CacheManagement, CACHE_BEHAVIORS, isCacheBehavior, type CacheBehavior } from './cache.js';
 import { SnapshotManager, type Snapshot, type SnapshotOptions } from './snapshot/index.js';
 
-/**
- * WebDriver BiDi network.CacheBehavior.
- * - "default": normal HTTP cache behaviour
- * - "bypass": skip the cache, so every request goes to the network
- */
-export const CACHE_BEHAVIORS = ['default', 'bypass'] as const;
-
-export type CacheBehavior = (typeof CACHE_BEHAVIORS)[number];
-
-export function isCacheBehavior(value: unknown): value is CacheBehavior {
-  return CACHE_BEHAVIORS.includes(value as CacheBehavior);
-}
+// Re-exported for backward compatibility: src/tools/network.ts imports
+// these cache types from firefox/index.js rather than firefox/cache.js.
+export { CACHE_BEHAVIORS, isCacheBehavior, type CacheBehavior };
 
 /**
  * Main Firefox Client facade
@@ -40,6 +32,7 @@ export class FirefoxClient {
   private downloadEvents: DownloadEvents | null = null;
   private dom: DomInteractions | null = null;
   private pages: PageManagement | null = null;
+  private cache: CacheManagement | null = null;
   private snapshot: SnapshotManager | null = null;
 
   constructor(options: FirefoxLaunchOptions) {
@@ -112,6 +105,11 @@ export class FirefoxClient {
       driver,
       () => this.core.getCurrentContextId(),
       (id: string) => this.core.setCurrentContextId(id),
+      (method: string, params: Record<string, any>) => this.getBidi().sendCommand(method, params)
+    );
+
+    this.cache = new CacheManagement(
+      () => this.core.getCurrentContextId(),
       (method: string, params: Record<string, any>) => this.getBidi().sendCommand(method, params)
     );
   }
@@ -341,19 +339,10 @@ export class FirefoxClient {
   // ============================================================================
 
   async setCacheBehavior(behavior: CacheBehavior, options?: { global?: boolean }): Promise<void> {
-    const params: Record<string, unknown> = { cacheBehavior: behavior };
-
-    // Omitting `contexts` applies the behaviour globally; passing the current
-    // context scopes it to the selected tab, which is the default.
-    if (!options?.global) {
-      const contextId = this.getCurrentContextId();
-      if (!contextId) {
-        throw new Error('Cannot set cache behavior: no browsing context ID');
-      }
-      params.contexts = [contextId];
+    if (!this.cache) {
+      throw new Error('Not connected');
     }
-
-    await this.sendBiDiCommand('network.setCacheBehavior', params);
+    await this.cache.setCacheBehavior(behavior, options);
   }
 
   async startNetworkMonitoring(): Promise<void> {
@@ -623,6 +612,7 @@ export class FirefoxClient {
     this.downloadEvents = null;
     this.dom = null;
     this.pages = null;
+    this.cache = null;
     this.snapshot = null;
   }
 }
