@@ -11,11 +11,6 @@ export default defineConfig({
     // Run tests sequentially to avoid Firefox port conflicts
     fileParallelism: false,
     pool: 'forks',
-    poolOptions: {
-      forks: {
-        singleFork: true,
-      },
-    },
     coverage: {
       provider: 'v8',
       reporter: ['text', 'json', 'html', 'lcov'],
