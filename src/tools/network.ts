@@ -140,7 +140,7 @@ export const setNetworkCacheTool = {
     readOnlyHint: false,
   },
   inputSchema: {
-    type: 'object' as const,
+    type: 'object',
     properties: {
       behavior: {
         type: 'string',
@@ -155,7 +155,7 @@ export const setNetworkCacheTool = {
     },
     required: ['behavior'],
   },
-};
+} satisfies ToolDefinition;
 
 /**
  * Fetch a body without letting a missing facade method or transport error fail
