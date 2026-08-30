@@ -16,6 +16,7 @@ import { parsePrefs, defaultProfileDir } from './cli.js';
 import type { parseArguments } from './cli.js';
 import { FirefoxDevTools } from './firefox/index.js';
 import type { FirefoxLaunchOptions } from './firefox/types.js';
+import { ExistingFirefoxIdleController } from './firefox/idle-connection.js';
 import { buildToolset } from './tools/registry.js';
 import { errorResponse } from './utils/response-helpers.js';
 
@@ -65,6 +66,10 @@ export function setNextLaunchOptions(options: FirefoxLaunchOptions): void {
  */
 export function isFirefoxRunning(): boolean {
   return firefox !== null;
+}
+
+function hasActiveExistingFirefoxConnection(): boolean {
+  return firefox?.getOptions().connectExisting === true;
 }
 
 /**
@@ -179,6 +184,13 @@ export async function run(
 
   args = parseArgsFn(SERVER_VERSION);
 
+  const idleConnection = new ExistingFirefoxIdleController({
+    enabled: Boolean(args.connectExisting),
+    hasActiveConnection: hasActiveExistingFirefoxConnection,
+    disconnect: resetFirefox,
+    onDisconnectError: (error) => logError('Error disconnecting idle Firefox session', error),
+  });
+
   if (args.logFile) {
     setupLogFile(args.logFile);
   }
@@ -247,25 +259,27 @@ export async function run(
       throw new Error(`Unknown tool: ${name}`);
     }
 
-    try {
-      const result = await handler(args);
-      if (pendingWarning) {
-        // Return as isError so that agents acting as MCP clients (e.g. Claude)
-        // surface the message to the user.
-        // Also note the operation completed so the agent does not retry.
-        const operationNote =
-          result.content[0]?.type === 'text'
-            ? `\n\n[Note: The operation also completed — ${result.content[0].text}]`
-            : '';
-        const warning = pendingWarning;
-        pendingWarning = null;
-        return errorResponse(`${warning}${operationNote}`);
+    return idleConnection.runWithActivity(async () => {
+      try {
+        const result = await handler(args);
+        if (pendingWarning) {
+          // Return as isError so that agents acting as MCP clients (e.g. Claude)
+          // surface the message to the user.
+          // Also note the operation completed so the agent does not retry.
+          const operationNote =
+            result.content[0]?.type === 'text'
+              ? `\n\n[Note: The operation also completed — ${result.content[0].text}]`
+              : '';
+          const warning = pendingWarning;
+          pendingWarning = null;
+          return errorResponse(`${warning}${operationNote}`);
+        }
+        return result;
+      } catch (error) {
+        logError(`Error executing tool ${name}`, error);
+        throw error;
       }
-      return result;
-    } catch (error) {
-      logError(`Error executing tool ${name}`, error);
-      throw error;
-    }
+    });
   });
 
   const transport = new StdioServerTransport();
@@ -277,6 +291,7 @@ export async function run(
   // Clean up the Marionette session so Firefox accepts new connections.
   // Without this, the session stays locked after the MCP client disconnects.
   const cleanup = async () => {
+    await idleConnection.dispose();
     await resetFirefox();
     await server.close();
     await flushLogs().catch(() => {});
