@@ -35,6 +35,7 @@ export let args = {} as Args;
 // Global context (lazy initialized on first tool call)
 let firefox: FirefoxDevTools | null = null;
 let nextLaunchOptions: FirefoxLaunchOptions | null = null;
+let existingFirefoxReconnectOptions: FirefoxLaunchOptions | null = null;
 // Warning generated during Firefox startup, surfaced in the first tool response.
 let pendingWarning: string | null = null;
 
@@ -52,12 +53,21 @@ export async function resetFirefox(): Promise<void> {
   log('Firefox instance reset - will reconnect on next tool call');
 }
 
+async function disconnectIdleExistingFirefox(): Promise<void> {
+  if (firefox?.getOptions().connectExisting !== true) {
+    return;
+  }
+  existingFirefoxReconnectOptions = { ...firefox.getOptions() };
+  await resetFirefox();
+}
+
 /**
  * Set options for the next Firefox launch
  * Used by restart_firefox tool to change configuration
  */
 export function setNextLaunchOptions(options: FirefoxLaunchOptions): void {
   nextLaunchOptions = options;
+  existingFirefoxReconnectOptions = null;
   log('Next launch options updated');
 }
 
@@ -101,6 +111,9 @@ export async function getFirefox(): Promise<FirefoxDevTools> {
     options = nextLaunchOptions;
     nextLaunchOptions = null; // Clear after use
     log('Using custom launch options from restart_firefox');
+  } else if (existingFirefoxReconnectOptions) {
+    options = existingFirefoxReconnectOptions;
+    log('Reconnecting to the previous existing Firefox target');
   } else {
     // Parse environment variables from CLI args (format: KEY=VALUE)
     let envVars: Record<string, string> | undefined;
@@ -144,6 +157,9 @@ export async function getFirefox(): Promise<FirefoxDevTools> {
   try {
     await firefox.connect();
     log('Firefox DevTools connection established');
+    if (firefox.getOptions().connectExisting === true) {
+      existingFirefoxReconnectOptions = { ...firefox.getOptions() };
+    }
     pendingWarning = firefox.getAndClearProfileWarning();
     return firefox;
   } catch (error) {
@@ -187,7 +203,7 @@ export async function run(
   const idleConnection = new ExistingFirefoxIdleController({
     enabled: Boolean(args.connectExisting),
     hasActiveConnection: hasActiveExistingFirefoxConnection,
-    disconnect: resetFirefox,
+    disconnect: disconnectIdleExistingFirefox,
     onDisconnectError: (error) => logError('Error disconnecting idle Firefox session', error),
   });
 
