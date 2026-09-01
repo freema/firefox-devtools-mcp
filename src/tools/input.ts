@@ -170,7 +170,7 @@ export const pressKeyTool = {
     },
     required: ['key'],
   },
-};
+} satisfies ToolDefinition;
 
 // Handlers
 export const handleClickByUid = defineToolHandler(async function handleClickByUid(
@@ -340,34 +340,32 @@ export const handleUploadFileByUid = defineToolHandler(async function handleUplo
   }
 });
 
-export async function handlePressKey(args: unknown): Promise<McpToolResponse> {
-  try {
-    const { key, uid } = (args as { key: string; uid?: string }) || {};
+export const handlePressKey = defineToolHandler(async function handlePressKey(
+  args: unknown
+): Promise<McpToolResponse> {
+  const { key, uid } = (args as { key: string; uid?: string }) || {};
 
-    if (!key || typeof key !== 'string') {
-      throw new Error('key parameter is required and must be a string');
-    }
-
-    if (uid !== undefined && (!uid || typeof uid !== 'string')) {
-      throw new Error('uid parameter must be a non-empty string');
-    }
-
-    const { getFirefox } = await import('../index.js');
-    const firefox = await getFirefox();
-
-    try {
-      await firefox.pressKey(key, uid);
-      return successResponse(uid ? `press_key ${key} on ${uid}` : `press_key ${key}`);
-    } catch (error) {
-      if (uid) {
-        throw handleUidError(error as Error, uid);
-      }
-      throw error;
-    }
-  } catch (error) {
-    return errorResponse(error as Error);
+  if (!key || typeof key !== 'string') {
+    throw new Error('key parameter is required and must be a string');
   }
-}
+
+  if (uid !== undefined && (!uid || typeof uid !== 'string')) {
+    throw new Error('uid parameter must be a non-empty string');
+  }
+
+  const { getFirefox } = await import('../index.js');
+  const firefox = await getFirefox();
+
+  try {
+    await firefox.pressKey(key, uid);
+    return successResponse(uid ? `press_key ${key} on ${uid}` : `press_key ${key}`);
+  } catch (error) {
+    if (uid) {
+      throw handleUidError(error as Error, uid);
+    }
+    throw error;
+  }
+});
 
 export const module = defineModule({
   name: 'input',
