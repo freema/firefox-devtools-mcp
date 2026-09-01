@@ -2,7 +2,7 @@
 
 # Tool reference
 
-The server exposes 52 tools grouped into 16 modules. Which modules are
+The server exposes 53 tools grouped into 16 modules. Which modules are
 enabled depends on `--tool-preset` or `--tools`; see
 [Tool modules and presets](../README.md#tool-modules-and-presets) in the README.
 
@@ -16,7 +16,7 @@ Mozilla-internal build and `MOZ_REMOTE_ALLOW_SYSTEM_ACCESS=1`; the public packag
 | `pages`                   | 6     | yes  | yes   | yes       | yes     | yes |
 | `snapshot`                | 3     | yes  | yes   | yes       | yes     | yes |
 | `input`                   | 7     | yes  | yes   | yes       | yes     | yes |
-| `network`                 | 2     | -    | -     | yes       | yes     | yes |
+| `network`                 | 3     | -    | -     | yes       | yes     | yes |
 | `console`                 | 2     | -    | -     | yes       | yes     | yes |
 | `screenshot`              | 2     | yes  | yes   | yes       | yes     | yes |
 | `downloads`               | 3     | -    | yes   | yes       | yes     | yes |
@@ -213,7 +213,7 @@ Parameters:
 
 ## network
 
-List and inspect network requests.
+List and inspect network requests, and control the HTTP cache.
 
 ### `list_network_requests`
 
@@ -251,6 +251,15 @@ Parameters:
 - `format` (`text` | `json`, optional) - Output format (default: text)
 - `saveTo` (boolean | string, optional) - Save the request details with full untruncated headers and bodies to a file as JSON instead of returning them inline (binary bodies are stored base64-encoded). Pass a file path, an existing directory (generated file inside), or true (generated file under ~/.firefox-devtools-mcp/output/). Relative paths resolve against the current working directory.
 - `preview` (number, optional) - Number of characters of the saved output to return inline as a preview when saveTo is used. Omit for no preview.
+
+### `set_network_cache`
+
+Control the HTTP cache. Use behavior='bypass' so every request goes to the network — useful for performance measurement and for verifying a change that a cached asset would otherwise hide. Applies to the currently selected tab unless scope='global'. Persists until set back to 'default' or Firefox shuts down.
+
+Parameters:
+
+- `behavior` (`default` | `bypass`, required) - 'bypass' to skip the cache, 'default' to restore normal caching
+- `scope` (`tab` | `global`, optional) - 'tab' (default) applies to the selected tab; 'global' applies browser-wide
 
 ## console
 
