@@ -5,7 +5,7 @@
  * manifest.json, then runs `mcpb pack` on it.
  */
 
-import { readFileSync, writeFileSync, existsSync, cpSync, mkdtempSync, rmSync } from 'node:fs';
+import { readFileSync, writeFileSync, cpSync, mkdirSync, mkdtempSync, rmSync } from 'node:fs';
 import { execSync } from 'node:child_process';
 import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -35,9 +35,7 @@ try {
   );
 
   const outDir = resolve(root, 'dist-mcpb');
-  if (!existsSync(outDir)) {
-    execSync(`mkdir -p ${outDir}`);
-  }
+  mkdirSync(outDir, { recursive: true });
   const outFile = resolve(outDir, `firefox-devtools-mcp-${pkg.version}.mcpb`);
 
   console.log('Packing .mcpb bundle...');

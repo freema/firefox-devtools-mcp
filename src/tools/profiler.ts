@@ -1,7 +1,7 @@
-import { successResponse, errorResponse } from '../utils/response-helpers.js';
+import { successResponse } from '../utils/response-helpers.js';
 import { compareVersions } from '../utils/version.js';
 import type { FirefoxDevTools } from '../firefox/index.js';
-import { defineModule } from './module.js';
+import { defineModule, defineToolHandler, type ToolDefinition } from './module.js';
 import type { McpToolResponse } from '../types/common.js';
 
 const MIN_FIREFOX_VERSION = '154.0';
@@ -40,10 +40,10 @@ export const profilerIsActiveTool = {
     type: 'object',
     properties: {},
   },
-};
+} satisfies ToolDefinition;
 
-export async function handleProfilerIsActive(_args: unknown): Promise<McpToolResponse> {
-  try {
+export const handleProfilerIsActive = defineToolHandler(
+  async (_args: unknown): Promise<McpToolResponse> => {
     const { getFirefox } = await import('../index.js');
     const firefox = await getFirefox();
     checkProfilerSupported(firefox);
@@ -51,10 +51,8 @@ export async function handleProfilerIsActive(_args: unknown): Promise<McpToolRes
     const result = await firefox.sendBiDiCommand('moz:profiler.isActive', {});
 
     return successResponse(`Profiler is ${result.active ? 'active' : 'inactive'}`);
-  } catch (error) {
-    return errorResponse(error as Error);
   }
-}
+);
 
 // ============================================================================
 // Tool: profiler_start
@@ -101,10 +99,10 @@ export const profilerStartTool = {
       },
     },
   },
-};
+} satisfies ToolDefinition;
 
-export async function handleProfilerStart(args: unknown): Promise<McpToolResponse> {
-  try {
+export const handleProfilerStart = defineToolHandler(
+  async (args: unknown): Promise<McpToolResponse> => {
     const { preset, entries, interval, features, threads, activeContext } = args as {
       preset?: string;
       entries?: number;
@@ -146,10 +144,8 @@ export async function handleProfilerStart(args: unknown): Promise<McpToolRespons
     await firefox.sendBiDiCommand('moz:profiler.start', params);
 
     return successResponse('Profiler started');
-  } catch (error) {
-    return errorResponse(error as Error);
   }
-}
+);
 
 // ============================================================================
 // Tool: profiler_stop
@@ -172,10 +168,10 @@ export const profilerStopTool = {
       },
     },
   },
-};
+} satisfies ToolDefinition;
 
-export async function handleProfilerStop(args: unknown): Promise<McpToolResponse> {
-  try {
+export const handleProfilerStop = defineToolHandler(
+  async (args: unknown): Promise<McpToolResponse> => {
     const { discard } = args as { discard?: boolean };
 
     const params: Record<string, unknown> = {};
@@ -193,10 +189,8 @@ export async function handleProfilerStop(args: unknown): Promise<McpToolResponse
       return successResponse(`Profile saved to: ${result.path}`);
     }
     return successResponse('Profiler stopped. No profile was saved.');
-  } catch (error) {
-    return errorResponse(error as Error);
   }
-}
+);
 
 export const module = defineModule({
   name: 'profiler',

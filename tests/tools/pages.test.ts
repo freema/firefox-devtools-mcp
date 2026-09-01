@@ -64,6 +64,20 @@ describe('Pages Tools', () => {
       expect(properties?.url).toBeDefined();
     });
 
+    it.each([
+      ['navigatePageTool', navigatePageTool],
+      ['newPageTool', newPageTool],
+    ])('%s should expose an optional wait enum', (_name, tool) => {
+      const schema = tool.inputSchema as {
+        properties?: Record<string, any>;
+        required?: string[];
+      };
+      expect(schema.properties?.wait).toBeDefined();
+      expect(schema.properties?.wait.type).toBe('string');
+      expect(schema.properties?.wait.enum).toEqual(['none', 'interactive', 'complete']);
+      expect(schema.required).not.toContain('wait');
+    });
+
     it('closePageTool should require pageIdx', () => {
       const { properties, required } = closePageTool.inputSchema;
       expect(properties).toBeDefined();
@@ -146,6 +160,66 @@ describe('Pages Tools', () => {
 
       const text = (result.content[0] as { type: 'text'; text: string }).text;
       expect(text).toContain('Preview:');
+    });
+  });
+
+  describe('Navigation handlers: wait argument', () => {
+    let navigate: ReturnType<typeof vi.fn>;
+    let createNewPage: ReturnType<typeof vi.fn>;
+
+    beforeEach(() => {
+      navigate = vi.fn().mockResolvedValue(undefined);
+      createNewPage = vi.fn().mockResolvedValue(1);
+
+      vi.doMock('../../src/index.js', () => ({
+        args: {},
+        getFirefox: vi.fn().mockResolvedValue({
+          navigate,
+          createNewPage,
+          refreshTabs: vi.fn().mockResolvedValue(undefined),
+          getTabs: vi.fn().mockReturnValue([{ url: 'about:blank', title: 'blank' }]),
+          getSelectedTabIdx: vi.fn().mockReturnValue(0),
+        }),
+      }));
+    });
+
+    afterEach(() => {
+      vi.restoreAllMocks();
+      vi.resetModules();
+    });
+
+    it('passes an explicit wait through to navigate', async () => {
+      const { handleNavigatePage } = await import('../../src/tools/pages.js');
+      const result = await handleNavigatePage({ url: 'https://example.com', wait: 'complete' });
+
+      expect(navigate).toHaveBeenCalledWith('https://example.com', 'complete');
+      const text = (result.content[0] as { type: 'text'; text: string }).text;
+      expect(text).toContain('waited for: complete');
+    });
+
+    it('leaves the default in place when wait is omitted', async () => {
+      const { handleNavigatePage } = await import('../../src/tools/pages.js');
+      const result = await handleNavigatePage({ url: 'https://example.com' });
+
+      expect(navigate).toHaveBeenCalledWith('https://example.com', undefined);
+      const text = (result.content[0] as { type: 'text'; text: string }).text;
+      expect(text).not.toContain('waited for');
+    });
+
+    it('passes an explicit wait through to new_page', async () => {
+      const { handleNewPage } = await import('../../src/tools/pages.js');
+      await handleNewPage({ url: 'https://example.com', wait: 'complete' });
+
+      expect(createNewPage).toHaveBeenCalledWith('https://example.com', 'complete');
+    });
+
+    it('rejects an unknown wait value instead of silently ignoring it', async () => {
+      const { handleNavigatePage } = await import('../../src/tools/pages.js');
+      const result = await handleNavigatePage({ url: 'https://example.com', wait: 'load' });
+
+      const text = (result.content[0] as { type: 'text'; text: string }).text;
+      expect(text).toContain('wait must be one of none, interactive, complete');
+      expect(navigate).not.toHaveBeenCalled();
     });
   });
 });

@@ -4,7 +4,7 @@
  */
 
 import { successResponse, errorResponse, jsonResponse } from '../utils/response-helpers.js';
-import { defineModule } from './module.js';
+import { defineModule, defineToolHandler, type ToolDefinition } from './module.js';
 import type { McpToolResponse } from '../types/common.js';
 
 // Tool definitions
@@ -15,7 +15,7 @@ export const listDownloadsTool = {
     readOnlyHint: true,
   },
   inputSchema: {
-    type: 'object' as const,
+    type: 'object',
     properties: {
       status: {
         type: 'string',
@@ -37,23 +37,23 @@ export const listDownloadsTool = {
       },
     },
   },
-};
+} satisfies ToolDefinition;
 
 export const clearDownloadsTool = {
   name: 'clear_downloads',
   description: 'Clear the tracked downloads buffer.',
   inputSchema: {
-    type: 'object' as const,
+    type: 'object',
     properties: {},
   },
-};
+} satisfies ToolDefinition;
 
 export const setDownloadBehaviorTool = {
   name: 'set_download_behavior',
   description:
     'Control how downloads are handled: allow (save silently to the default download directory), deny (cancel), or reset to default. Avoids the native save-file dialog. Requires a recent Firefox.',
   inputSchema: {
-    type: 'object' as const,
+    type: 'object',
     properties: {
       behavior: {
         type: 'string',
@@ -64,87 +64,81 @@ export const setDownloadBehaviorTool = {
     },
     required: ['behavior'],
   },
-};
+} satisfies ToolDefinition;
 
 // Tool handlers
-export async function handleListDownloads(args: unknown): Promise<McpToolResponse> {
-  try {
-    const {
-      status,
-      urlContains,
-      limit = 50,
-      format = 'text',
-    } = (args ?? {}) as {
-      status?: string;
-      urlContains?: string;
-      limit?: number;
-      format?: string;
-    };
+export const handleListDownloads = defineToolHandler(async function handleListDownloads(
+  args: unknown
+): Promise<McpToolResponse> {
+  const {
+    status,
+    urlContains,
+    limit = 50,
+    format = 'text',
+  } = (args ?? {}) as {
+    status?: string;
+    urlContains?: string;
+    limit?: number;
+    format?: string;
+  };
 
-    const { getFirefox } = await import('../index.js');
-    const firefox = await getFirefox();
-    let downloads = firefox.getDownloads();
+  const { getFirefox } = await import('../index.js');
+  const firefox = await getFirefox();
+  let downloads = firefox.getDownloads();
 
-    if (status) {
-      downloads = downloads.filter((d) => d.status === status);
-    }
-    if (urlContains) {
-      const needle = urlContains.toLowerCase();
-      downloads = downloads.filter((d) => (d.url || '').toLowerCase().includes(needle));
-    }
-
-    downloads = downloads
-      .sort((a, b) => (b.startTimestamp || 0) - (a.startTimestamp || 0))
-      .slice(0, limit);
-
-    if (format === 'json') {
-      return jsonResponse(downloads);
-    }
-
-    if (downloads.length === 0) {
-      return successResponse('No downloads tracked.');
-    }
-
-    const lines = downloads.map((d) => {
-      const where = d.filepath ? ` -> ${d.filepath}` : '';
-      return `[${d.status}] ${d.suggestedFilename || d.url}${where}`;
-    });
-    return successResponse(lines.join('\n'));
-  } catch (error) {
-    return errorResponse(error instanceof Error ? error.message : String(error));
+  if (status) {
+    downloads = downloads.filter((d) => d.status === status);
   }
-}
+  if (urlContains) {
+    const needle = urlContains.toLowerCase();
+    downloads = downloads.filter((d) => (d.url || '').toLowerCase().includes(needle));
+  }
 
-export async function handleClearDownloads(): Promise<McpToolResponse> {
-  try {
+  downloads = downloads
+    .sort((a, b) => (b.startTimestamp || 0) - (a.startTimestamp || 0))
+    .slice(0, limit);
+
+  if (format === 'json') {
+    return jsonResponse(downloads);
+  }
+
+  if (downloads.length === 0) {
+    return successResponse('No downloads tracked.');
+  }
+
+  const lines = downloads.map((d) => {
+    const where = d.filepath ? ` -> ${d.filepath}` : '';
+    return `[${d.status}] ${d.suggestedFilename || d.url}${where}`;
+  });
+  return successResponse(lines.join('\n'));
+});
+
+export const handleClearDownloads = defineToolHandler(
+  async function handleClearDownloads(): Promise<McpToolResponse> {
     const { getFirefox } = await import('../index.js');
     const firefox = await getFirefox();
     firefox.clearDownloads();
     return successResponse('Downloads cleared.');
-  } catch (error) {
-    return errorResponse(error instanceof Error ? error.message : String(error));
   }
-}
+);
 
-export async function handleSetDownloadBehavior(args: unknown): Promise<McpToolResponse> {
-  try {
-    const { behavior } = (args ?? {}) as {
-      behavior?: 'allowed' | 'denied' | 'default';
-    };
+export const handleSetDownloadBehavior = defineToolHandler(async function handleSetDownloadBehavior(
+  args: unknown
+): Promise<McpToolResponse> {
+  const { behavior } = (args ?? {}) as {
+    behavior?: 'allowed' | 'denied' | 'default';
+  };
 
-    if (!behavior) {
-      return errorResponse('behavior is required');
-    }
-
-    const { getFirefox } = await import('../index.js');
-    const firefox = await getFirefox();
-    await firefox.setDownloadBehavior(behavior);
-
-    return successResponse(`Download behavior set to '${behavior}'.`);
-  } catch (error) {
-    return errorResponse(error instanceof Error ? error.message : String(error));
+  if (!behavior) {
+    return errorResponse('behavior is required');
   }
-}
+
+  const { getFirefox } = await import('../index.js');
+  const firefox = await getFirefox();
+  await firefox.setDownloadBehavior(behavior);
+
+  return successResponse(`Download behavior set to '${behavior}'.`);
+});
 
 export const module = defineModule({
   name: 'downloads',

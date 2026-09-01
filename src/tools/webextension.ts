@@ -9,8 +9,8 @@
  * Note: list_extensions requires MOZ_REMOTE_ALLOW_SYSTEM_ACCESS=1
  */
 
-import { successResponse, errorResponse } from '../utils/response-helpers.js';
-import { defineModule } from './module.js';
+import { successResponse } from '../utils/response-helpers.js';
+import { defineModule, defineToolHandler, type ToolDefinition } from './module.js';
 import type { McpToolResponse } from '../types/common.js';
 
 // ============================================================================
@@ -49,10 +49,10 @@ export const installExtensionTool = {
     },
     required: ['type'],
   },
-};
+} satisfies ToolDefinition;
 
-export async function handleInstallExtension(args: unknown): Promise<McpToolResponse> {
-  try {
+export const handleInstallExtension = defineToolHandler(
+  async (args: unknown): Promise<McpToolResponse> => {
     const { type, path, value, permanent } = args as {
       type: 'archivePath' | 'base64' | 'path';
       path?: string;
@@ -98,10 +98,8 @@ export async function handleInstallExtension(args: unknown): Promise<McpToolResp
     return successResponse(
       `Extension installed (${installType}):\n  ID: ${extensionId}\n  Type: ${type}${path ? `\n  Path: ${path}` : ''}`
     );
-  } catch (error) {
-    return errorResponse(error as Error);
   }
-}
+);
 
 // ============================================================================
 // Tool: uninstall_extension
@@ -124,10 +122,10 @@ export const uninstallExtensionTool = {
     },
     required: ['id'],
   },
-};
+} satisfies ToolDefinition;
 
-export async function handleUninstallExtension(args: unknown): Promise<McpToolResponse> {
-  try {
+export const handleUninstallExtension = defineToolHandler(
+  async (args: unknown): Promise<McpToolResponse> => {
     const { id } = args as { id: string };
 
     if (!id || typeof id !== 'string') {
@@ -140,10 +138,8 @@ export async function handleUninstallExtension(args: unknown): Promise<McpToolRe
     await firefox.sendBiDiCommand('webExtension.uninstall', { extension: id });
 
     return successResponse(`Extension uninstalled:\n  ID: ${id}`);
-  } catch (error) {
-    return errorResponse(error as Error);
   }
-}
+);
 
 // ============================================================================
 // Tool: list_extensions
@@ -182,7 +178,7 @@ export const listExtensionsTool = {
       },
     },
   },
-};
+} satisfies ToolDefinition;
 
 interface ExtensionInfo {
   id: string;
@@ -229,44 +225,45 @@ function formatExtensionList(extensions: ExtensionInfo[], filterId?: string): st
   return lines.join('\n');
 }
 
-export async function handleListExtensions(args: unknown): Promise<McpToolResponse> {
-  try {
-    const { ids, name, isActive, isSystem } =
-      (args as {
-        ids?: string[];
-        name?: string;
-        isActive?: boolean;
-        isSystem?: boolean;
-      }) || {};
-
-    const { getFirefox } = await import('../index.js');
-    const firefox = await getFirefox();
-
-    // Get privileged ("chrome") contexts
-    const result = await firefox.sendBiDiCommand('browsingContext.getTree', {
-      'moz:scope': 'chrome',
-    });
-
-    const contexts = result.contexts || [];
-    if (contexts.length === 0) {
-      throw new Error(
-        'No privileged contexts available. Ensure MOZ_REMOTE_ALLOW_SYSTEM_ACCESS=1 is set.'
-      );
-    }
-
-    const driver = firefox.getDriver();
-    const chromeContextId = contexts[0].context;
-    const originalContextId = firefox.getCurrentContextId();
-
+export const handleListExtensions = defineToolHandler(
+  async (args: unknown): Promise<McpToolResponse> => {
     try {
-      // Switch to chrome context
-      await driver.switchTo().window(chromeContextId);
-      await driver.setContext('chrome');
+      const { ids, name, isActive, isSystem } =
+        (args as {
+          ids?: string[];
+          name?: string;
+          isActive?: boolean;
+          isSystem?: boolean;
+        }) || {};
 
-      // Execute chrome-privileged script to get extensions
-      // Use executeAsyncScript for async operations
-      const filterParams = { ids, name, isActive, isSystem };
-      const script = `
+      const { getFirefox } = await import('../index.js');
+      const firefox = await getFirefox();
+
+      // Get privileged ("chrome") contexts
+      const result = await firefox.sendBiDiCommand('browsingContext.getTree', {
+        'moz:scope': 'chrome',
+      });
+
+      const contexts = result.contexts || [];
+      if (contexts.length === 0) {
+        throw new Error(
+          'No privileged contexts available. Ensure MOZ_REMOTE_ALLOW_SYSTEM_ACCESS=1 is set.'
+        );
+      }
+
+      const driver = firefox.getDriver();
+      const chromeContextId = contexts[0].context;
+      const originalContextId = firefox.getCurrentContextId();
+
+      try {
+        // Switch to chrome context
+        await driver.switchTo().window(chromeContextId);
+        await driver.setContext('chrome');
+
+        // Execute chrome-privileged script to get extensions
+        // Use executeAsyncScript for async operations
+        const filterParams = { ids, name, isActive, isSystem };
+        const script = `
         const callback = arguments[arguments.length - 1];
         const filter = ${JSON.stringify(filterParams)};
         (async () => {
@@ -317,41 +314,40 @@ export async function handleListExtensions(args: unknown): Promise<McpToolRespon
         })();
       `;
 
-      const extensions = (await driver.executeAsyncScript(script)) as ExtensionInfo[];
+        const extensions = (await driver.executeAsyncScript(script)) as ExtensionInfo[];
 
-      // Build filter description for output
-      const filterDesc = [
-        ids && ids.length > 0 ? `ids: [${ids.join(', ')}]` : null,
-        name ? `name: "${name}"` : null,
-        typeof isActive === 'boolean' ? `active: ${isActive}` : null,
-        typeof isSystem === 'boolean' ? `system: ${isSystem}` : null,
-      ]
-        .filter(Boolean)
-        .join(', ');
+        // Build filter description for output
+        const filterDesc = [
+          ids && ids.length > 0 ? `ids: [${ids.join(', ')}]` : null,
+          name ? `name: "${name}"` : null,
+          typeof isActive === 'boolean' ? `active: ${isActive}` : null,
+          typeof isSystem === 'boolean' ? `system: ${isSystem}` : null,
+        ]
+          .filter(Boolean)
+          .join(', ');
 
-      return successResponse(formatExtensionList(extensions, filterDesc || undefined));
-    } finally {
-      // Restore previous context (skip if already on the right chrome context)
-      try {
-        if (originalContextId && originalContextId !== chromeContextId) {
-          await driver.setContext('content');
-          await driver.switchTo().window(originalContextId);
+        return successResponse(formatExtensionList(extensions, filterDesc || undefined));
+      } finally {
+        // Restore previous context (skip if already on the right chrome context)
+        try {
+          if (originalContextId && originalContextId !== chromeContextId) {
+            await driver.setContext('content');
+            await driver.switchTo().window(originalContextId);
+          }
+        } catch {
+          // Ignore errors restoring context
         }
-      } catch {
-        // Ignore errors restoring context
       }
-    }
-  } catch (error) {
-    if (error instanceof Error && error.message.includes('UnsupportedOperationError')) {
-      return errorResponse(
-        new Error(
+    } catch (error) {
+      if (error instanceof Error && error.message.includes('UnsupportedOperationError')) {
+        throw new Error(
           'Chrome context access not enabled. Set MOZ_REMOTE_ALLOW_SYSTEM_ACCESS=1 environment variable and restart Firefox.'
-        )
-      );
+        );
+      }
+      throw error;
     }
-    return errorResponse(error as Error);
   }
-}
+);
 
 export const module = defineModule({
   name: 'webextension',

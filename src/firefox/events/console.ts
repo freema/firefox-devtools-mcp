@@ -2,7 +2,7 @@
  * Console event handling with lifecycle hooks
  */
 
-import type { WebDriver } from 'selenium-webdriver';
+import type { BiDiFacade } from '../bidi.js';
 import type { ConsoleMessage } from '../types.js';
 import { logDebug } from '../../utils/logger.js';
 
@@ -21,7 +21,7 @@ export class ConsoleEvents {
   private options: ConsoleEventsOptions;
 
   constructor(
-    private driver: WebDriver,
+    private bidi: BiDiFacade,
     options: ConsoleEventsOptions = {}
   ) {
     this.options = {
@@ -33,56 +33,33 @@ export class ConsoleEvents {
   /**
    * Subscribe to BiDi console events and navigation lifecycle
    */
-  async subscribe(contextId?: string): Promise<void> {
+  async subscribe(): Promise<void> {
     if (this.subscribed) {
       return;
     }
 
-    const bidi = await this.driver.getBidi();
-    await bidi.subscribe('log.entryAdded', contextId ? [contextId] : undefined);
+    await this.bidi.subscribe('log.entryAdded');
 
     // Subscribe to navigation events for lifecycle hooks
-    try {
-      await bidi.subscribe('browsingContext.load', contextId ? [contextId] : undefined);
-      await bidi.subscribe('browsingContext.domContentLoaded', contextId ? [contextId] : undefined);
-    } catch {
-      logDebug(
-        'Navigation events subscription skipped (may not be available in this Firefox version)'
-      );
-    }
+    await this.bidi.subscribe(['browsingContext.load', 'browsingContext.domContentLoaded']);
 
-    const ws: any = bidi.socket;
-    ws.on('message', (data: any) => {
-      try {
-        const payload = JSON.parse(data.toString());
-
-        // Handle console messages
-        if (payload?.method === 'log.entryAdded') {
-          const entry = payload.params;
-          const message: ConsoleMessage = {
-            level: (entry.level as ConsoleMessage['level']) || 'info',
-            text: entry.text || (entry.args ? JSON.stringify(entry.args) : ''),
-            timestamp: entry.timestamp || Date.now(),
-            source: entry.source?.realm,
-            args: entry.args,
-          };
-          this.consoleMessages.push(message);
-          logDebug(`Console [${message.level}]: ${message.text}`);
-        }
-
-        // Handle navigation lifecycle events
-        if (
-          payload?.method === 'browsingContext.load' ||
-          payload?.method === 'browsingContext.domContentLoaded'
-        ) {
-          if (this.options.autoClearOnNavigate) {
-            this.clearMessages();
-          }
-        }
-      } catch {
-        // ignore parse errors
-      }
+    this.bidi.on('log.entryAdded', (entry) => {
+      const message: ConsoleMessage = {
+        level: (entry.level as ConsoleMessage['level']) || 'info',
+        text: entry.text || (entry.args ? JSON.stringify(entry.args) : ''),
+        timestamp: entry.timestamp || Date.now(),
+        source: entry.source?.realm,
+        args: entry.args,
+      };
+      this.consoleMessages.push(message);
+      logDebug(`Console [${message.level}]: ${message.text}`);
     });
+
+    // Handle navigation lifecycle events
+    if (this.options.autoClearOnNavigate) {
+      this.bidi.on('browsingContext.load', () => this.clearMessages());
+      this.bidi.on('browsingContext.domContentLoaded', () => this.clearMessages());
+    }
 
     this.subscribed = true;
     logDebug('Console listener active with lifecycle hooks');

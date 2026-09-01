@@ -7,7 +7,7 @@ import { successResponse, errorResponse, previewExcerpt } from '../utils/respons
 import { validateFunction } from '../utils/js-validation.js';
 import { remoteValueToNative } from '../utils/remote-value.js';
 import { saveOutput } from '../utils/save-output.js';
-import { defineModule } from './module.js';
+import { defineModule, defineToolHandler, type ToolDefinition } from './module.js';
 // list_extensions lives with the other extension tools in webextension.ts, but
 // it needs parent access (AddonManager), so it is registered here under the
 // privileged module rather than the unprivileged webextension module.
@@ -25,7 +25,7 @@ export const listPrivilegedContextsTool = {
     type: 'object',
     properties: {},
   },
-};
+} satisfies ToolDefinition;
 
 export const selectPrivilegedContextTool = {
   name: 'select_privileged_context',
@@ -44,7 +44,7 @@ export const selectPrivilegedContextTool = {
     },
     required: ['contextId'],
   },
-};
+} satisfies ToolDefinition;
 
 export const evaluatePrivilegedScriptTool = {
   name: 'evaluate_privileged_script',
@@ -77,7 +77,7 @@ export const evaluatePrivilegedScriptTool = {
     },
     required: ['function', 'context'],
   },
-};
+} satisfies ToolDefinition;
 
 function formatContextList(contexts: any[]): string {
   if (contexts.length === 0) {
@@ -119,28 +119,30 @@ async function assertPrivilegedContext(firefox: any, contextId: string): Promise
   }
 }
 
-export async function handleListPrivilegedContexts(_args: unknown): Promise<McpToolResponse> {
-  try {
-    const { getFirefox } = await import('../index.js');
-    const firefox = await getFirefox();
+export const handleListPrivilegedContexts = defineToolHandler(
+  async (_args: unknown): Promise<McpToolResponse> => {
+    try {
+      const { getFirefox } = await import('../index.js');
+      const firefox = await getFirefox();
 
-    const result = await firefox.sendBiDiCommand('browsingContext.getTree', {
-      'moz:scope': 'chrome',
-    });
+      const result = await firefox.sendBiDiCommand('browsingContext.getTree', {
+        'moz:scope': 'chrome',
+      });
 
-    const contexts = result.contexts || [];
+      const contexts = result.contexts || [];
 
-    return successResponse(formatContextList(contexts));
-  } catch (error) {
-    if (error instanceof Error && error.message.includes('UnsupportedOperationError')) {
-      return errorResponse(new Error(SYSTEM_ACCESS_ERROR));
+      return successResponse(formatContextList(contexts));
+    } catch (error) {
+      if (error instanceof Error && error.message.includes('UnsupportedOperationError')) {
+        throw new Error(SYSTEM_ACCESS_ERROR);
+      }
+      throw error;
     }
-    return errorResponse(error as Error);
   }
-}
+);
 
-export async function handleSelectPrivilegedContext(args: unknown): Promise<McpToolResponse> {
-  try {
+export const handleSelectPrivilegedContext = defineToolHandler(
+  async (args: unknown): Promise<McpToolResponse> => {
     const { contextId } = args as { contextId: string };
 
     if (!contextId || typeof contextId !== 'string') {
@@ -172,18 +174,16 @@ export async function handleSelectPrivilegedContext(args: unknown): Promise<McpT
     return successResponse(
       `Switched to privileged context: ${contextId} (Marionette context set to privileged)`
     );
-  } catch (error) {
-    return errorResponse(error as Error);
   }
-}
+);
 
 const EvaluateResultType = {
   Exception: 'exception',
   Success: 'success',
 };
 
-export async function handleEvaluatePrivilegedScript(args: unknown): Promise<McpToolResponse> {
-  try {
+export const handleEvaluatePrivilegedScript = defineToolHandler(
+  async (args: unknown): Promise<McpToolResponse> => {
     const {
       function: fnString,
       context,
@@ -248,10 +248,8 @@ export async function handleEvaluatePrivilegedScript(args: unknown): Promise<Mcp
     } else {
       return errorResponse(`Unexpected script.callFunction result type: ${result.type}`);
     }
-  } catch (error) {
-    return errorResponse(error as Error);
   }
-}
+);
 
 export const module = defineModule({
   name: 'privileged',

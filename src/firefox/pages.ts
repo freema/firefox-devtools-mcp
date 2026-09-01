@@ -21,6 +21,20 @@ export function isCommonScheme(url: string): boolean {
 
 export type BiDiCommandFn = (method: string, params: Record<string, any>) => Promise<any>;
 
+/**
+ * WebDriver BiDi browsingContext.ReadinessState.
+ * - "none": return as soon as navigation starts
+ * - "interactive": wait for DOMContentLoaded
+ * - "complete": wait for the load event, including subresources
+ */
+export const READINESS_STATES = ['none', 'interactive', 'complete'] as const;
+
+export type ReadinessState = (typeof READINESS_STATES)[number];
+
+export function isReadinessState(value: unknown): value is ReadinessState {
+  return READINESS_STATES.includes(value as ReadinessState);
+}
+
 export class PageManagement {
   constructor(
     private driver: WebDriver,
@@ -31,16 +45,22 @@ export class PageManagement {
 
   /**
    * Navigate to URL using BiDi
+   *
+   * @param url - Target URL
+   * @param waitOverride - Explicit readiness state to wait for. When omitted,
+   *   common schemes wait for "interactive" and uncommon schemes do not wait.
    */
-  async navigate(url: string): Promise<void> {
+  async navigate(url: string, waitOverride?: ReadinessState): Promise<void> {
     const contextId = this.getCurrentContextId();
     if (!contextId) {
       throw new Error(`Cannot navigate: no browsing context ID`);
     }
 
     // Default wait time is "interactive" (DOMContentLoaded).
-    // All uncommon schemes use wait time "none"
-    const wait = isCommonScheme(url) ? 'interactive' : 'none';
+    // All uncommon schemes use wait time "none".
+    // An explicit override is honoured for every scheme: silently downgrading it
+    // would discard what the caller asked for with no way to tell.
+    const wait: ReadinessState = waitOverride ?? (isCommonScheme(url) ? 'interactive' : 'none');
 
     // Navigate using direct BiDi
     await this.sendBiDiCommand('browsingContext.navigate', {
@@ -186,13 +206,13 @@ export class PageManagement {
   /**
    * Create new page (tab)
    */
-  async createNewPage(url: string): Promise<number> {
+  async createNewPage(url: string, waitOverride?: ReadinessState): Promise<number> {
     await this.driver.switchTo().newWindow('tab');
     const handles = await this.driver.getAllWindowHandles();
     const newIdx = handles.length - 1;
     this.setCurrentContextId(handles[newIdx]!);
     this.cachedSelectedIdx = newIdx;
-    await this.navigate(url);
+    await this.navigate(url, waitOverride);
     return newIdx;
   }
 

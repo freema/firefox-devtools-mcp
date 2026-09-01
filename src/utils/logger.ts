@@ -1,4 +1,5 @@
 import fs from 'node:fs';
+import path from 'node:path';
 
 let logStream: fs.WriteStream | null = null;
 
@@ -74,6 +75,9 @@ export function logError(message: string, error?: unknown): void {
 }
 
 export function setupLogFile(filePath: string): void {
+  // Create the parent directory first; otherwise a missing one only surfaces as
+  // a stream error and logging is silently disabled.
+  fs.mkdirSync(path.dirname(filePath), { recursive: true });
   logStream = fs.createWriteStream(filePath, { flags: 'a' });
   logStream.on('error', (error) => {
     console.error(`[firefox-devtools-mcp] Error writing to log file: ${error.message}`);

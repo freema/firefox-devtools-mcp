@@ -14,7 +14,7 @@ import {
   TOKEN_LIMITS,
 } from '../utils/response-helpers.js';
 import { saveOutput } from '../utils/save-output.js';
-import { defineModule } from './module.js';
+import { defineModule, defineToolHandler, type ToolDefinition } from './module.js';
 import type { McpToolResponse } from '../types/common.js';
 import type { NetworkBodyResult } from '../firefox/events/network.js';
 
@@ -27,7 +27,7 @@ export const listNetworkRequestsTool = {
     readOnlyHint: true,
   },
   inputSchema: {
-    type: 'object' as const,
+    type: 'object',
     properties: {
       limit: {
         type: 'number',
@@ -92,7 +92,7 @@ export const listNetworkRequestsTool = {
       },
     },
   },
-};
+} satisfies ToolDefinition;
 
 export const getNetworkRequestTool = {
   name: 'get_network_request',
@@ -102,7 +102,7 @@ export const getNetworkRequestTool = {
     readOnlyHint: true,
   },
   inputSchema: {
-    type: 'object' as const,
+    type: 'object',
     properties: {
       id: {
         type: 'string',
@@ -129,7 +129,7 @@ export const getNetworkRequestTool = {
       },
     },
   },
-};
+} satisfies ToolDefinition;
 
 /**
  * Fetch a body without letting a missing facade method or transport error fail
@@ -204,8 +204,8 @@ function renderBodyForFile(result: NetworkBodyResult): {
 }
 
 // Tool handlers
-export async function handleListNetworkRequests(args: unknown): Promise<McpToolResponse> {
-  try {
+export const handleListNetworkRequests = defineToolHandler(
+  async (args: unknown): Promise<McpToolResponse> => {
     const {
       limit,
       sinceMs,
@@ -448,13 +448,11 @@ export async function handleListNetworkRequests(args: unknown): Promise<McpToolR
           moreFooter
       );
     }
-  } catch (error) {
-    return errorResponse(error instanceof Error ? error : new Error(String(error)));
   }
-}
+);
 
-export async function handleGetNetworkRequest(args: unknown): Promise<McpToolResponse> {
-  try {
+export const handleGetNetworkRequest = defineToolHandler(
+  async (args: unknown): Promise<McpToolResponse> => {
     const { id, url, format, saveTo, preview } = args as {
       id?: string;
       url?: string;
@@ -575,10 +573,8 @@ export async function handleGetNetworkRequest(args: unknown): Promise<McpToolRes
     }
 
     return successResponse(JSON.stringify(details, null, 2));
-  } catch (error) {
-    return errorResponse(error instanceof Error ? error : new Error(String(error)));
   }
-}
+);
 
 export const module = defineModule({
   name: 'network',

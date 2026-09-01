@@ -7,6 +7,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.10.1] - 2026-08-21
+
+### Added
+- `web-performance` plugin skill to capture a Firefox performance profile, analyze it with `profiler-cli`, trace findings to the user's source, and verify fixes by re-profiling
+- The server now advertises instructions in the initialize response, describing its capabilities and the enabled tool modules
+
+## [0.10.0] - 2026-08-18
+
+### Added
+- `get_page_text` tool returning the text content of a page
+- `get_network_request` now returns the response body, and the request body when present; large text bodies are truncated inline, binary bodies are summarized, and `saveTo` still writes the full body
+- `sandbox` option on `evaluate_script` to evaluate in an isolated sandbox realm which shares the page DOM but keeps the native built-ins
+- `--disable-network-body-collection` option to skip capturing request and response bodies, reducing browser memory and stream-cloning overhead
+- `--lookup-marionette-port` option to discover the Marionette port opened by Firefox's AI assistant companion instead of relying on `--marionette-port`
+
+### Changed
+- Connecting to Firefox for Android now requires `--android-wipe-app-data`, confirming that the data of the target app is wiped (tabs, history, bookmarks, passwords, settings)
+- `evaluate_privileged_script` now targets an explicit privileged context instead of an implicit one
+- Element lookups from snapshots now resolve through a uid registry instead of generated selectors, making them more reliable
+
+### Fixed
+- `list_pages` now includes the URL of each page
+- The server no longer advertises the `resources` capability it does not implement; resource requests now fail with "Method not found" instead of an internal error
+- Snapshot attributes are no longer truncated when saving a snapshot to a file
+- Clearer truncation messages and tool descriptions
+
+### Docs
+- README and SECURITY now describe the tool presets, modules and risky flags that the tool registry actually implements
+- Updated installation instructions for CLIs
+- `evaluate_script` description steers toward targeted reads
+
 ## [0.9.15] - 2026-07-28
 
 ### Added

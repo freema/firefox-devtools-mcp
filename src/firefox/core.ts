@@ -15,7 +15,7 @@ import {
 } from 'node:fs';
 import { connect as netConnect } from 'node:net';
 import { homedir } from 'node:os';
-import { join, delimiter } from 'node:path';
+import { dirname, join, delimiter } from 'node:path';
 import type { FirefoxLaunchOptions } from './types.js';
 import { log, logDebug } from '../utils/logger.js';
 import { resolveProfilePath } from './profile.js';
@@ -166,9 +166,25 @@ export class FirefoxCore {
    */
   async connect(): Promise<void> {
     const isAndroid = this.options.androidDevice !== undefined;
+    const androidPackage = this.options.androidPackage ?? 'org.mozilla.firefox';
+
+    if (isAndroid && !this.options.androidWipeAppData) {
+      // geckodriver runs "adb shell pm clear <package>" before every Android session
+      // (AndroidHandler::prepare) and offers no way to opt out, so launching wipes the
+      // data of the target app instead of only using its own temporary profile.
+      // Bug 2064088 tracks adding an opt-out to geckodriver.
+      throw new Error(
+        `Firefox for Android mode wipes all data of ${androidPackage} ` +
+          'on the device: tabs, history, bookmarks, passwords, cookies and settings are all lost, ' +
+          'because geckodriver clears the app data before every session and cannot be configured to skip it. ' +
+          'Pass --android-wipe-app-data (or ANDROID_WIPE_APP_DATA=true) to confirm. ' +
+          'Prefer a build dedicated to automation, for instance --android-package org.mozilla.fenix for Nightly.'
+      );
+    }
 
     if (isAndroid) {
       log('Launching Firefox for Android via ADB...');
+      log(`Wiping all data of ${androidPackage} on the device`);
     } else if (this.options.connectExisting) {
       log('Connecting to existing Firefox via Marionette...');
     } else {
@@ -182,8 +198,7 @@ export class FirefoxCore {
       const geckodriverPath = await findGeckodriver();
       logDebug(`Using geckodriver: ${geckodriverPath}`);
 
-      const pkg = this.options.androidPackage ?? 'org.mozilla.firefox';
-      const mozOptions: Record<string, unknown> = { androidPackage: pkg };
+      const mozOptions: Record<string, unknown> = { androidPackage };
       const deviceSerial = this.options.androidDevice;
       if (deviceSerial && deviceSerial !== 'auto') {
         mozOptions.androidDeviceSerial = deviceSerial;
@@ -334,20 +349,17 @@ export class FirefoxCore {
         }
       }
 
-      let serviceBuilder;
-      if (process.platform === 'win32') {
-        // On windows, firefox.ServiceBuilder() invoked from the MCP will hang.
-        // geckodriver has to be in the PATH. See Bug 2040849.
-        const geckodriverPath = await findGeckodriver();
-        logDebug(`Using geckodriver: ${geckodriverPath}`);
-        serviceBuilder = new firefox.ServiceBuilder(geckodriverPath);
-      } else {
-        // On other platforms, the default ServiceBuilder should locate and
-        // start geckodriver successfully.
-        serviceBuilder = new firefox.ServiceBuilder();
-      }
+      // Always resolve geckodriver ourselves rather than relying on selenium
+      // entirely. See Bug 2062055, 2040849.
+      const geckodriverPath = await findGeckodriver();
+      logDebug(`Using geckodriver: ${geckodriverPath}`);
+      const serviceBuilder = new firefox.ServiceBuilder(geckodriverPath);
 
       if (this.logFilePath) {
+        // Create the parent directory, as the generated-path branch above does.
+        // Without it a caller-supplied path whose directory is missing throws
+        // ENOENT from deep inside connect().
+        mkdirSync(dirname(this.logFilePath), { recursive: true });
         // Open file for appending, create if doesn't exist
         this.logFileFd = openSync(this.logFilePath, 'a');
         serviceBuilder.setStdio(['ignore', this.logFileFd, this.logFileFd]);
@@ -496,87 +508,6 @@ export class FirefoxCore {
    */
   getOptions(): FirefoxLaunchOptions {
     return this.options;
-  }
-
-  /**
-   * Wait for WebSocket to be in OPEN state
-   */
-  private async waitForWebSocketOpen(ws: any, timeout: number = 5000): Promise<void> {
-    // Already open
-    if (ws.readyState === 1) {
-      return;
-    }
-
-    // Still connecting - wait for open event with timeout
-    if (ws.readyState === 0) {
-      return new Promise<void>((resolve, reject) => {
-        const timeoutId = setTimeout(() => {
-          ws.off('open', onOpen);
-          reject(new Error('Timeout waiting for WebSocket to open'));
-        }, timeout);
-
-        const onOpen = () => {
-          clearTimeout(timeoutId);
-          ws.off('open', onOpen);
-          resolve();
-        };
-        ws.on('open', onOpen);
-      });
-    }
-
-    throw new Error(`WebSocket is not open: readyState ${ws.readyState}`);
-  }
-
-  /**
-   * Send raw BiDi command and get response
-   */
-  async sendBiDiCommand(method: string, params: Record<string, any> = {}): Promise<any> {
-    if (!this.driver) {
-      throw new Error('Driver not connected');
-    }
-
-    const bidi = await this.driver.getBidi();
-    // bidi.socket is a Node.js `ws` WebSocket (EventEmitter-style), but typed as browser WebSocket
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const ws = bidi.socket as any;
-
-    // Wait for WebSocket to be ready before sending
-    await this.waitForWebSocketOpen(ws);
-
-    const id = Math.floor(Math.random() * 1000000);
-
-    return new Promise((resolve, reject) => {
-      const messageHandler = (data: any) => {
-        try {
-          const payload = JSON.parse(data.toString());
-          if (payload.id === id) {
-            ws.off('message', messageHandler);
-            if (payload.error) {
-              reject(new Error(`BiDi error: ${JSON.stringify(payload.error)}`));
-            } else {
-              resolve(payload.result);
-            }
-          }
-        } catch {
-          // ignore parse errors
-        }
-      };
-
-      ws.on('message', messageHandler);
-
-      const command = {
-        id,
-        method,
-        params,
-      };
-
-      ws.send(JSON.stringify(command));
-
-      setTimeout(() => {
-        ws.off('message', messageHandler);
-        reject(new Error(`BiDi command timeout: ${method}`));
-      }, 10000);
-    });
   }
 
   /**

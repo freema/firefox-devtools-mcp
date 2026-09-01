@@ -4,10 +4,11 @@
  * Reads the module catalog (index.ts) and turns CLI configuration into the set
  * of tools to expose: buildToolset resolves which modules are enabled (applying
  * presets, deprecated flags, and the privileged gate) and builds the tool
- * definition list + name->handler map for them.
+ * definition list + name->handler map + server instructions for them.
  */
 
 import { MODULES, MODULE_NAMES, PRESETS, DEFAULT_PRESET } from './index.js';
+import { buildInstructions } from './instructions.js';
 import type { ToolDefinition, ToolHandler } from './module.js';
 
 export interface ToolsetOptions {
@@ -23,6 +24,7 @@ export interface Toolset {
   warnings: string[];
   toolDefinitions: ToolDefinition[];
   handlers: Map<string, ToolHandler>;
+  instructions: string;
 }
 
 const privilegedModuleNames = new Set(MODULES.filter((m) => m.privileged).map((m) => m.name));
@@ -37,7 +39,8 @@ const privilegedModuleNames = new Set(MODULES.filter((m) => m.privileged).map((m
 export function buildToolset(options: ToolsetOptions): Toolset {
   const { moduleNames, warnings } = selectModules(options);
   const { toolDefinitions, handlers } = collectTools(moduleNames);
-  return { moduleNames, warnings, toolDefinitions, handlers };
+  const instructions = buildInstructions(moduleNames, new Set(handlers.keys()));
+  return { moduleNames, warnings, toolDefinitions, handlers, instructions };
 }
 
 /**

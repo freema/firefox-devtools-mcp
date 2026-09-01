@@ -52,6 +52,10 @@
   },
   "overrides": [
     {
+      "files": ["*.config.ts", "*.config.*.ts"],
+      "extends": ["plugin:@typescript-eslint/disable-type-checked"]
+    },
+    {
       "files": ["tests/**/*.ts"],
       "parserOptions": {
         "project": "./tests/tsconfig.json"

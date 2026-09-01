@@ -18,7 +18,7 @@ vi.mock('node:os', async (importOriginal) => {
 const mockArgs = vi.hoisted(() => ({ unrestrictedSavePaths: false }));
 vi.mock('../../src/index.js', () => ({ args: mockArgs }));
 
-import { saveOutput } from '../../src/utils/save-output.js';
+import { saveOutput, isWithinRoot } from '../../src/utils/save-output.js';
 
 describe('saveOutput', () => {
   const tempDir = join(tmpdir(), `save-output-test-${process.pid}`);
@@ -133,5 +133,42 @@ describe('saveOutput', () => {
       expect(saved.path).toContain('snapshot-');
       expect(saved.path.endsWith('.txt')).toBe(true);
     });
+  });
+});
+
+describe('isWithinRoot', () => {
+  const originalPlatform = process.platform;
+  const root = join('C:', 'Users', 'me', '.firefox-devtools-mcp');
+
+  const setPlatform = (platform: NodeJS.Platform) =>
+    Object.defineProperty(process, 'platform', { value: platform, configurable: true });
+
+  afterEach(() => setPlatform(originalPlatform));
+
+  it('accepts the root itself and paths inside it', () => {
+    expect(isWithinRoot(root, root)).toBe(true);
+    expect(isWithinRoot(root, join(root, 'out.json'))).toBe(true);
+    expect(isWithinRoot(root, join(root, 'nested', 'out.json'))).toBe(true);
+  });
+
+  it('rejects paths outside the root, including prefix look-alikes', () => {
+    expect(isWithinRoot(root, join('C:', 'Users', 'me', 'secrets', 'out.json'))).toBe(false);
+    expect(isWithinRoot(root, `${root}-evil`)).toBe(false);
+  });
+
+  it('ignores case on Windows, where the filesystem does too', () => {
+    setPlatform('win32');
+    expect(isWithinRoot(root, join(root.toLowerCase(), 'out.json'))).toBe(true);
+    expect(isWithinRoot(root, join(root.toUpperCase(), 'out.json'))).toBe(true);
+  });
+
+  it('still rejects an escape when case is ignored', () => {
+    setPlatform('win32');
+    expect(isWithinRoot(root, join('c:', 'users', 'me', 'secrets', 'out.json'))).toBe(false);
+  });
+
+  it('matches case exactly off Windows', () => {
+    setPlatform('linux');
+    expect(isWithinRoot(root, join(root.toLowerCase(), 'out.json'))).toBe(false);
   });
 });

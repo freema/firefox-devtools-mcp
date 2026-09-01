@@ -1,46 +1,37 @@
+import EventEmitter from 'node:events';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { DownloadEvents } from '../../../src/firefox/events/downloads.js';
+import type { BiDiFacade } from '../../../src/firefox/bidi.js';
 
 // BiDi timestamps are epoch millis; anchor to now so the TTL cleanup keeps them.
 const NOW = Date.now();
 
-function makeMockDriver() {
-  const handlers: Record<string, ((data: string) => void)[]> = {};
-  const mockWs = {
-    on: vi.fn((event: string, fn: (data: string) => void) => {
-      (handlers[event] ??= []).push(fn);
-    }),
-  };
-  const mockBidi = {
+function makeMockBiDi() {
+  return Object.assign(new EventEmitter(), {
     subscribe: vi.fn().mockResolvedValue(undefined),
-    socket: mockWs,
-  };
-  return {
-    driver: { getBidi: vi.fn().mockResolvedValue(mockBidi) } as any,
-    mockBidi,
-    mockWs,
-    emit: (payload: unknown) => handlers['message']?.forEach((h) => h(JSON.stringify(payload))),
-  };
+    sendCommand: vi.fn().mockResolvedValue(undefined),
+  });
 }
 
 describe('DownloadEvents', () => {
-  let mock: ReturnType<typeof makeMockDriver>;
+  let mockBiDi: ReturnType<typeof makeMockBiDi>;
   let events: DownloadEvents;
 
   beforeEach(() => {
-    mock = makeMockDriver();
-    events = new DownloadEvents(mock.driver);
+    mockBiDi = makeMockBiDi();
+    events = new DownloadEvents(mockBiDi as unknown as BiDiFacade);
   });
 
-  it('subscribe called twice only attaches one WebSocket listener', async () => {
+  it('subscribe called twice only attaches one listener per event', async () => {
     await events.subscribe();
     await events.subscribe();
-    expect(mock.mockWs.on).toHaveBeenCalledTimes(1);
-    expect(mock.mockBidi.subscribe).toHaveBeenCalledTimes(2);
+    expect(mockBiDi.listenerCount('browsingContext.downloadWillBegin')).toBe(1);
+    expect(mockBiDi.listenerCount('browsingContext.downloadEnd')).toBe(1);
+    expect(mockBiDi.subscribe).toHaveBeenCalledTimes(1);
   });
 
   it('subscribe propagates when bidi.subscribe rejects', async () => {
-    mock.mockBidi.subscribe.mockRejectedValue(new Error('unsupported event'));
+    mockBiDi.subscribe.mockRejectedValue(new Error('unsupported event'));
     await expect(events.subscribe()).rejects.toThrow('unsupported event');
   });
 
@@ -50,16 +41,13 @@ describe('DownloadEvents', () => {
     });
 
     it('records an in-progress download on downloadWillBegin', () => {
-      mock.emit({
-        method: 'browsingContext.downloadWillBegin',
-        params: {
-          download: 'dl-1',
-          context: 'ctx-1',
-          navigation: 'nav-1',
-          url: 'https://example.com/file.zip',
-          suggestedFilename: 'file.zip',
-          timestamp: NOW,
-        },
+      mockBiDi.emit('browsingContext.downloadWillBegin', {
+        download: 'dl-1',
+        context: 'ctx-1',
+        navigation: 'nav-1',
+        url: 'https://example.com/file.zip',
+        suggestedFilename: 'file.zip',
+        timestamp: NOW,
       });
 
       const downloads = events.getDownloads();
@@ -73,25 +61,19 @@ describe('DownloadEvents', () => {
     });
 
     it('correlates downloadEnd with willBegin via the download id', () => {
-      mock.emit({
-        method: 'browsingContext.downloadWillBegin',
-        params: {
-          download: 'dl-1',
-          context: 'ctx-1',
-          url: 'https://example.com/file.zip',
-          suggestedFilename: 'file.zip',
-          timestamp: NOW,
-        },
+      mockBiDi.emit('browsingContext.downloadWillBegin', {
+        download: 'dl-1',
+        context: 'ctx-1',
+        url: 'https://example.com/file.zip',
+        suggestedFilename: 'file.zip',
+        timestamp: NOW,
       });
-      mock.emit({
-        method: 'browsingContext.downloadEnd',
-        params: {
-          download: 'dl-1',
-          context: 'ctx-1',
-          status: 'complete',
-          filepath: '/tmp/file.zip',
-          timestamp: NOW + 500,
-        },
+      mockBiDi.emit('browsingContext.downloadEnd', {
+        download: 'dl-1',
+        context: 'ctx-1',
+        status: 'complete',
+        filepath: '/tmp/file.zip',
+        timestamp: NOW + 500,
       });
 
       const downloads = events.getDownloads();
@@ -105,25 +87,19 @@ describe('DownloadEvents', () => {
     });
 
     it('correlates via navigation id when no download id is present', () => {
-      mock.emit({
-        method: 'browsingContext.downloadWillBegin',
-        params: {
-          navigation: 'nav-1',
-          context: 'ctx-1',
-          url: 'https://example.com/file.zip',
-          suggestedFilename: 'file.zip',
-          timestamp: NOW,
-        },
+      mockBiDi.emit('browsingContext.downloadWillBegin', {
+        navigation: 'nav-1',
+        context: 'ctx-1',
+        url: 'https://example.com/file.zip',
+        suggestedFilename: 'file.zip',
+        timestamp: NOW,
       });
-      mock.emit({
-        method: 'browsingContext.downloadEnd',
-        params: {
-          navigation: 'nav-1',
-          context: 'ctx-1',
-          status: 'complete',
-          filepath: '/tmp/file.zip',
-          timestamp: NOW + 1000,
-        },
+      mockBiDi.emit('browsingContext.downloadEnd', {
+        navigation: 'nav-1',
+        context: 'ctx-1',
+        status: 'complete',
+        filepath: '/tmp/file.zip',
+        timestamp: NOW + 1000,
       });
 
       const downloads = events.getDownloads();
@@ -132,23 +108,17 @@ describe('DownloadEvents', () => {
     });
 
     it('falls back to a synthetic key when download and navigation ids are absent', () => {
-      mock.emit({
-        method: 'browsingContext.downloadWillBegin',
-        params: {
-          context: 'ctx-1',
-          url: 'https://example.com/file.zip',
-          suggestedFilename: 'file.zip',
-          timestamp: NOW,
-        },
+      mockBiDi.emit('browsingContext.downloadWillBegin', {
+        context: 'ctx-1',
+        url: 'https://example.com/file.zip',
+        suggestedFilename: 'file.zip',
+        timestamp: NOW,
       });
-      mock.emit({
-        method: 'browsingContext.downloadEnd',
-        params: {
-          context: 'ctx-1',
-          status: 'complete',
-          filepath: '/tmp/file.zip',
-          timestamp: NOW + 200,
-        },
+      mockBiDi.emit('browsingContext.downloadEnd', {
+        context: 'ctx-1',
+        status: 'complete',
+        filepath: '/tmp/file.zip',
+        timestamp: NOW + 200,
       });
 
       const downloads = events.getDownloads();
@@ -160,15 +130,12 @@ describe('DownloadEvents', () => {
     });
 
     it('records a downloadEnd that arrives without a preceding willBegin', () => {
-      mock.emit({
-        method: 'browsingContext.downloadEnd',
-        params: {
-          download: 'dl-orphan',
-          context: 'ctx-1',
-          status: 'complete',
-          filepath: '/tmp/orphan.zip',
-          timestamp: NOW,
-        },
+      mockBiDi.emit('browsingContext.downloadEnd', {
+        download: 'dl-orphan',
+        context: 'ctx-1',
+        status: 'complete',
+        filepath: '/tmp/orphan.zip',
+        timestamp: NOW,
       });
 
       const downloads = events.getDownloads();
@@ -182,33 +149,34 @@ describe('DownloadEvents', () => {
     });
 
     it('does not set filepath on a canceled download', () => {
-      mock.emit({
-        method: 'browsingContext.downloadWillBegin',
-        params: {
-          download: 'dl-1',
-          context: 'ctx-1',
-          url: 'https://example.com/f',
-          timestamp: NOW,
-        },
+      mockBiDi.emit('browsingContext.downloadWillBegin', {
+        download: 'dl-1',
+        context: 'ctx-1',
+        url: 'https://example.com/f',
+        timestamp: NOW,
       });
-      mock.emit({
-        method: 'browsingContext.downloadEnd',
-        params: { download: 'dl-1', context: 'ctx-1', status: 'canceled', timestamp: NOW + 10 },
+      mockBiDi.emit('browsingContext.downloadEnd', {
+        download: 'dl-1',
+        context: 'ctx-1',
+        status: 'canceled',
+        timestamp: NOW + 10,
       });
 
       expect(events.getDownloads()[0].filepath).toBeUndefined();
     });
 
-    it('ignores unrelated messages and malformed payloads', () => {
-      mock.emit({ method: 'browsingContext.load', params: { context: 'ctx-1' } });
-      handlersEmitRaw(mock, 'not json');
+    it('ignores events it did not subscribe to', () => {
+      mockBiDi.emit('browsingContext.load', { context: 'ctx-1' });
+      mockBiDi.emit('network.beforeRequestSent', { context: 'ctx-1' });
       expect(events.getDownloads()).toHaveLength(0);
     });
 
     it('clearDownloads empties the buffer', () => {
-      mock.emit({
-        method: 'browsingContext.downloadWillBegin',
-        params: { download: 'dl-1', context: 'ctx-1', url: 'u', timestamp: NOW },
+      mockBiDi.emit('browsingContext.downloadWillBegin', {
+        download: 'dl-1',
+        context: 'ctx-1',
+        url: 'u',
+        timestamp: NOW,
       });
       expect(events.getDownloads()).toHaveLength(1);
       events.clearDownloads();
@@ -216,13 +184,16 @@ describe('DownloadEvents', () => {
     });
 
     it('drops downloads older than the TTL on read', () => {
-      mock.emit({
-        method: 'browsingContext.downloadWillBegin',
-        params: { download: 'old', context: 'ctx-1', url: 'u', timestamp: 1 },
+      mockBiDi.emit('browsingContext.downloadWillBegin', {
+        download: 'old',
+        context: 'ctx-1',
+        url: 'u',
+        timestamp: 1,
       });
-      mock.emit({
-        method: 'browsingContext.downloadWillBegin',
-        params: { download: 'fresh', context: 'ctx-1', url: 'u' },
+      mockBiDi.emit('browsingContext.downloadWillBegin', {
+        download: 'fresh',
+        context: 'ctx-1',
+        url: 'u',
       });
 
       const downloads = events.getDownloads();
@@ -232,9 +203,10 @@ describe('DownloadEvents', () => {
 
     it('caps the buffer at MAX_DOWNLOADS, evicting the oldest first', () => {
       for (let i = 0; i < 501; i++) {
-        mock.emit({
-          method: 'browsingContext.downloadWillBegin',
-          params: { download: `dl-${i}`, context: 'ctx-1', url: 'u' },
+        mockBiDi.emit('browsingContext.downloadWillBegin', {
+          download: `dl-${i}`,
+          context: 'ctx-1',
+          url: 'u',
         });
       }
 
@@ -245,9 +217,3 @@ describe('DownloadEvents', () => {
     });
   });
 });
-
-function handlersEmitRaw(mock: ReturnType<typeof makeMockDriver>, raw: string) {
-  const ws = mock.mockWs as any;
-  const call = ws.on.mock.calls.find((c: any[]) => c[0] === 'message');
-  call?.[1]?.(raw);
-}

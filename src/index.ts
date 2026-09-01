@@ -130,6 +130,7 @@ export async function getFirefox(): Promise<FirefoxDevTools> {
       prefs,
       androidDevice: args.androidDevice ?? undefined,
       androidPackage: args.androidPackage ?? undefined,
+      androidWipeAppData: args.androidWipeAppData,
       captureNetworkBodies: !args.disableNetworkBodyCollection,
     };
   }
@@ -189,6 +190,7 @@ export async function run(
     warnings,
     toolDefinitions: allTools,
     handlers: toolHandlers,
+    instructions,
   } = buildToolset({
     tools: args.tools,
     preset: args.toolPreset,
@@ -223,6 +225,7 @@ export async function run(
       capabilities: {
         tools: {},
       },
+      instructions,
     }
   );
 

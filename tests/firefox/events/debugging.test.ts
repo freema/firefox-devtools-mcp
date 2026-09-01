@@ -1,46 +1,36 @@
+import EventEmitter from 'node:events';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { DebuggingEvents } from '../../../src/firefox/events/debugging.js';
+import type { BiDiFacade } from '../../../src/firefox/bidi.js';
 
-function makeMockDriver() {
-  const handlers: Record<string, ((data: string) => void)[]> = {};
-  const mockWs = {
-    on: vi.fn((event: string, fn: (data: string) => void) => {
-      (handlers[event] ??= []).push(fn);
-    }),
-  };
-  const mockBidi = {
+function makeMockBiDi() {
+  return Object.assign(new EventEmitter(), {
     subscribe: vi.fn().mockResolvedValue(undefined),
-    socket: mockWs,
-  };
-  return {
-    driver: { getBidi: vi.fn().mockResolvedValue(mockBidi) } as any,
-    mockBidi,
-    mockWs,
-    emit: (payload: unknown) => handlers['message']?.forEach((h) => h(JSON.stringify(payload))),
-  };
+    sendCommand: vi
+      .fn()
+      .mockResolvedValue({ type: 'success', result: { type: 'string', value: 'ok' } }),
+  });
 }
 
 describe('DebuggingEvents', () => {
-  let mock: ReturnType<typeof makeMockDriver>;
-  let sendBiDiCommand: ReturnType<typeof vi.fn>;
+  let mockBiDi: ReturnType<typeof makeMockBiDi>;
   let events: DebuggingEvents;
 
   beforeEach(() => {
-    mock = makeMockDriver();
-    sendBiDiCommand = vi
-      .fn()
-      .mockResolvedValue({ type: 'success', result: { type: 'string', value: 'ok' } });
-    events = new DebuggingEvents(mock.driver, sendBiDiCommand as any);
+    mockBiDi = makeMockBiDi();
+    events = new DebuggingEvents(mockBiDi as unknown as BiDiFacade);
   });
 
-  it('subscribe called twice only attaches one WebSocket listener', async () => {
+  it('subscribe called twice only attaches one listener per event', async () => {
     await events.subscribe();
     await events.subscribe();
-    expect(mock.mockWs.on).toHaveBeenCalledTimes(1);
+    expect(mockBiDi.listenerCount('moz:debugging.paused')).toBe(1);
+    expect(mockBiDi.listenerCount('moz:debugging.resumed')).toBe(1);
+    expect(mockBiDi.subscribe).toHaveBeenCalledTimes(1);
   });
 
   it('subscribe does not throw when bidi.subscribe rejects', async () => {
-    mock.mockBidi.subscribe.mockRejectedValue(new Error('unsupported event'));
+    mockBiDi.subscribe.mockRejectedValue(new Error('unsupported event'));
     await expect(events.subscribe()).resolves.not.toThrow();
   });
 
@@ -70,19 +60,24 @@ describe('DebuggingEvents', () => {
 
     it('pause at logpoint location evaluates expression and resumes', async () => {
       events.addLogpoint(LOGPOINT_ID, URL, LINE, 'x + 1');
-      mock.emit({
-        method: 'moz:debugging.paused',
-        params: { context: 'ctx-1', url: URL, line: LINE, column: 0, callFrames: [] },
+      mockBiDi.emit('moz:debugging.paused', {
+        context: 'ctx-1',
+        url: URL,
+        line: LINE,
+        column: 0,
+        callFrames: [],
       });
 
       await vi.waitFor(() =>
-        expect(sendBiDiCommand).toHaveBeenCalledWith(
+        expect(mockBiDi.sendCommand).toHaveBeenCalledWith(
           'script.evaluate',
           expect.objectContaining({ expression: 'x + 1' })
         )
       );
       await vi.waitFor(() =>
-        expect(sendBiDiCommand).toHaveBeenCalledWith('moz:debugging.resume', { context: 'ctx-1' })
+        expect(mockBiDi.sendCommand).toHaveBeenCalledWith('moz:debugging.resume', {
+          context: 'ctx-1',
+        })
       );
 
       const results = events.getLogpointResults(LOGPOINT_ID)!;
@@ -91,14 +86,17 @@ describe('DebuggingEvents', () => {
     });
 
     it('stores error result when expression evaluation throws', async () => {
-      sendBiDiCommand.mockResolvedValueOnce({
+      mockBiDi.sendCommand.mockResolvedValueOnce({
         type: 'exception',
         exceptionDetails: { text: 'ReferenceError: x is not defined' },
       });
       events.addLogpoint(LOGPOINT_ID, URL, LINE, 'x');
-      mock.emit({
-        method: 'moz:debugging.paused',
-        params: { context: 'ctx-1', url: URL, line: LINE, column: 0, callFrames: [] },
+      mockBiDi.emit('moz:debugging.paused', {
+        context: 'ctx-1',
+        url: URL,
+        line: LINE,
+        column: 0,
+        callFrames: [],
       });
 
       await vi.waitFor(() => {
@@ -114,9 +112,12 @@ describe('DebuggingEvents', () => {
       events.addLogpoint(LOGPOINT_ID, URL, LINE, 'x');
 
       for (let i = 0; i < 105; i++) {
-        mock.emit({
-          method: 'moz:debugging.paused',
-          params: { context: 'ctx-1', url: URL, line: LINE, column: 0, callFrames: [] },
+        mockBiDi.emit('moz:debugging.paused', {
+          context: 'ctx-1',
+          url: URL,
+          line: LINE,
+          column: 0,
+          callFrames: [],
         });
       }
 
@@ -130,13 +131,16 @@ describe('DebuggingEvents', () => {
 
     it('pause at non-logpoint location does not evaluate expression', async () => {
       events.addLogpoint(LOGPOINT_ID, URL, LINE, 'x');
-      mock.emit({
-        method: 'moz:debugging.paused',
-        params: { context: 'ctx-1', url: URL, line: 99, column: 0, callFrames: [] },
+      mockBiDi.emit('moz:debugging.paused', {
+        context: 'ctx-1',
+        url: URL,
+        line: 99,
+        column: 0,
+        callFrames: [],
       });
 
       await new Promise((r) => setTimeout(r, 20));
-      expect(sendBiDiCommand).not.toHaveBeenCalled();
+      expect(mockBiDi.sendCommand).not.toHaveBeenCalled();
     });
   });
 });

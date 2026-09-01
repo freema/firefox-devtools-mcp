@@ -7,7 +7,12 @@
  */
 
 import { describe, it, expect, vi } from 'vitest';
-import { isCommonScheme, PageManagement } from '@/firefox/pages.js';
+import {
+  isCommonScheme,
+  isReadinessState,
+  PageManagement,
+  READINESS_STATES,
+} from '@/firefox/pages.js';
 
 const HTTPS_URL = 'https://example.com/test.html';
 const HTTP_URL = 'http://example.com/test.html';
@@ -35,6 +40,22 @@ describe('isCommonScheme', () => {
 
   it('returns false for malformed URLs', () => {
     expect(isCommonScheme('not-a-url')).toBe(false);
+  });
+});
+
+describe('isReadinessState', () => {
+  it('accepts the three BiDi readiness states', () => {
+    expect(READINESS_STATES).toEqual(['none', 'interactive', 'complete']);
+    for (const state of READINESS_STATES) {
+      expect(isReadinessState(state)).toBe(true);
+    }
+  });
+
+  it('rejects anything else, including the DOM event name "load"', () => {
+    expect(isReadinessState('load')).toBe(false);
+    expect(isReadinessState('COMPLETE')).toBe(false);
+    expect(isReadinessState(undefined)).toBe(false);
+    expect(isReadinessState(true)).toBe(false);
   });
 });
 
@@ -128,6 +149,57 @@ describe('PageManagement', () => {
         wait: 'none',
       });
     });
+
+    it('honours an explicit wait for common schemes', async () => {
+      const { pages, sendBiDiCommand } = createMocks();
+
+      await pages.navigate(HTTPS_URL, 'complete');
+      expect(sendBiDiCommand).toHaveBeenCalledWith('browsingContext.navigate', {
+        context: 'ctx-1',
+        url: HTTPS_URL,
+        wait: 'complete',
+      });
+    });
+
+    it('honours an explicit wait for uncommon schemes rather than downgrading it', async () => {
+      const { pages, sendBiDiCommand } = createMocks();
+
+      await pages.navigate(MOZ_EXT_URL, 'complete');
+      expect(sendBiDiCommand).toHaveBeenCalledWith('browsingContext.navigate', {
+        context: 'ctx-1',
+        url: MOZ_EXT_URL,
+        wait: 'complete',
+      });
+
+      await pages.navigate('about:blank', 'interactive');
+      expect(sendBiDiCommand).toHaveBeenCalledWith('browsingContext.navigate', {
+        context: 'ctx-1',
+        url: 'about:blank',
+        wait: 'interactive',
+      });
+    });
+
+    it('allows an explicit wait to opt out of waiting on a common scheme', async () => {
+      const { pages, sendBiDiCommand } = createMocks();
+
+      await pages.navigate(HTTPS_URL, 'none');
+      expect(sendBiDiCommand).toHaveBeenCalledWith('browsingContext.navigate', {
+        context: 'ctx-1',
+        url: HTTPS_URL,
+        wait: 'none',
+      });
+    });
+
+    it('keeps the scheme-based default when no wait is given', async () => {
+      const { pages, sendBiDiCommand } = createMocks();
+
+      await pages.navigate(HTTPS_URL, undefined);
+      expect(sendBiDiCommand).toHaveBeenCalledWith('browsingContext.navigate', {
+        context: 'ctx-1',
+        url: HTTPS_URL,
+        wait: 'interactive',
+      });
+    });
   });
 
   describe('createNewPage', () => {
@@ -168,6 +240,33 @@ describe('PageManagement', () => {
         context: 'handle-2',
         url: MOZ_EXT_URL,
         wait: 'none',
+      });
+    });
+
+    it('forwards an explicit wait override to navigate', async () => {
+      const switchToMock = vi
+        .fn()
+        .mockReturnValue({ newWindow: vi.fn().mockResolvedValue(undefined) });
+      const getAllWindowHandlesMock = vi.fn().mockResolvedValue(['handle-1', 'handle-2']);
+
+      const driver = {
+        switchTo: switchToMock,
+        getAllWindowHandles: getAllWindowHandlesMock,
+      } as any;
+
+      const sendBiDiCommand = vi.fn().mockResolvedValue({});
+      const pages = new PageManagement(
+        driver,
+        vi.fn().mockReturnValue('handle-2'),
+        vi.fn(),
+        sendBiDiCommand
+      );
+
+      await pages.createNewPage(HTTPS_URL, 'complete');
+      expect(sendBiDiCommand).toHaveBeenCalledWith('browsingContext.navigate', {
+        context: 'handle-2',
+        url: HTTPS_URL,
+        wait: 'complete',
       });
     });
   });

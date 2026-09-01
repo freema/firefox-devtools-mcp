@@ -4,14 +4,13 @@
 
 import {
   successResponse,
-  errorResponse,
   TOKEN_LIMITS,
   previewExcerpt,
   truncationFooter,
 } from '../utils/response-helpers.js';
 import { handleUidError } from '../utils/uid-helpers.js';
 import { saveOutput } from '../utils/save-output.js';
-import { defineModule } from './module.js';
+import { defineModule, defineToolHandler, type ToolDefinition } from './module.js';
 import type { McpToolResponse } from '../types/common.js';
 
 const DEFAULT_SNAPSHOT_LINES = 100;
@@ -64,7 +63,7 @@ export const takeSnapshotTool = {
       },
     },
   },
-};
+} satisfies ToolDefinition;
 
 export const resolveUidToSelectorTool = {
   name: 'resolve_uid_to_selector',
@@ -82,7 +81,7 @@ export const resolveUidToSelectorTool = {
     },
     required: ['uid'],
   },
-};
+} satisfies ToolDefinition;
 
 export const clearSnapshotTool = {
   name: 'clear_snapshot',
@@ -94,10 +93,12 @@ export const clearSnapshotTool = {
     type: 'object',
     properties: {},
   },
-};
+} satisfies ToolDefinition;
 
 // Handlers
-export async function handleTakeSnapshot(args: unknown): Promise<McpToolResponse> {
+export const handleTakeSnapshot = defineToolHandler(async function handleTakeSnapshot(
+  args: unknown
+): Promise<McpToolResponse> {
   try {
     const {
       maxLines: requestedMaxLines = DEFAULT_SNAPSHOT_LINES,
@@ -208,17 +209,15 @@ export async function handleTakeSnapshot(args: unknown): Promise<McpToolResponse
 
     return successResponse(output);
   } catch (error) {
-    return errorResponse(
-      new Error(
-        `Failed to take snapshot: ${(error as Error).message}\n\n` +
-          'The page may not be fully loaded or accessible.'
-      )
+    throw new Error(
+      `Failed to take snapshot: ${(error as Error).message}\n\n` +
+        'The page may not be fully loaded or accessible.'
     );
   }
-}
+});
 
-export async function handleResolveUidToSelector(args: unknown): Promise<McpToolResponse> {
-  try {
+export const handleResolveUidToSelector = defineToolHandler(
+  async function handleResolveUidToSelector(args: unknown): Promise<McpToolResponse> {
     const { uid } = args as { uid: string };
 
     if (!uid || typeof uid !== 'string') {
@@ -234,23 +233,19 @@ export async function handleResolveUidToSelector(args: unknown): Promise<McpTool
     } catch (error) {
       throw handleUidError(error as Error, uid);
     }
-  } catch (error) {
-    return errorResponse(error as Error);
   }
-}
+);
 
-export async function handleClearSnapshot(_args: unknown): Promise<McpToolResponse> {
-  try {
-    const { getFirefox } = await import('../index.js');
-    const firefox = await getFirefox();
+export const handleClearSnapshot = defineToolHandler(async function handleClearSnapshot(
+  _args: unknown
+): Promise<McpToolResponse> {
+  const { getFirefox } = await import('../index.js');
+  const firefox = await getFirefox();
 
-    await firefox.clearSnapshot();
+  await firefox.clearSnapshot();
 
-    return successResponse('🧹 Snapshot cleared');
-  } catch (error) {
-    return errorResponse(error as Error);
-  }
-}
+  return successResponse('🧹 Snapshot cleared');
+});
 
 export const module = defineModule({
   name: 'snapshot',

@@ -4,7 +4,6 @@
 
 import {
   successResponse,
-  errorResponse,
   jsonResponse,
   TOKEN_LIMITS,
   truncateText,
@@ -12,7 +11,7 @@ import {
   truncationFooter,
 } from '../utils/response-helpers.js';
 import { saveOutput } from '../utils/save-output.js';
-import { defineModule } from './module.js';
+import { defineModule, defineToolHandler, type ToolDefinition } from './module.js';
 import type { McpToolResponse } from '../types/common.js';
 
 export const listConsoleMessagesTool = {
@@ -63,7 +62,7 @@ export const listConsoleMessagesTool = {
       },
     },
   },
-};
+} satisfies ToolDefinition;
 
 export const clearConsoleMessagesTool = {
   name: 'clear_console_messages',
@@ -75,7 +74,7 @@ export const clearConsoleMessagesTool = {
     type: 'object',
     properties: {},
   },
-};
+} satisfies ToolDefinition;
 
 const DEFAULT_LIMIT = 50;
 
@@ -91,8 +90,8 @@ function formatMessageLine(msg: {
   return `${time}${msg.level.toUpperCase()}${source}: ${msg.text}`;
 }
 
-export async function handleListConsoleMessages(args: unknown): Promise<McpToolResponse> {
-  try {
+export const handleListConsoleMessages = defineToolHandler(
+  async (args: unknown): Promise<McpToolResponse> => {
     const {
       level,
       limit,
@@ -286,13 +285,11 @@ export async function handleListConsoleMessages(args: unknown): Promise<McpToolR
     }
 
     return successResponse(output);
-  } catch (error) {
-    return errorResponse(error as Error);
   }
-}
+);
 
-export async function handleClearConsoleMessages(_args: unknown): Promise<McpToolResponse> {
-  try {
+export const handleClearConsoleMessages = defineToolHandler(
+  async (_args: unknown): Promise<McpToolResponse> => {
     const { getFirefox } = await import('../index.js');
     const firefox = await getFirefox();
 
@@ -300,10 +297,8 @@ export async function handleClearConsoleMessages(_args: unknown): Promise<McpToo
     firefox.clearConsoleMessages();
 
     return successResponse(`cleared ${count} messages`);
-  } catch (error) {
-    return errorResponse(error as Error);
   }
-}
+);
 
 export const module = defineModule({
   name: 'console',
