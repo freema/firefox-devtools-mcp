@@ -12,12 +12,8 @@ import { ConsoleEvents, NetworkEvents, DebuggingEvents, DownloadEvents } from '.
 import type { NetworkBodyResult } from './events/network.js';
 import { DomInteractions } from './dom.js';
 import { PageManagement, type ReadinessState } from './pages.js';
-import { CacheManagement, CACHE_BEHAVIORS, isCacheBehavior, type CacheBehavior } from './cache.js';
+import { CacheManagement, type CacheBehavior } from './cache.js';
 import { SnapshotManager, type Snapshot, type SnapshotOptions } from './snapshot/index.js';
-
-// Re-exported for backward compatibility: src/tools/network.ts imports
-// these cache types from firefox/index.js rather than firefox/cache.js.
-export { CACHE_BEHAVIORS, isCacheBehavior, type CacheBehavior };
 
 /**
  * Main Firefox Client facade

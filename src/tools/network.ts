@@ -17,7 +17,7 @@ import { saveOutput } from '../utils/save-output.js';
 import { defineModule, defineToolHandler, type ToolDefinition } from './module.js';
 import type { McpToolResponse } from '../types/common.js';
 import type { NetworkBodyResult } from '../firefox/events/network.js';
-import { CACHE_BEHAVIORS, isCacheBehavior } from '../firefox/index.js';
+import { CACHE_BEHAVIORS, isCacheBehavior } from '../firefox/cache.js';
 
 // Tool definitions
 export const listNetworkRequestsTool = {
@@ -135,7 +135,7 @@ export const getNetworkRequestTool = {
 export const setNetworkCacheTool = {
   name: 'set_network_cache',
   description:
-    "Control the HTTP cache. Use behavior='bypass' so every request goes to the network — useful for performance measurement and for verifying a change that a cached asset would otherwise hide. Applies to the selected tab unless scope='global'. Persists until set back to 'default'.",
+    "Control the HTTP cache. Use behavior='bypass' so every request goes to the network — useful for performance measurement and for verifying a change that a cached asset would otherwise hide. Applies to the currently selected tab unless scope='global'. Persists until set back to 'default' or Firefox shuts down.",
   annotations: {
     readOnlyHint: false,
   },
@@ -602,8 +602,8 @@ export const handleGetNetworkRequest = defineToolHandler(
   }
 );
 
-export async function handleSetNetworkCache(args: unknown): Promise<McpToolResponse> {
-  try {
+export const handleSetNetworkCache = defineToolHandler(
+  async (args: unknown): Promise<McpToolResponse> => {
     const { behavior, scope } = (args as { behavior?: unknown; scope?: unknown }) || {};
 
     // An unrecognised value is rejected rather than defaulting: silently caching
@@ -628,10 +628,8 @@ export async function handleSetNetworkCache(args: unknown): Promise<McpToolRespo
       `cache ${behavior} (${isGlobal ? 'all tabs' : 'selected tab'})` +
         (behavior === 'bypass' ? " — set behavior='default' to restore caching" : '')
     );
-  } catch (error) {
-    return errorResponse(error instanceof Error ? error : new Error(String(error)));
   }
-}
+);
 
 export const module = defineModule({
   name: 'network',
