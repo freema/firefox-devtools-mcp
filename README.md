@@ -239,7 +239,7 @@ descriptions and parameters (generated from the source).
 
 - Pages: list/new/navigate/select/close/get_page_text (get_page_text supports optional `saveTo`)
 - Snapshot/UID: take/resolve/clear (take supports optional `saveTo`)
-- Input: click/hover/fill/drag/upload/form fill
+- Input: click/hover/fill/drag/upload/form fill/press_key/type_text
 - Network: list/get (ID‑first, filters, always‑on capture; both support optional `saveTo`)
 - Downloads: list_downloads/clear_downloads (always‑on capture), set_download_behavior (allow/deny/default)
 - Console: list/clear (list supports optional `saveTo`)

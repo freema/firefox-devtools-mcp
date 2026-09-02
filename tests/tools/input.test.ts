@@ -11,6 +11,7 @@ import {
   fillFormByUidTool,
   uploadFileByUidTool,
   pressKeyTool,
+  typeTextTool,
 } from '../../src/tools/input.js';
 
 function textOf(result: { content: unknown[] }): string {
@@ -27,6 +28,7 @@ describe('Input Tools', () => {
       expect(fillFormByUidTool.name).toBe('fill_form_by_uid');
       expect(uploadFileByUidTool.name).toBe('upload_file_by_uid');
       expect(pressKeyTool.name).toBe('press_key');
+      expect(typeTextTool.name).toBe('type_text');
     });
 
     it('should have valid descriptions', () => {
@@ -37,6 +39,7 @@ describe('Input Tools', () => {
       expect(fillFormByUidTool.description).toContain('form');
       expect(uploadFileByUidTool.description).toContain('Upload');
       expect(pressKeyTool.description).toContain('Press');
+      expect(typeTextTool.description).toContain('Type');
     });
 
     it('should steer press_key away from entering text', () => {
@@ -52,6 +55,7 @@ describe('Input Tools', () => {
       expect(fillFormByUidTool.inputSchema.type).toBe('object');
       expect(uploadFileByUidTool.inputSchema.type).toBe('object');
       expect(pressKeyTool.inputSchema.type).toBe('object');
+      expect(typeTextTool.inputSchema.type).toBe('object');
     });
   });
 
@@ -112,6 +116,15 @@ describe('Input Tools', () => {
       expect(properties?.key.type).toBe('string');
       expect(properties?.uid.type).toBe('string');
       expect(required).toEqual(['key']);
+    });
+
+    it('typeTextTool should require text and accept an optional uid and submitKey', () => {
+      const { properties, required } = typeTextTool.inputSchema;
+      expect(properties).toBeDefined();
+      expect(properties?.text.type).toBe('string');
+      expect(properties?.uid.type).toBe('string');
+      expect(properties?.submitKey.type).toBe('string');
+      expect(required).toEqual(['text']);
     });
   });
 
@@ -188,6 +201,77 @@ describe('Input Tools', () => {
 
       expect(result.isError).toBe(true);
       expect(textOf(result)).toContain('unknown key "foobar"');
+    });
+  });
+
+  describe('handleTypeText', () => {
+    let typeText: ReturnType<typeof vi.fn>;
+
+    beforeEach(() => {
+      vi.resetModules();
+      typeText = vi.fn().mockResolvedValue(undefined);
+      vi.doMock('../../src/index.js', () => ({
+        args: {},
+        getFirefox: vi.fn().mockResolvedValue({ typeText }),
+      }));
+    });
+
+    afterEach(() => {
+      vi.doUnmock('../../src/index.js');
+      vi.restoreAllMocks();
+    });
+
+    it('should type into the focused element when no uid is given', async () => {
+      const { handleTypeText } = await import('../../src/tools/input.js');
+      const result = await handleTypeText({ text: 'hello' });
+
+      expect(result.isError).toBeUndefined();
+      expect(typeText).toHaveBeenCalledWith('hello', { uid: undefined, submitKey: undefined });
+      expect(textOf(result)).toContain('5 chars');
+    });
+
+    it('should pass uid and submitKey through', async () => {
+      const { handleTypeText } = await import('../../src/tools/input.js');
+      const result = await handleTypeText({ text: 'hello', uid: 'uid-3', submitKey: 'Enter' });
+
+      expect(result.isError).toBeUndefined();
+      expect(typeText).toHaveBeenCalledWith('hello', { uid: 'uid-3', submitKey: 'Enter' });
+      expect(textOf(result)).toContain('uid-3');
+      expect(textOf(result)).toContain('Enter');
+    });
+
+    it('should reject missing, empty or non-string text', async () => {
+      const { handleTypeText } = await import('../../src/tools/input.js');
+
+      for (const args of [{}, { text: '' }, { text: 42 }]) {
+        const result = await handleTypeText(args);
+        expect(result.isError).toBe(true);
+        expect(textOf(result)).toContain('text parameter is required');
+      }
+      expect(typeText).not.toHaveBeenCalled();
+    });
+
+    it('should reject an empty uid or submitKey', async () => {
+      const { handleTypeText } = await import('../../src/tools/input.js');
+
+      const withUid = await handleTypeText({ text: 'x', uid: '' });
+      expect(withUid.isError).toBe(true);
+      expect(textOf(withUid)).toContain('uid parameter must be a non-empty string');
+
+      const withKey = await handleTypeText({ text: 'x', submitKey: '' });
+      expect(withKey.isError).toBe(true);
+      expect(textOf(withKey)).toContain('submitKey parameter must be a non-empty string');
+
+      expect(typeText).not.toHaveBeenCalled();
+    });
+
+    it('should report a stale uid as such', async () => {
+      typeText.mockRejectedValue(new Error('UID uid-9 not found in snapshot'));
+      const { handleTypeText } = await import('../../src/tools/input.js');
+      const result = await handleTypeText({ text: 'x', uid: 'uid-9' });
+
+      expect(result.isError).toBe(true);
+      expect(textOf(result)).toContain('take_snapshot');
     });
   });
 });
