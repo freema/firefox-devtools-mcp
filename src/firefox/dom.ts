@@ -3,6 +3,7 @@
  */
 
 import { By, Key, WebDriver, WebElement } from 'selenium-webdriver';
+import type { Actions } from 'selenium-webdriver/lib/input.js';
 
 /**
  * Key names accepted by press_key. Names are matched case-insensitively.
@@ -129,6 +130,21 @@ export function parseKeyCombo(combo: string): KeyCombo {
   }
 
   return { modifiers, key };
+}
+
+/**
+ * Queue a key press on an action sequence: hold the modifiers, tap the key,
+ * then release the modifiers in reverse order.
+ */
+function appendKeyPress(actions: Actions, { modifiers, key }: KeyCombo): void {
+  for (const modifier of modifiers) {
+    actions.keyDown(modifier);
+  }
+  actions.keyDown(key);
+  actions.keyUp(key);
+  for (const modifier of [...modifiers].reverse()) {
+    actions.keyUp(modifier);
+  }
 }
 
 export class DomInteractions {
@@ -421,7 +437,7 @@ export class DomInteractions {
    * @param uid Element UID to focus first. Defaults to the focused element.
    */
   async pressKey(key: string, uid?: string): Promise<void> {
-    const { modifiers, key: mainKey } = parseKeyCombo(key);
+    const combo = parseKeyCombo(key);
 
     if (uid) {
       // If a uid was provided, focus the element first so that actions will be
@@ -430,13 +446,34 @@ export class DomInteractions {
     }
 
     const actions = this.driver.actions({ async: true });
-    for (const modifier of modifiers) {
-      actions.keyDown(modifier);
+    appendKeyPress(actions, combo);
+    await actions.perform();
+
+    await this.waitForEventsAfterAction();
+  }
+
+  /**
+   * Type text key by key, optionally followed by a single key press.
+   * @param text Text to type
+   * @param options.uid Element UID to focus first. Defaults to the focused element.
+   * @param options.submitKey Key to press after the text, such as "Enter" or "Tab"
+   */
+  async typeText(
+    text: string,
+    options: { uid?: string | undefined; submitKey?: string | undefined } = {}
+  ): Promise<void> {
+    // Parsed up front so that an invalid key fails before anything is typed.
+    const submit = options.submitKey === undefined ? undefined : parseKeyCombo(options.submitKey);
+
+    if (options.uid) {
+      await this.focusByUid(options.uid);
     }
-    actions.keyDown(mainKey);
-    actions.keyUp(mainKey);
-    for (const modifier of [...modifiers].reverse()) {
-      actions.keyUp(modifier);
+
+    // One sequence, so that the text and the key land on the same element.
+    const actions = this.driver.actions({ async: true });
+    actions.sendKeys(text);
+    if (submit) {
+      appendKeyPress(actions, submit);
     }
     await actions.perform();
 

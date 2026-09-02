@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- `type_text` tool that types text key by key into the focused element, with an optional key to press afterwards
+
 ## [0.10.1] - 2026-08-21
 
 ### Added

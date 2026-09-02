@@ -2,7 +2,7 @@
 
 # Tool reference
 
-The server exposes 53 tools grouped into 16 modules. Which modules are
+The server exposes 54 tools grouped into 16 modules. Which modules are
 enabled depends on `--tool-preset` or `--tools`; see
 [Tool modules and presets](../README.md#tool-modules-and-presets) in the README.
 
@@ -15,7 +15,7 @@ Mozilla-internal build and `MOZ_REMOTE_ALLOW_SYSTEM_ACCESS=1`; the public packag
 | ------------------------- | ----- | ---- | ----- | --------- | ------- | --- |
 | `pages`                   | 6     | yes  | yes   | yes       | yes     | yes |
 | `snapshot`                | 3     | yes  | yes   | yes       | yes     | yes |
-| `input`                   | 7     | yes  | yes   | yes       | yes     | yes |
+| `input`                   | 8     | yes  | yes   | yes       | yes     | yes |
 | `network`                 | 3     | -    | -     | yes       | yes     | yes |
 | `console`                 | 2     | -    | -     | yes       | yes     | yes |
 | `screenshot`              | 2     | yes  | yes   | yes       | yes     | yes |
@@ -210,6 +210,16 @@ Parameters:
 
 - `key` (string, required) - One key, optionally preceded by "+"-separated modifiers, such as "Escape", "Enter" or "ctrl+shift+t". Modifiers: ctrl, alt, shift, meta. Named keys: Enter, Return, NumpadEnter, Tab, Backspace, Delete, Insert, Space, Escape, Home, End, PageUp, PageDown, ArrowUp, ArrowDown, ArrowLeft, ArrowRight, F1-F12, Numpad0-Numpad9, Clear, Pause, Help, Cancel, Semicolon, Equals, Add, Subtract, Multiply, Divide, Decimal, Separator. Anything else must be a single character. Any number of modifiers, but only one key.
 - `uid` (string, optional) - Focusable element UID from snapshot to focus before pressing (default: the already focused element)
+
+### `type_text`
+
+Type text key by key into the focused element, optionally followed by a key such as Enter. Use fill_by_uid to set the value of a known input; use this for elements that only react to real typing, such as autocomplete fields and rich text editors.
+
+Parameters:
+
+- `text` (string, required) - Text to type
+- `uid` (string, optional) - Focusable element UID from snapshot to focus before typing (default: the already focused element)
+- `submitKey` (string, optional) - Key to press after the text, such as "Enter" or "Tab". Same syntax as press_key.
 
 ## network
 

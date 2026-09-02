@@ -220,6 +220,16 @@ export class FirefoxClient {
     return await this.dom.pressKey(key, uid);
   }
 
+  async typeText(
+    text: string,
+    options?: { uid?: string | undefined; submitKey?: string | undefined }
+  ): Promise<void> {
+    if (!this.dom) {
+      throw new Error('Not connected');
+    }
+    return await this.dom.typeText(text, options);
+  }
+
   // ============================================================================
   // Console
   // ============================================================================

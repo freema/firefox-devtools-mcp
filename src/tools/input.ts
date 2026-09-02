@@ -172,6 +172,35 @@ export const pressKeyTool = {
   },
 } satisfies ToolDefinition;
 
+export const typeTextTool = {
+  name: 'type_text',
+  description:
+    'Type text key by key into the focused element, optionally followed by a key such as Enter. Use fill_by_uid to set the value of a known input; use this for elements that only react to real typing, such as autocomplete fields and rich text editors.',
+  annotations: {
+    readOnlyHint: false,
+  },
+  inputSchema: {
+    type: 'object',
+    properties: {
+      text: {
+        type: 'string',
+        description: 'Text to type',
+      },
+      uid: {
+        type: 'string',
+        description:
+          'Focusable element UID from snapshot to focus before typing (default: the already focused element)',
+      },
+      submitKey: {
+        type: 'string',
+        description:
+          'Key to press after the text, such as "Enter" or "Tab". Same syntax as press_key.',
+      },
+    },
+    required: ['text'],
+  },
+} satisfies ToolDefinition;
+
 // Handlers
 export const handleClickByUid = defineToolHandler(async function handleClickByUid(
   args: unknown
@@ -367,6 +396,40 @@ export const handlePressKey = defineToolHandler(async function handlePressKey(
   }
 });
 
+export const handleTypeText = defineToolHandler(async function handleTypeText(
+  args: unknown
+): Promise<McpToolResponse> {
+  const { text, uid, submitKey } =
+    (args as { text: string; uid?: string; submitKey?: string }) || {};
+
+  if (!text || typeof text !== 'string') {
+    throw new Error('text parameter is required and must be a non-empty string');
+  }
+
+  if (uid !== undefined && (!uid || typeof uid !== 'string')) {
+    throw new Error('uid parameter must be a non-empty string');
+  }
+
+  if (submitKey !== undefined && (!submitKey || typeof submitKey !== 'string')) {
+    throw new Error('submitKey parameter must be a non-empty string');
+  }
+
+  const { getFirefox } = await import('../index.js');
+  const firefox = await getFirefox();
+
+  try {
+    await firefox.typeText(text, { uid, submitKey });
+    const target = uid ? ` on ${uid}` : '';
+    const suffix = submitKey ? `, then ${submitKey}` : '';
+    return successResponse(`type_text ${text.length} chars${target}${suffix}`);
+  } catch (error) {
+    if (uid) {
+      throw handleUidError(error as Error, uid);
+    }
+    throw error;
+  }
+});
+
 export const module = defineModule({
   name: 'input',
   description:
@@ -379,5 +442,6 @@ export const module = defineModule({
     [fillFormByUidTool, handleFillFormByUid],
     [uploadFileByUidTool, handleUploadFileByUid],
     [pressKeyTool, handlePressKey],
+    [typeTextTool, handleTypeText],
   ],
 });
