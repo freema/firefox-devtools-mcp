@@ -14,8 +14,8 @@ import { createTestFirefox, closeFirefox, waitFor } from '../helpers/firefox.js'
 import type { FirefoxClient } from '@/firefox/index.js';
 import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { unlinkSync, existsSync } from 'node:fs';
-import { writeZip } from '../helpers/zip.js';
+import { existsSync, readFileSync, unlinkSync, writeFileSync } from 'node:fs';
+import { zipSync } from 'fflate';
 
 const __dirname = fileURLToPath(new URL('.', import.meta.url));
 const fixturesPath = resolve(__dirname, '../fixtures');
@@ -28,7 +28,10 @@ function packExtension(): void {
     unlinkSync(xpiPath);
   }
   // Packed in-process: the `zip` binary this used to call does not exist on Windows.
-  writeZip(xpiPath, [resolve(extensionDir, 'manifest.json'), resolve(extensionDir, 'popup.html')]);
+  const entries = Object.fromEntries(
+    ['manifest.json', 'popup.html'].map((name) => [name, readFileSync(resolve(extensionDir, name))])
+  );
+  writeFileSync(xpiPath, zipSync(entries));
 }
 
 /**
