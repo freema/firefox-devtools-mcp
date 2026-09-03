@@ -149,6 +149,9 @@ describe('BiDi Navigation Integration Tests', () => {
       return url.includes('moz-extension://');
     }, 5000);
 
+    // Wait for the page title to be updated.
+    await waitFor(async () => !!(await driver.getTitle()), 5000);
+
     const title = await driver.getTitle();
     expect(title).toBe('MCP Test Extension');
   }, 15000);
@@ -162,6 +165,9 @@ describe('BiDi Navigation Integration Tests', () => {
       const url = await driver.getCurrentUrl();
       return url.includes('moz-extension://');
     }, 5000);
+
+    // Wait for the page title to be updated.
+    await waitFor(async () => !!(await driver.getTitle()), 5000);
 
     const title = await driver.getTitle();
     expect(title).toBe('MCP Test Extension');
