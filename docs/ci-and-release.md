@@ -4,7 +4,9 @@ This project ships with ready-to-use GitHub Actions for CI, release, and npm pub
 
 Workflows
 - CI (.github/workflows/ci.yml)
-  - Triggers on push (main, develop) and PRs.
+  - Triggers on push (main, develop).
+  - On pull requests, only runs when the `run-integration` label is applied. It is the
+    only workflow that runs the integration suite, so it is opt-in per PR.
   - Matrix: Node 20 and 22.
   - Steps: install → lint → format check → typecheck → test → build.
   - Optional: uploads coverage to Codecov if `coverage/lcov.info` exists and `CODECOV_TOKEN` is set.
