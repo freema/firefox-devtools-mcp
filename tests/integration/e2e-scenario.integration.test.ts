@@ -46,7 +46,7 @@ describe('E2E Scenario: Todo App Workflow', () => {
     firefox = await createTestFirefox();
     await firefox.navigate(appUrl);
     await waitForPageLoad();
-  }, 30000);
+  });
 
   afterAll(async () => {
     await closeFirefox(firefox);
@@ -110,7 +110,7 @@ describe('E2E Scenario: Click Interactions', () => {
     firefox = await createTestFirefox();
     await firefox.navigate(appUrl);
     await waitForPageLoad();
-  }, 30000);
+  });
 
   afterAll(async () => {
     await closeFirefox(firefox);
@@ -156,7 +156,7 @@ describe('E2E Scenario: Multi-Page Navigation', () => {
     firefox = await createTestFirefox();
     await firefox.navigate(appUrl);
     await waitForPageLoad();
-  }, 30000);
+  });
 
   afterAll(async () => {
     await closeFirefox(firefox);
@@ -202,7 +202,7 @@ describe('E2E Scenario: Browser History', () => {
 
   beforeAll(async () => {
     firefox = await createTestFirefox();
-  }, 30000);
+  });
 
   afterAll(async () => {
     await closeFirefox(firefox);
@@ -251,7 +251,7 @@ describe('E2E Scenario: Viewport Resize', () => {
     firefox = await createTestFirefox();
     await firefox.navigate(appUrl);
     await waitForPageLoad();
-  }, 30000);
+  });
 
   afterAll(async () => {
     await closeFirefox(firefox);
@@ -291,7 +291,7 @@ describe('E2E Scenario: Search Workflow', () => {
     firefox = await createTestFirefox();
     await firefox.navigate(appUrl);
     await waitForPageLoad();
-  }, 30000);
+  });
 
   afterAll(async () => {
     await closeFirefox(firefox);
@@ -353,7 +353,7 @@ describe('E2E Scenario: Form Submission', () => {
     firefox = await createTestFirefox();
     await firefox.navigate(appUrl);
     await waitForPageLoad();
-  }, 30000);
+  });
 
   afterAll(async () => {
     await closeFirefox(firefox);
@@ -420,7 +420,7 @@ describe('E2E Scenario: Console Monitoring', () => {
     firefox = await createTestFirefox();
     await firefox.navigate(appUrl);
     await waitForPageLoad();
-  }, 30000);
+  });
 
   afterAll(async () => {
     await closeFirefox(firefox);
@@ -465,7 +465,7 @@ describe('E2E Scenario: Network Monitoring', () => {
   beforeAll(async () => {
     firefox = await createTestFirefox();
     await firefox.startNetworkMonitoring();
-  }, 30000);
+  });
 
   afterAll(async () => {
     await closeFirefox(firefox);
@@ -542,7 +542,7 @@ describe('E2E Scenario: Screenshot', () => {
     firefox = await createTestFirefox();
     await firefox.navigate(appUrl);
     await waitForPageLoad();
-  }, 30000);
+  });
 
   afterAll(async () => {
     await closeFirefox(firefox);
@@ -568,7 +568,7 @@ describe('E2E Scenario: Tab Management', () => {
     firefox = await createTestFirefox();
     await firefox.navigate(appUrl);
     await waitForPageLoad();
-  }, 30000);
+  });
 
   afterAll(async () => {
     await closeFirefox(firefox);
@@ -617,7 +617,7 @@ describe('E2E Scenario: Stale UID Detection', () => {
 
   beforeAll(async () => {
     firefox = await createTestFirefox();
-  }, 30000);
+  });
 
   afterAll(async () => {
     await closeFirefox(firefox);
@@ -664,7 +664,7 @@ describe('E2E Scenario: Error Handling', () => {
     firefox = await createTestFirefox();
     await firefox.navigate(appUrl);
     await waitForPageLoad();
-  }, 30000);
+  });
 
   afterAll(async () => {
     await closeFirefox(firefox);

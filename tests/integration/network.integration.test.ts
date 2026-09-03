@@ -20,7 +20,7 @@ describe('Network Monitoring Integration Tests', () => {
   beforeAll(async () => {
     firefox = await createTestFirefox();
     await firefox.startNetworkMonitoring();
-  }, 30000);
+  });
 
   afterAll(async () => {
     await closeFirefox(firefox);

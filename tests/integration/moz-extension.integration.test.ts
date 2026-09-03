@@ -110,7 +110,7 @@ describe('BiDi Navigation Integration Tests', () => {
     // Resolve the moz-extension:// URL from the extension hostname
     const hostname = await getExtensionHostname(firefox, extensionId);
     extensionUrl = `moz-extension://${hostname}/popup.html`;
-  }, 60000);
+  });
 
   afterAll(async () => {
     // Uninstall the test extension to avoid accumulation across test runs

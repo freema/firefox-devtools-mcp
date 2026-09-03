@@ -20,7 +20,7 @@ describe('Tab Management Integration Tests', () => {
 
   beforeAll(async () => {
     firefox = await createTestFirefox();
-  }, 30000);
+  });
 
   afterAll(async () => {
     await closeFirefox(firefox);
