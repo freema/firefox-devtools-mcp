@@ -6,6 +6,8 @@ export default defineConfig({
     globals: true,
     environment: 'node',
     setupFiles: ['./tests/setup.ts'],
+    // Firefox startup can be slow on CI runners, especially the first launch
+    hookTimeout: 60000,
     // Run tests sequentially to avoid Firefox port conflicts
     fileParallelism: false,
     pool: 'forks',
