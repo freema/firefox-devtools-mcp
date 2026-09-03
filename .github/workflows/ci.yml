@@ -3,6 +3,10 @@ name: CI
 on:
   push:
     branches: [main, develop]
+  # Pull requests only run the full matrix when opted in with the
+  # run-integration label, which requires write access to apply.
+  pull_request:
+    types: [opened, synchronize, reopened, labeled]
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -10,6 +14,11 @@ concurrency:
 
 jobs:
   test:
+    # Gate the job rather than the trigger: a skipped job still reports a
+    # conclusion, so the check never stays pending on unlabeled pull requests.
+    if: >-
+      github.event_name != 'pull_request' ||
+      contains(github.event.pull_request.labels.*.name, 'run-integration')
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -54,14 +63,18 @@ jobs:
         run: npm run test:coverage
 
       - name: Upload coverage reports to Codecov
-        if: matrix.os == 'ubuntu-latest' && matrix.node-version == 20
+        if: >-
+          github.event_name != 'pull_request' && matrix.os == 'ubuntu-latest' &&
+          matrix.node-version == 20
         uses: codecov/codecov-action@v5
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           fail_ci_if_error: false
 
       - name: Upload artifacts
-        if: matrix.os == 'ubuntu-latest' && matrix.node-version == 20
+        if: >-
+          github.event_name != 'pull_request' && matrix.os == 'ubuntu-latest' &&
+          matrix.node-version == 20
         uses: actions/upload-artifact@v7
         with:
           name: dist
