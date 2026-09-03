@@ -76,19 +76,23 @@ describe('Script Tools', () => {
 
   describe('Handler: saveTo behavior', () => {
     const RESULT_VALUE = 'x'.repeat(5_000);
+    const sendBiDiCommand = vi.fn();
     let tempDir: string;
 
     beforeEach(() => {
       tempDir = join(tmpdir(), `script-test-${Date.now()}`);
 
+      sendBiDiCommand.mockReset();
+      sendBiDiCommand.mockResolvedValue({
+        type: 'success',
+        result: { type: 'string', value: RESULT_VALUE },
+      });
+
       vi.doMock('../../src/index.js', () => ({
         args: { unrestrictedSavePaths: true },
         getFirefox: vi.fn().mockResolvedValue({
           getCurrentContextId: vi.fn().mockReturnValue('ctx-1'),
-          sendBiDiCommand: vi.fn().mockResolvedValue({
-            type: 'success',
-            result: { type: 'string', value: RESULT_VALUE },
-          }),
+          sendBiDiCommand,
         }),
       }));
     });
@@ -148,17 +152,8 @@ describe('Script Tools', () => {
     });
 
     it('should save the string "undefined" when the script returns undefined', async () => {
-      vi.resetModules();
-      vi.doMock('../../src/index.js', () => ({
-        args: { unrestrictedSavePaths: true },
-        getFirefox: vi.fn().mockResolvedValue({
-          getCurrentContextId: vi.fn().mockReturnValue('ctx-1'),
-          sendBiDiCommand: vi.fn().mockResolvedValue({
-            type: 'success',
-            result: { type: 'undefined' },
-          }),
-        }),
-      }));
+      sendBiDiCommand.mockResolvedValue({ type: 'success', result: { type: 'undefined' } });
+
       const { handleEvaluateScript } = await import('../../src/tools/script.js');
       const filePath = join(tempDir, 'undef.json');
       const result = await handleEvaluateScript({ function: '() => undefined', saveTo: filePath });
