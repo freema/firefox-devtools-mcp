@@ -7,8 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.10.2] - 2026-09-04
+
 ### Added
 - `type_text` tool that types text key by key into the focused element, with an optional key to press afterwards
+- `press_key` tool that sends a single key, optionally with modifiers, to a snapshot element or to the focused element
+- `set_network_cache` tool to bypass or restore the HTTP cache, for the selected tab or browser-wide
+- `wait` option on `navigate_page` and `new_page` to pick the readiness state to wait for (`none`, `interactive`, `complete`); omitting it keeps the previous scheme-derived default
+- `get_firefox_info` now reports the resolved Firefox binary path
+
+### Fixed
+- Windows per-user Firefox installs are now detected (`%LOCALAPPDATA%`, `PATH`, then the App Paths registry key), instead of failing with "unable to find binary in default location"
+- geckodriver is now resolved on all platforms, so aarch64 Linux no longer fails with "Unable to obtain browser driver" when a native geckodriver is in `PATH`
+- `--output-file` and `--log-file` now create their parent directory instead of throwing `ENOENT` or silently disabling logging
+- `saveTo` paths are compared case-insensitively on Windows, so a path that differs only by drive-letter case is no longer rejected as outside the allowed location
+
+### Changed
+- Tool handlers now go through a shared error handling path, making failure messages consistent across tools
+
+### Docs
+- `docs/tools.md`, generated from the tool definitions, documents every tool and its parameters
+- Fixed the npm package link in the README
 
 ## [0.10.1] - 2026-08-21
 
