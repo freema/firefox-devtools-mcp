@@ -2,7 +2,7 @@ import { version } from 'node:process';
 import { fileURLToPath } from 'node:url';
 import { resolve } from 'node:path';
 import { realpathSync } from 'node:fs';
-import { Server } from '@modelcontextprotocol/sdk/server/index.js';
+import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import {
   CallToolRequestSchema,
@@ -216,7 +216,7 @@ export async function run(
     logDebug(`  Viewport: ${args.viewport.width}x${args.viewport.height}`);
   }
 
-  const server = new Server(
+  const mcpServer = new McpServer(
     {
       name: SERVER_NAME,
       version: SERVER_VERSION,
@@ -230,7 +230,7 @@ export async function run(
   );
 
   // List available tools
-  server.setRequestHandler(ListToolsRequestSchema, async () => {
+  mcpServer.server.setRequestHandler(ListToolsRequestSchema, async () => {
     log('Listing available tools');
     return {
       tools: allTools,
@@ -238,7 +238,7 @@ export async function run(
   });
 
   // Handle tool execution
-  server.setRequestHandler(CallToolRequestSchema, async (request: CallToolRequest) => {
+  mcpServer.server.setRequestHandler(CallToolRequestSchema, async (request: CallToolRequest) => {
     const { name, arguments: args } = request.params;
     log(`Executing tool: ${name}`);
 
@@ -269,7 +269,7 @@ export async function run(
   });
 
   const transport = new StdioServerTransport();
-  await server.connect(transport);
+  await mcpServer.connect(transport);
 
   log('Firefox DevTools MCP server running on stdio');
   log('Ready to accept tool requests');
@@ -278,7 +278,7 @@ export async function run(
   // Without this, the session stays locked after the MCP client disconnects.
   const cleanup = async () => {
     await resetFirefox();
-    await server.close();
+    await mcpServer.close();
     await flushLogs().catch(() => {});
     process.exit(0);
   };
