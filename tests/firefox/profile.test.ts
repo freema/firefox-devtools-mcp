@@ -9,6 +9,7 @@ vi.mock('node:fs', () => ({
   existsSync: vi.fn(),
   mkdirSync: vi.fn(),
   copyFileSync: vi.fn(),
+  writeFileSync: vi.fn(),
 }));
 
 vi.mock('@/utils/logger.js', () => ({
@@ -17,11 +18,17 @@ vi.mock('@/utils/logger.js', () => ({
 }));
 
 import * as fs from 'node:fs';
-import { resolveProfilePath, isFirefoxProfile, MCP_PROFILE_DIR_NAME } from '@/firefox/profile.js';
+import {
+  resolveProfilePath,
+  isFirefoxProfile,
+  MCP_PROFILE_DIR_NAME,
+  MCP_PROFILE_MARKER,
+} from '@/firefox/profile.js';
 
 const mockExistsSync = vi.mocked(fs.existsSync);
 const mockMkdirSync = vi.mocked(fs.mkdirSync);
 const mockCopyFileSync = vi.mocked(fs.copyFileSync);
+const mockWriteFileSync = vi.mocked(fs.writeFileSync);
 
 describe('isFirefoxProfile', () => {
   beforeEach(() => {
@@ -49,6 +56,7 @@ describe('resolveProfilePath', () => {
     mockExistsSync.mockReset();
     mockMkdirSync.mockReset();
     mockCopyFileSync.mockReset();
+    mockWriteFileSync.mockReset();
   });
 
   it('returns the MCP subfolder path', () => {
@@ -112,5 +120,37 @@ describe('resolveProfilePath', () => {
     mockExistsSync.mockReturnValue(true);
     resolveProfilePath('/real/profile');
     expect(mockCopyFileSync).not.toHaveBeenCalled();
+  });
+
+  it('marks a newly created MCP profile', () => {
+    mockExistsSync.mockReturnValue(false);
+    resolveProfilePath('/custom/profiles');
+    expect(mockWriteFileSync).toHaveBeenCalledWith(
+      join('/custom/profiles', MCP_PROFILE_DIR_NAME, MCP_PROFILE_MARKER),
+      ''
+    );
+  });
+
+  it('marks an existing MCP subfolder that has no marker yet', () => {
+    mockExistsSync.mockImplementation(
+      (p: unknown) => String(p) === join('/custom/profiles', MCP_PROFILE_DIR_NAME)
+    );
+    resolveProfilePath('/custom/profiles');
+    expect(mockWriteFileSync).toHaveBeenCalledWith(
+      join('/custom/profiles', MCP_PROFILE_DIR_NAME, MCP_PROFILE_MARKER),
+      ''
+    );
+  });
+
+  it('reuses a marked MCP profile passed directly, without nesting or warning', () => {
+    const marked = join('/custom/profiles', MCP_PROFILE_DIR_NAME);
+    mockExistsSync.mockImplementation((p: unknown) => {
+      const path = String(p);
+      return path === join(marked, MCP_PROFILE_MARKER) || path === join(marked, 'prefs.js');
+    });
+    const result = resolveProfilePath(marked);
+    expect(result).toEqual({ path: marked, warning: null });
+    expect(mockMkdirSync).not.toHaveBeenCalled();
+    expect(mockWriteFileSync).not.toHaveBeenCalled();
   });
 });

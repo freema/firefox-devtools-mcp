@@ -363,6 +363,7 @@ describe('FirefoxCore connect() profile handling', () => {
       existsSync: vi.fn((p: unknown) => String(p).includes('geckodriver')),
       mkdirSync: vi.fn(),
       copyFileSync: vi.fn(),
+      writeFileSync: vi.fn(),
       openSync: vi.fn().mockReturnValue(3),
       closeSync: vi.fn(),
     }));
@@ -478,6 +479,7 @@ describe('FirefoxCore connect() binary lookup failure', () => {
       existsSync: vi.fn((p: unknown) => String(p).includes('geckodriver')),
       mkdirSync: vi.fn(),
       copyFileSync: vi.fn(),
+      writeFileSync: vi.fn(),
       openSync: vi.fn().mockReturnValue(3),
       closeSync: vi.fn(),
     }));

@@ -171,6 +171,19 @@ describe('saveOutput', () => {
       expect(existsSync(join(process.cwd(), target))).toBe(false);
     });
 
+    it('should reject a relative path into a marked profile passed directly', async () => {
+      const profile = join(cwdDir, 'marked-profile');
+      mkdirSync(profile, { recursive: true });
+      writeFileSync(join(profile, '.firefox-devtools-mcp'), '');
+      mockArgs.profilePath = profile;
+      const target = relative(process.cwd(), join(profile, 'user.js'));
+
+      await expect(saveOutput('data', target, 'get-page-text', 'txt')).rejects.toThrow(
+        'reads back'
+      );
+      expect(existsSync(join(profile, 'user.js'))).toBe(false);
+    });
+
     it('should reject a directory that looks like a Firefox profile', async () => {
       // No configuration points here: recognised by its contents, which covers
       // a profile reached with --connect-existing or named at runtime.

@@ -125,7 +125,7 @@ You can pass flags or environment variables (names on the right):
 - `--firefox-path` — absolute path to Firefox binary
 - `--headless` — run without UI (`FIREFOX_HEADLESS=true`)
 - `--viewport 1280x720` — initial window size
-- `--profile-path` — use a specific Firefox profile
+- `--profile-path` — use a specific Firefox profile. Firefox runs in a `firefox_devtools_mcp_profile` subfolder of that path, marked with a `.firefox-devtools-mcp` file; pointing `--profile-path` at a marked profile reuses it directly
 - `--firefox-arg` — extra Firefox arguments (repeatable)
 - `--start-url` — open this URL on start (`START_URL`)
 - `--accept-insecure-certs` — ignore TLS errors (`ACCEPT_INSECURE_CERTS=true`)

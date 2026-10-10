@@ -7,11 +7,13 @@
  * automated/remote-accessible session.
  */
 
-import { existsSync, mkdirSync, copyFileSync } from 'node:fs';
+import { existsSync, mkdirSync, copyFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { log } from '../utils/logger.js';
 
 export const MCP_PROFILE_DIR_NAME = 'firefox_devtools_mcp_profile';
+
+export const MCP_PROFILE_MARKER = '.firefox-devtools-mcp';
 
 /**
  * Files that are characteristic of an existing Firefox profile directory.
@@ -26,6 +28,15 @@ export function isFirefoxProfile(dir: string): boolean {
   return FIREFOX_PROFILE_INDICATORS.some((file) => existsSync(join(dir, file)));
 }
 
+export function isMcpProfile(dir: string): boolean {
+  return existsSync(join(dir, MCP_PROFILE_MARKER));
+}
+
+/** The directory Firefox uses for a --profile-path value. */
+export function mcpProfilePathFor(parentPath: string): string {
+  return isMcpProfile(parentPath) ? parentPath : join(parentPath, MCP_PROFILE_DIR_NAME);
+}
+
 export interface ResolvedProfile {
   path: string;
   /** Warning to surface to the user (e.g. when a real Firefox profile was detected). */
@@ -36,15 +47,21 @@ export interface ResolvedProfile {
  * Resolves a user-supplied profile path to a safe, MCP-specific subfolder.
  *
  * Given `parentPath`, the function:
+ * 0. Returns `parentPath` unchanged when it is a marked MCP profile.
  * 1. Appends `firefox_devtools_mcp_profile` to form the real profile path.
  * 2. Warns when `parentPath` itself looks like a real Firefox profile.
  * 3. Creates the subfolder on first use.
  * 4. On first creation, copies `prefs.js` from the parent into the new profile
  *    so that user preferences carry over (browser_toolbox-style bootstrap).
+ * 5. Writes the `.firefox-devtools-mcp` marker into the profile if missing.
  *
  * @returns The resolved path and an optional warning string.
  */
 export function resolveProfilePath(parentPath: string): ResolvedProfile {
+  if (isMcpProfile(parentPath)) {
+    return { path: parentPath, warning: null };
+  }
+
   const mcpProfilePath = join(parentPath, MCP_PROFILE_DIR_NAME);
 
   let warning: string | null = null;
@@ -71,6 +88,10 @@ export function resolveProfilePath(parentPath: string): ResolvedProfile {
       copyFileSync(parentPrefs, join(mcpProfilePath, 'prefs.js'));
       log(`   Copied prefs.js from parent profile for initial preferences.`);
     }
+  }
+
+  if (!isMcpProfile(mcpProfilePath)) {
+    writeFileSync(join(mcpProfilePath, MCP_PROFILE_MARKER), '');
   }
 
   return { path: mcpProfilePath, warning };
