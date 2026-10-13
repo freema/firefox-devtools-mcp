@@ -198,14 +198,16 @@ describe('saveOutput', () => {
       expect(existsSync(join(profile, 'user.js'))).toBe(false);
     });
 
-    it('should allow the profile parent when it is an ordinary directory', async () => {
+    it('should reject paths inside an unmarked profile path', async () => {
       const parent = join(cwdDir, 'plain-parent');
       mkdirSync(parent, { recursive: true });
       mockArgs.profilePath = parent;
       const target = relative(process.cwd(), join(parent, 'notes.txt'));
 
-      const saved = await saveOutput('data', target, 'get-page-text', 'txt');
-      expect(existsSync(saved.path)).toBe(true);
+      await expect(saveOutput('data', target, 'get-page-text', 'txt')).rejects.toThrow(
+        'reads back'
+      );
+      expect(existsSync(join(parent, 'notes.txt'))).toBe(false);
     });
 
     it('should reject the file passed to --output-file', async () => {

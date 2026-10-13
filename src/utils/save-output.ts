@@ -6,7 +6,7 @@ import { mkdir, realpath, rename, stat, unlink, writeFile } from 'node:fs/promis
 import { randomBytes } from 'node:crypto';
 import { dirname, isAbsolute, join, resolve, sep } from 'node:path';
 import { homeRoot, outputDir } from './paths.js';
-import { isFirefoxProfile, mcpProfilePathFor } from '../firefox/profile.js';
+import { isFirefoxProfile } from '../firefox/profile.js';
 
 export interface SavedOutput {
   path: string;
@@ -103,7 +103,7 @@ export async function assertAllowedPath(
   }
 
   // Locations the operator pointed elsewhere; by path, as they may not exist yet.
-  const profile = args?.profilePath && mcpProfilePathFor(resolve(args.profilePath));
+  const profile = args?.profilePath && resolve(args.profilePath);
   if (profile && isWithinRoot(await realpathThroughMissing(profile), candidate)) {
     throw refusal(`resolves inside ${profile}, which this server reads back`);
   }

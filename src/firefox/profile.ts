@@ -1,10 +1,9 @@
 /**
  * Profile path resolution for Firefox DevTools MCP
  *
- * Rather than using a user-provided path directly as the Firefox profile,
- * we create a dedicated subfolder. This prevents accidentally reusing a real
- * browser profile (with bookmarks, saved passwords, cookies, …) inside an
- * automated/remote-accessible session.
+ * Unmarked user supplied paths use a dedicated subfolder to avoid reusing a
+ * real browser profile in an automated session. Marked MCP profiles can be
+ * used directly when passed as the profile path.
  */
 
 import { existsSync, mkdirSync, copyFileSync, writeFileSync } from 'node:fs';
@@ -32,11 +31,6 @@ export function isMcpProfile(dir: string): boolean {
   return existsSync(join(dir, MCP_PROFILE_MARKER));
 }
 
-/** The directory Firefox uses for a --profile-path value. */
-export function mcpProfilePathFor(parentPath: string): string {
-  return isMcpProfile(parentPath) ? parentPath : join(parentPath, MCP_PROFILE_DIR_NAME);
-}
-
 export interface ResolvedProfile {
   path: string;
   /** Warning to surface to the user (e.g. when a real Firefox profile was detected). */
@@ -44,16 +38,16 @@ export interface ResolvedProfile {
 }
 
 /**
- * Resolves a user-supplied profile path to a safe, MCP-specific subfolder.
+ * Resolves the profile path Firefox should use.
  *
  * Given `parentPath`, the function:
- * 0. Returns `parentPath` unchanged when it is a marked MCP profile.
- * 1. Appends `firefox_devtools_mcp_profile` to form the real profile path.
- * 2. Warns when `parentPath` itself looks like a real Firefox profile.
- * 3. Creates the subfolder on first use.
- * 4. On first creation, copies `prefs.js` from the parent into the new profile
+ * 1. Returns `parentPath` unchanged when it is a marked MCP profile.
+ * 2. Otherwise appends `firefox_devtools_mcp_profile` to form the profile path.
+ * 3. Warns when `parentPath` itself looks like a real Firefox profile.
+ * 4. Creates the subfolder on first use.
+ * 5. On first creation, copies `prefs.js` from the parent into the new profile
  *    so that user preferences carry over (browser_toolbox-style bootstrap).
- * 5. Writes the `.firefox-devtools-mcp` marker into the profile if missing.
+ * 6. Attempts to write the marker for future direct reuse. Failures are logged.
  *
  * @returns The resolved path and an optional warning string.
  */
@@ -91,7 +85,14 @@ export function resolveProfilePath(parentPath: string): ResolvedProfile {
   }
 
   if (!isMcpProfile(mcpProfilePath)) {
-    writeFileSync(join(mcpProfilePath, MCP_PROFILE_MARKER), '');
+    const markerPath = join(mcpProfilePath, MCP_PROFILE_MARKER);
+    try {
+      writeFileSync(markerPath, '');
+    } catch (error) {
+      log(
+        `Could not write MCP profile marker at ${markerPath}: ${error instanceof Error ? error.message : String(error)}`
+      );
+    }
   }
 
   return { path: mcpProfilePath, warning };

@@ -24,6 +24,7 @@ import {
   MCP_PROFILE_DIR_NAME,
   MCP_PROFILE_MARKER,
 } from '@/firefox/profile.js';
+import { log } from '@/utils/logger.js';
 
 const mockExistsSync = vi.mocked(fs.existsSync);
 const mockMkdirSync = vi.mocked(fs.mkdirSync);
@@ -139,6 +140,21 @@ describe('resolveProfilePath', () => {
     expect(mockWriteFileSync).toHaveBeenCalledWith(
       join('/custom/profiles', MCP_PROFILE_DIR_NAME, MCP_PROFILE_MARKER),
       ''
+    );
+  });
+
+  it('logs a marker write failure without preventing profile resolution', () => {
+    const error = new Error('permission denied');
+    mockExistsSync.mockReturnValue(false);
+    mockWriteFileSync.mockImplementation(() => {
+      throw error;
+    });
+
+    const result = resolveProfilePath('/custom/profiles');
+
+    expect(result.path).toBe(join('/custom/profiles', MCP_PROFILE_DIR_NAME));
+    expect(log).toHaveBeenCalledWith(
+      `Could not write MCP profile marker at ${join('/custom/profiles', MCP_PROFILE_DIR_NAME, MCP_PROFILE_MARKER)}: permission denied`
     );
   });
 
