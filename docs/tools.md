@@ -2,9 +2,8 @@
 
 # Tool reference
 
-The server exposes 57 tools grouped into 19 modules. Which modules are
-enabled depends on `--tool-preset` or `--tools`; see
-[Tool modules and presets](../README.md#tool-modules-and-presets) in the README.
+Tools are grouped into modules. Which modules are enabled depends on `--tool-preset` or
+`--tools`; see [Tool modules and presets](../README.md#tool-modules-and-presets) in the README.
 
 Presets are cumulative and `basic` is the default. Privileged modules require the
 Mozilla-internal build and `MOZ_REMOTE_ALLOW_SYSTEM_ACCESS=1`, moz build modules require only
@@ -34,27 +33,48 @@ the Mozilla-internal build; the public package drops both.
 | `privileged` (privileged) | 4     | -    | -     | -         | yes     | yes |
 | `bidi` (moz build)        | 1     | -    | -     | -         | yes     | yes |
 
+## Tools that accept `saveTo`
+
+These tools take a `saveTo` parameter that writes their output to a file. Tools with
+`preview` can also return a short excerpt of the saved output inline. See
+[Saving bulky output to disk](../README.md#saving-bulky-output-to-disk) in the README for the
+accepted paths.
+
+| Tool                         | Module       | `preview` |
+| ---------------------------- | ------------ | --------- |
+| `get_page_text`              | `pages`      | yes       |
+| `take_snapshot`              | `snapshot`   | yes       |
+| `list_network_requests`      | `network`    | yes       |
+| `get_network_request`        | `network`    | yes       |
+| `list_console_messages`      | `console`    | yes       |
+| `screenshot_page`            | `screenshot` | -         |
+| `screenshot_by_uid`          | `screenshot` | -         |
+| `print_page`                 | `print`      | -         |
+| `evaluate_script`            | `script`     | yes       |
+| `evaluate_privileged_script` | `privileged` | yes       |
+| `send_bidi_command`          | `bidi`       | yes       |
+
 ## Contents
 
-- [pages](#pages)
-- [snapshot](#snapshot)
-- [input](#input)
-- [network](#network)
-- [console](#console)
-- [screenshot](#screenshot)
-- [print](#print)
-- [downloads](#downloads)
-- [utilities](#utilities)
-- [management](#management)
-- [launch](#launch)
-- [webextension](#webextension)
-- [profiler](#profiler)
-- [screencast](#screencast)
-- [script](#script)
-- [debugging](#debugging)
-- [prefs](#prefs)
-- [privileged](#privileged)
-- [bidi](#bidi)
+- [pages](#pages): Open, navigate, select, and close pages.
+- [snapshot](#snapshot): Capture accessibility/DOM snapshots and resolve UIDs.
+- [input](#input): Interact with the page via UID-based clicks, typing, key presses, drag, and uploads.
+- [network](#network): List and inspect network requests, and control the HTTP cache.
+- [console](#console): Read and clear console messages.
+- [screenshot](#screenshot): Capture screenshots of the page or specific elements.
+- [print](#print): Print the page to PDF.
+- [downloads](#downloads): Monitor and manage file downloads.
+- [utilities](#utilities): Handle dialogs, history navigation, and viewport sizing.
+- [management](#management): Inspect Firefox options and logs, and close the browser.
+- [launch](#launch): Restart Firefox under a different launch configuration.
+- [webextension](#webextension): Install and uninstall web extensions.
+- [profiler](#profiler): Start, stop, and query the performance profiler.
+- [screencast](#screencast): Record screencasts of the page viewport (Firefox 154+).
+- [script](#script): Evaluate arbitrary JavaScript in the page context.
+- [debugging](#debugging): Inspect scripts and set logpoints (Firefox 153+).
+- [prefs](#prefs): Get and set Firefox preferences.
+- [privileged](#privileged): Access privileged ("chrome") contexts and list extensions.
+- [bidi](#bidi): Send raw WebDriver BiDi commands.
 
 ## pages
 

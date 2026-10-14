@@ -16,14 +16,14 @@ This risk is inherent to any agent that reads web content. Mitigations:
 
 ## Tool modules and presets
 
-Tools are grouped into modules, selected with `--tool-preset` (a named group) or `--tools` (an explicit list). The preset you pick determines the agent's capabilities, so it is the main control over attack surface. See the [README](README.md#tool-modules-and-presets) for the full module list.
+Tools are grouped into modules, selected with `--tool-preset` (a named group) or `--tools` (an explicit list). The preset you pick determines the agent's capabilities, so it is the main control over attack surface. See [docs/tools.md](docs/tools.md#modules-and-presets) for the modules in each preset.
 
-| Preset | Adds | Notable capability |
-| --- | --- | --- |
-| `slim` | `pages`, `snapshot`, `input`, `screenshot` | Read and interact with pages |
-| `basic` (default) | `downloads`, `script`, `utilities`, `management`, `webextension`, `screencast` | **`evaluate_script`**, extension install, downloads |
-| `developer` | `debugging`, `network`, `console`, `profiler` | Request and response bodies, breakpoints |
-| `mozilla` | `launch`, `prefs`, `privileged`, `bidi` | Privileged (chrome) context, Firefox preferences, browser relaunch, raw BiDi commands |
+| Preset | Notable capability |
+| --- | --- |
+| `slim` | Read and interact with pages |
+| `basic` (default) | **`evaluate_script`**, extension install, downloads |
+| `developer` | Request and response bodies, breakpoints |
+| `mozilla` | Privileged (chrome) context, Firefox preferences, browser relaunch, raw BiDi commands |
 
 > **Note:** `evaluate_script` is part of the default `basic` preset. It is included because agents commonly fall back to it when the higher-level tools cannot handle a page, but it also means the default configuration lets the agent run arbitrary JavaScript in any page context (see below). Use `--tool-preset slim`, or an explicit `--tools` list without `script`, when you do not want that.
 
@@ -55,7 +55,7 @@ The following flags expand the agent's capabilities and increase the attack surf
 
 ### `--unrestricted-save-paths`
 
-Tools that save output to disk (`take_snapshot`, `screenshot_page`, `list_network_requests`, `evaluate_script` and others via their `saveTo` parameter) are restricted by default: relative paths resolve against the current working directory, and absolute paths must stay within `~/.firefox-devtools-mcp/output`. Whatever the path style, writes are also refused when they would land in a Firefox profile, in the profile this server starts Firefox with, or in the instance port files and captured output it reads back. This flag removes every restriction, letting the agent write to any path the server process can reach, those included.
+Tools that save output to disk through their `saveTo` parameter (see the [list](docs/tools.md#tools-that-accept-saveto)) are restricted by default: relative paths resolve against the current working directory, and absolute paths must stay within `~/.firefox-devtools-mcp/output`. Whatever the path style, writes are also refused when they would land in a Firefox profile, in the profile this server starts Firefox with, or in the instance port files and captured output it reads back. This flag removes every restriction, letting the agent write to any path the server process can reach, those included.
 
 Combined with prompt injection, this turns a page's content into arbitrary file writes with your user's privileges — for example overwriting a shell profile or a configuration file the agent is not otherwise meant to touch.
 

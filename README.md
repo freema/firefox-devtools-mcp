@@ -7,7 +7,12 @@
 
 <a href="https://glama.ai/mcp/servers/@mozilla/firefox-devtools-mcp"><img src="https://glama.ai/mcp/servers/@mozilla/firefox-devtools-mcp/badge" height="223" alt="Glama"></a>
 
-Model Context Protocol server for automating Firefox via WebDriver BiDi (through Selenium WebDriver). Works with Claude Code, Claude Desktop, Cursor, Cline and other MCP clients.
+Model Context Protocol server that lets AI agents use Firefox. It has two main use cases:
+
+- **Agentic browsing**: the agent uses the browser for regular tasks, such as reading pages, filling forms and going through multi-step flows on websites.
+- **Agent-assisted web development**: the agent loads the page you are working on and inspects it with developer tools, such as the console, network requests, the debugger and the profiler.
+
+It controls Firefox through WebDriver BiDi (via Selenium WebDriver) and works with Claude Code, Claude Desktop, Cursor, Cline and other MCP clients.
 
 Repository: https://github.com/mozilla/firefox-devtools-mcp
 
@@ -149,19 +154,16 @@ Tools are grouped into modules. You choose which modules to expose either with a
 (`--tool-preset`) or with an explicit list (`--tools`). When both are given, `--tools` wins and
 the preset is ignored.
 
-Modules: `pages`, `snapshot`, `input`, `network`, `console`, `screenshot`, `downloads`,
-`utilities`, `management`, `launch`, `webextension`, `profiler`, `screencast`, `script`,
-`debugging`, `prefs`, `privileged`, `bidi`.
-
 Presets (each is a superset of the previous):
 
-- `slim` — `pages`, `snapshot`, `input`, `screenshot`
-- `basic` (default) — `slim` plus `downloads`, `script`, `utilities`, `management`, `webextension`, `screencast`
-- `developer` — `basic` plus `debugging`, `network`, `console`, `profiler`
-- `mozilla` — `developer` plus `launch`, `prefs`, `privileged`, `bidi`
+- `slim` — the minimum to browse and interact with pages
+- `basic` (default) — adds tools for regular browsing
+- `developer` — adds tools for web developers
+- `mozilla` — adds tools for Firefox developers
 - `all` — every module
 
-`launch` and `bidi` require the Mozilla-internal build. The public package omits them even when they are named in `--tools`.
+See [docs/tools.md](docs/tools.md#modules-and-presets) for the list of modules and the modules
+in each preset.
 
 Note that `basic`, the default, includes `script` and therefore the `evaluate_script` tool.
 See [SECURITY.md](SECURITY.md#tool-modules-and-presets) for what that means for the attack
@@ -179,8 +181,10 @@ The `prefs` and `privileged` modules require `MOZ_REMOTE_ALLOW_SYSTEM_ACCESS=1` 
 available in the Mozilla-internal build. The `launch` module requires the Mozilla-internal
 build too: it restarts Firefox under a caller-chosen binary, profile, environment and set of
 preferences, which is a configuration change the operator should own. Use `--pref`,
-`--firefox-path` and the other command-line options instead. The public package skips these
-modules even if requested and logs a warning naming the modules it dropped.
+`--firefox-path` and the other command-line options instead. The `bidi` module also requires
+the Mozilla-internal build: it sends any WebDriver BiDi command, so it gives access to what the
+other modules expose. The public package skips these modules even if requested and logs a
+warning naming the modules it dropped.
 
 ### Useful preferences (`--pref`)
 
@@ -242,33 +246,12 @@ Both flags are required because the MCP uses both WebDriver Classic (`--marionet
 See [docs/tools.md](docs/tools.md) for the full list of tools by module, with
 descriptions and parameters (generated from the source).
 
-- Pages: list/new/navigate/select/close/get_page_text (get_page_text supports optional `saveTo`)
-- Snapshot/UID: take/resolve/clear (take supports optional `saveTo`)
-- Input: click/hover/fill/drag/upload/form fill/press_key/type_text
-- Network: list/get (ID‑first, filters, always‑on capture; both support optional `saveTo`)
-- Downloads: list_downloads/clear_downloads (always‑on capture), set_download_behavior (allow/deny/default)
-- Console: list/clear (list supports optional `saveTo`)
-- Screenshot: page/by uid (with optional `saveTo` for CLI environments)
-- Print: print_page (saves the page as PDF, with optional landscape and backgrounds)
-- Script: evaluate_script (optional `sandbox` for an isolated realm; optional `saveTo` for bulky results)
-- BiDi: send_bidi_command (raw WebDriver BiDi command, optional `saveTo`; requires the Mozilla-internal build, selected with the `mozilla` preset or `--tools bidi`)
-- Privileged Context: list/select privileged ("chrome") contexts, evaluate_privileged_script (requires `MOZ_REMOTE_ALLOW_SYSTEM_ACCESS=1`)
-- WebExtension: install_extension, uninstall_extension, list_extensions (list requires `MOZ_REMOTE_ALLOW_SYSTEM_ACCESS=1`)
-- Firefox Management: get_firefox_info, get_firefox_output, close_firefox_session
-- Firefox Launch: restart_firefox (requires the Mozilla-internal build)
-- Firefox Preferences: get_firefox_prefs, set_firefox_prefs (requires `MOZ_REMOTE_ALLOW_SYSTEM_ACCESS=1`)
-- Profiler: profiler_is_active, profiler_start (preset or explicit config), profiler_stop (saves profile to downloads directory)
-- Screencast: screencast_start (records the page viewport to a video file in the downloads directory), screencast_stop (requires Firefox 154+)
-- Utilities: accept/dismiss dialog, history back/forward, set viewport
-
 ### Saving bulky output to disk
 
-Large tool output can consume significant context in CLI clients like Claude Code. The
-`screenshot_page`, `screenshot_by_uid`, `take_snapshot`, `list_console_messages`,
-`list_network_requests`, `get_network_request`, `get_page_text`,
-`evaluate_script`, and
-`evaluate_privileged_script` tools accept an optional `saveTo` parameter that writes the
-result to a file instead of returning it inline. `saveTo` takes one of three forms:
+Large tool output can consume significant context in CLI clients like Claude Code. Several
+tools accept an optional `saveTo` parameter that writes the result to a file instead of
+returning it inline. See [docs/tools.md](docs/tools.md#tools-that-accept-saveto) for the list.
+`saveTo` takes one of three forms:
 
 - a file path (relative to the current working directory, or absolute within `~/.firefox-devtools-mcp/output`; parent directories are created). Paths reaching a Firefox profile, or the files this server reads back, are refused
 - an existing directory (a timestamped file is generated inside it)
@@ -278,9 +261,8 @@ The response returns the path and byte size. The saved file always holds the ful
 untruncated data: the inline size safeguards (console message caps, network header
 truncation, snapshot line caps) never apply to it.
 
-The text-producing tools (everything except the screenshots) also accept `preview`, a number
-of characters of the saved output to echo back inline as a short excerpt. Screenshots have no
-preview.
+The text-producing tools also accept `preview`, a number of characters of the saved output to
+echo back inline as a short excerpt. The list in docs/tools.md shows which tools support it.
 
 ```
 screenshot_page({ saveTo: "page.png" })

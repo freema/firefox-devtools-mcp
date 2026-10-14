@@ -1,7 +1,7 @@
 {
   "name": "@mozilla/firefox-devtools-mcp",
   "version": "0.10.5",
-  "description": "Model Context Protocol (MCP) server for Firefox DevTools automation",
+  "description": "Model Context Protocol (MCP) server that lets AI agents browse the web and debug web pages with Firefox",
   "mcpName": "io.github.mozilla/firefox-devtools-mcp",
   "author": "Mozilla",
   "license": "MIT OR Apache-2.0",
