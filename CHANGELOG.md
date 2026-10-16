@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.10.6] - 2026-10-16
+
+### Added
+- `print_page` tool that saves the current page as a PDF file, with optional `landscape` and `background` options. It uses print CSS, so it can be used to check print styles
+
+### Fixed
+- Pointing `--profile-path` at a profile created by the server now reuses that profile directly, instead of creating another profile inside it and warning that it looks like a real Firefox profile. The server marks the profiles it creates with a `.firefox-devtools-mcp` file. Paths without this marker keep using the `firefox_devtools_mcp_profile` subfolder, as before
+- `list_pages`, `select_page`, `close_page`, `navigate_page` and `new_page` no longer bring every tab to the front. They now read the tab list with WebDriver BiDi instead of switching to each tab with WebDriver Classic
+- `select_page` and `close_page` now act on the tab shown by the last tab list, even if tabs were opened or closed since then
+
+### Changed
+- Tabs that are not loaded yet, for example restored tabs that were never opened, are no longer listed by `list_pages` until they are loaded
+- A tab whose title cannot be read within 1 second, for example because its page is busy, is listed with the title `(unknown)`
+
 ## [0.10.5] - 2026-10-09
 
 ### Fixed
