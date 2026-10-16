@@ -248,15 +248,13 @@ describe('PageManagement', () => {
 
   describe('createNewPage', () => {
     it('uses BiDi navigate', async () => {
-      // createNewPage needs real driver methods for switchTo/handles
+      // createNewPage needs real driver methods for switchTo/getWindowHandle
       const switchToMock = vi
         .fn()
         .mockReturnValue({ newWindow: vi.fn().mockResolvedValue(undefined) });
-      const getAllWindowHandlesMock = vi.fn().mockResolvedValue(['handle-1', 'handle-2']);
-
       const driver = {
         switchTo: switchToMock,
-        getAllWindowHandles: getAllWindowHandlesMock,
+        getWindowHandle: vi.fn().mockResolvedValue('handle-2'),
       } as any;
 
       const getCurrentContextId = vi.fn().mockReturnValue('handle-2');
@@ -291,11 +289,9 @@ describe('PageManagement', () => {
       const switchToMock = vi
         .fn()
         .mockReturnValue({ newWindow: vi.fn().mockResolvedValue(undefined) });
-      const getAllWindowHandlesMock = vi.fn().mockResolvedValue(['handle-1', 'handle-2']);
-
       const driver = {
         switchTo: switchToMock,
-        getAllWindowHandles: getAllWindowHandlesMock,
+        getWindowHandle: vi.fn().mockResolvedValue('handle-2'),
       } as any;
 
       const sendBiDiCommand = vi.fn().mockResolvedValue({});
@@ -315,20 +311,33 @@ describe('PageManagement', () => {
     });
   });
 
-  describe('refreshTabs', () => {
+  describe('tabs', () => {
+    const TREE = [
+      { context: 'tab-3', url: 'https://example.com/c' },
+      { context: 'tab-1', url: 'https://example.com/a' },
+      { context: 'tab-2', url: '' },
+    ];
+
     function createTabMocks(
-      contexts: Array<{ context: string; url: string }>,
-      titles: Record<string, string>
+      titles: Record<string, string>,
+      { tree = TREE, currentId = 'tab-2' }: { tree?: typeof TREE; currentId?: string } = {}
     ) {
-      const switchTo = vi.fn();
+      let current = currentId;
+      const window = vi.fn().mockResolvedValue(undefined);
       const driver = {
-        getAllWindowHandles: vi.fn().mockResolvedValue(['tab-1', 'tab-2', 'tab-3']),
-        getWindowHandle: vi.fn().mockResolvedValue('tab-2'),
-        switchTo,
+        switchTo: vi.fn().mockReturnValue({ window, newWindow: vi.fn() }),
+        close: vi.fn().mockResolvedValue(undefined),
+        getWindowHandle: vi.fn().mockResolvedValue('tab-new'),
       } as any;
+      const setCurrentContextId = vi.fn((id: string) => {
+        current = id;
+      });
       const sendBiDiCommand = vi.fn(async (method: string, params: any) => {
         if (method === 'browsingContext.getTree') {
-          return { contexts };
+          return { contexts: tree };
+        }
+        if (method === 'browsingContext.navigate') {
+          return {};
         }
         const title = titles[params.target.context];
         if (title === undefined) {
@@ -338,55 +347,121 @@ describe('PageManagement', () => {
       });
       const pages = new PageManagement(
         driver,
-        vi.fn().mockReturnValue('tab-2'),
-        vi.fn(),
+        () => current,
+        setCurrentContextId,
         sendBiDiCommand as any
       );
-      return { pages, sendBiDiCommand, switchTo };
+      return { pages, driver, window, setCurrentContextId, sendBiDiCommand };
     }
 
-    it('reads urls and titles with BiDi, without switching tabs', async () => {
-      const { pages, sendBiDiCommand, switchTo } = createTabMocks(
-        [
-          { context: 'tab-3', url: 'https://example.com/c' },
-          { context: 'tab-1', url: 'https://example.com/a' },
-          { context: 'tab-2', url: '' },
-        ],
-        { 'tab-1': 'A', 'tab-2': '', 'tab-3': 'C' }
-      );
+    it('refreshTabs reads tabs from the BiDi tree without switching tabs', async () => {
+      const { pages, driver, sendBiDiCommand } = createTabMocks({ 'tab-1': 'A', 'tab-2': '' });
 
       await pages.refreshTabs();
 
-      expect(switchTo).not.toHaveBeenCalled();
+      expect(driver.switchTo).not.toHaveBeenCalled();
       expect(sendBiDiCommand).toHaveBeenCalledWith('browsingContext.getTree', { maxDepth: 0 });
       expect(pages.getTabs()).toEqual([
+        { actor: 'tab-3', title: '(unknown)', url: 'https://example.com/c' },
         { actor: 'tab-1', title: 'A', url: 'https://example.com/a' },
         { actor: 'tab-2', title: 'Untitled', url: 'about:blank' },
-        { actor: 'tab-3', title: 'C', url: 'https://example.com/c' },
       ]);
+      expect(pages.getSelectedTabIdx()).toBe(2);
+    });
+
+    it('refreshTabs selects the first tab when the current context is not in the tree', async () => {
+      const { pages } = createTabMocks({}, { currentId: 'chrome-window' });
+
+      await pages.refreshTabs();
+
+      expect(pages.getSelectedTabIdx()).toBe(0);
+    });
+
+    it('refreshTabs falls back to the current tab when the tree cannot be read', async () => {
+      const { pages, sendBiDiCommand } = createTabMocks({});
+      sendBiDiCommand.mockRejectedValueOnce(new Error('unsupported operation'));
+
+      await pages.refreshTabs();
+
+      expect(pages.getTabs()).toEqual([{ actor: 'tab-2', title: 'Current Tab', url: '' }]);
+      expect(pages.getSelectedTabIdx()).toBe(0);
+    });
+
+    it('createNewPage returns the index of the new tab in the tree order', async () => {
+      const { pages, setCurrentContextId } = createTabMocks(
+        {},
+        {
+          tree: [
+            { context: 'tab-1', url: 'https://example.com/a' },
+            { context: 'tab-new', url: HTTPS_URL },
+            { context: 'tab-2', url: 'https://example.com/b' },
+          ],
+        }
+      );
+
+      const index = await pages.createNewPage(HTTPS_URL);
+
+      expect(setCurrentContextId).toHaveBeenCalledWith('tab-new');
+      expect(index).toBe(1);
+      expect(pages.getTabs()[index]?.actor).toBe('tab-new');
+    });
+
+    it('selectTab switches to the cached tab at that index', async () => {
+      const { pages, window, setCurrentContextId } = createTabMocks({});
+      await pages.refreshTabs();
+
+      await pages.selectTab(1);
+
+      expect(window).toHaveBeenCalledWith('tab-1');
+      expect(setCurrentContextId).toHaveBeenCalledWith('tab-1');
       expect(pages.getSelectedTabIdx()).toBe(1);
     });
 
-    it('lists tabs missing from the tree or failing to evaluate as unknown', async () => {
-      const { pages, sendBiDiCommand } = createTabMocks(
-        [
-          { context: 'tab-1', url: 'https://example.com/a' },
-          { context: 'tab-2', url: 'https://example.com/b' },
-        ],
-        { 'tab-1': 'A' }
-      );
-
+    it('closeTab closes the cached tab at that index and selects the first remaining one', async () => {
+      const { pages, driver, window, setCurrentContextId } = createTabMocks({});
       await pages.refreshTabs();
 
-      expect(pages.getTabs()).toEqual([
-        { actor: 'tab-1', title: 'A', url: 'https://example.com/a' },
-        { actor: 'tab-2', title: '(unknown)', url: 'https://example.com/b' },
-        { actor: 'tab-3', title: '(unknown)', url: '(unknown)' },
-      ]);
-      expect(sendBiDiCommand).not.toHaveBeenCalledWith(
-        'script.evaluate',
-        expect.objectContaining({ target: expect.objectContaining({ context: 'tab-3' }) })
-      );
+      await pages.closeTab(0);
+
+      expect(window).toHaveBeenNthCalledWith(1, 'tab-3');
+      expect(driver.close).toHaveBeenCalledOnce();
+      expect(window).toHaveBeenNthCalledWith(2, 'tab-1');
+      expect(setCurrentContextId).toHaveBeenCalledWith('tab-1');
+      expect(pages.getTabs().map((tab) => tab.actor)).toEqual(['tab-1', 'tab-2']);
+    });
+
+    it('closeTab on the current tab moves the selection to a remaining tab', async () => {
+      const { pages, driver, window } = createTabMocks({});
+      await pages.refreshTabs();
+
+      await pages.closeTab(2);
+
+      expect(window).toHaveBeenNthCalledWith(1, 'tab-2');
+      expect(driver.close).toHaveBeenCalledOnce();
+      expect(window).toHaveBeenNthCalledWith(2, 'tab-3');
+      expect(pages.getSelectedTabIdx()).toBe(0);
+      expect(pages.getTabs().map((tab) => tab.actor)).toEqual(['tab-3', 'tab-1']);
+    });
+
+    it('ignores indexes outside the cached list', async () => {
+      const { pages, driver } = createTabMocks({});
+      await pages.refreshTabs();
+
+      await pages.selectTab(3);
+      await pages.closeTab(-1);
+
+      expect(driver.switchTo).not.toHaveBeenCalled();
+      expect(driver.close).not.toHaveBeenCalled();
+    });
+
+    it('does nothing when the tab list was never refreshed', async () => {
+      const { pages, driver } = createTabMocks({});
+
+      await pages.selectTab(0);
+      await pages.closeTab(0);
+
+      expect(driver.switchTo).not.toHaveBeenCalled();
+      expect(driver.close).not.toHaveBeenCalled();
     });
   });
 });

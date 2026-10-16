@@ -146,26 +146,24 @@ export class PageManagement {
   }
 
   /**
-   * Refresh tabs metadata - fetches all window handles and their URLs/titles
+   * Refresh tabs metadata - fetches all top-level browsing contexts and their URLs/titles
    */
   async refreshTabs(): Promise<void> {
     try {
-      const handles = await this.driver.getAllWindowHandles();
-      const currentHandle = await this.driver.getWindowHandle();
-
       const { contexts } = await this.sendBiDiCommand('browsingContext.getTree', { maxDepth: 0 });
-      const urls = new Map(contexts.map((context) => [context.context, context.url]));
 
       this.cachedTabs = await Promise.all(
-        handles.map(async (handle) => {
-          const url = urls.get(handle);
-          if (url === undefined) {
-            return { actor: handle, title: '(unknown)', url: '(unknown)' };
-          }
-          return { actor: handle, title: await this.getTitle(handle), url: url || 'about:blank' };
-        })
+        contexts.map(async ({ context, url }) => ({
+          actor: context,
+          title: await this.getTitle(context),
+          url: url || 'about:blank',
+        }))
       );
-      this.cachedSelectedIdx = Math.max(0, handles.indexOf(currentHandle));
+      const currentId = this.getCurrentContextId();
+      this.cachedSelectedIdx = Math.max(
+        0,
+        this.cachedTabs.findIndex((tab) => tab.actor === currentId)
+      );
     } catch (error) {
       log(`Error refreshing tabs: ${error instanceof Error ? error.message : String(error)}`);
       // Fallback to single tab
@@ -212,10 +210,10 @@ export class PageManagement {
    * Select tab by index
    */
   async selectTab(index: number): Promise<void> {
-    const handles = await this.driver.getAllWindowHandles();
-    if (index >= 0 && index < handles.length) {
-      await this.driver.switchTo().window(handles[index]!);
-      this.setCurrentContextId(handles[index]!);
+    const handle = this.cachedTabs[index]?.actor;
+    if (handle) {
+      await this.driver.switchTo().window(handle);
+      this.setCurrentContextId(handle);
       this.cachedSelectedIdx = index;
     }
   }
@@ -225,26 +223,26 @@ export class PageManagement {
    */
   async createNewPage(url: string, waitOverride?: BrowsingContext.ReadinessState): Promise<number> {
     await this.driver.switchTo().newWindow('tab');
-    const handles = await this.driver.getAllWindowHandles();
-    const newIdx = handles.length - 1;
-    this.setCurrentContextId(handles[newIdx]!);
-    this.cachedSelectedIdx = newIdx;
+    this.setCurrentContextId(await this.driver.getWindowHandle());
     await this.navigate(url, waitOverride);
-    return newIdx;
+    await this.refreshTabs();
+    return this.cachedSelectedIdx;
   }
 
   /**
    * Close tab by index
    */
   async closeTab(index: number): Promise<void> {
-    const handles = await this.driver.getAllWindowHandles();
-    if (index >= 0 && index < handles.length) {
-      await this.driver.switchTo().window(handles[index]!);
+    const handle = this.cachedTabs[index]?.actor;
+    if (handle) {
+      await this.driver.switchTo().window(handle);
       await this.driver.close();
-      const remaining = await this.driver.getAllWindowHandles();
-      if (remaining.length > 0) {
-        await this.driver.switchTo().window(remaining[0]!);
-        this.setCurrentContextId(remaining[0]!);
+      this.cachedTabs = this.cachedTabs.filter((tab) => tab.actor !== handle);
+      const next = this.cachedTabs[0]?.actor;
+      if (next) {
+        await this.driver.switchTo().window(next);
+        this.setCurrentContextId(next);
+        this.cachedSelectedIdx = 0;
       }
     }
   }

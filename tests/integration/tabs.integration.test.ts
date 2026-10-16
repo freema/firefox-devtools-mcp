@@ -56,6 +56,8 @@ describe('Tab Management Integration Tests', () => {
     expect(updatedTabs.length).toBe(initialTabCount + 1);
     expect(typeof newTabIndex).toBe('number');
     expect(newTabIndex).toBeGreaterThanOrEqual(0);
+    expect(updatedTabs[newTabIndex]?.url).toBe(fixturePath);
+    expect(firefox.getSelectedTabIdx()).toBe(newTabIndex);
   }, 15000);
 
   it('should switch between tabs', async () => {
