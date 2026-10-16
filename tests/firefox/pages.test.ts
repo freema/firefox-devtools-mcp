@@ -6,7 +6,7 @@
  * Uncommon schemes (moz-extension:, about:, etc.) use wait:"none"
  */
 
-import { describe, it, expect, vi } from 'vitest';
+import { afterEach, describe, it, expect, vi } from 'vitest';
 import { ReadinessState } from '@/firefox/bidi.js';
 import {
   isCommonScheme,
@@ -85,6 +85,49 @@ describe('PageManagement', () => {
     );
     return { pages, sendBiDiCommand };
   }
+
+  describe('tab titles', () => {
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    it('gives up on a tab whose title does not come back in time', async () => {
+      vi.useFakeTimers();
+      const driver = {
+        getAllWindowHandles: vi.fn().mockResolvedValue(['tab-1', 'tab-2']),
+        getWindowHandle: vi.fn().mockResolvedValue('tab-1'),
+      } as any;
+      const sendBiDiCommand = vi.fn((method: string, params: any) => {
+        if (method === 'browsingContext.getTree') {
+          return Promise.resolve({
+            contexts: [
+              { context: 'tab-1', url: 'https://example.com/a' },
+              { context: 'tab-2', url: 'https://example.com/b' },
+            ],
+          });
+        }
+        if (params.target.context === 'tab-2') {
+          return new Promise(() => {});
+        }
+        return Promise.resolve({ type: 'success', result: { type: 'string', value: 'A' } });
+      });
+      const pages = new PageManagement(
+        driver,
+        vi.fn().mockReturnValue('tab-1'),
+        vi.fn(),
+        sendBiDiCommand as any
+      );
+
+      const refresh = pages.refreshTabs();
+      await vi.advanceTimersByTimeAsync(1000);
+      await refresh;
+
+      expect(pages.getTabs()).toEqual([
+        { actor: 'tab-1', title: 'A', url: 'https://example.com/a' },
+        { actor: 'tab-2', title: '(unknown)', url: 'https://example.com/b' },
+      ]);
+    });
+  });
 
   describe('navigate', () => {
     it('uses BiDi with wait:interactive for common URL schemes', async () => {
@@ -269,6 +312,81 @@ describe('PageManagement', () => {
         url: HTTPS_URL,
         wait: 'complete',
       });
+    });
+  });
+
+  describe('refreshTabs', () => {
+    function createTabMocks(
+      contexts: Array<{ context: string; url: string }>,
+      titles: Record<string, string>
+    ) {
+      const switchTo = vi.fn();
+      const driver = {
+        getAllWindowHandles: vi.fn().mockResolvedValue(['tab-1', 'tab-2', 'tab-3']),
+        getWindowHandle: vi.fn().mockResolvedValue('tab-2'),
+        switchTo,
+      } as any;
+      const sendBiDiCommand = vi.fn(async (method: string, params: any) => {
+        if (method === 'browsingContext.getTree') {
+          return { contexts };
+        }
+        const title = titles[params.target.context];
+        if (title === undefined) {
+          throw new Error('no such frame');
+        }
+        return { type: 'success', result: { type: 'string', value: title } };
+      });
+      const pages = new PageManagement(
+        driver,
+        vi.fn().mockReturnValue('tab-2'),
+        vi.fn(),
+        sendBiDiCommand as any
+      );
+      return { pages, sendBiDiCommand, switchTo };
+    }
+
+    it('reads urls and titles with BiDi, without switching tabs', async () => {
+      const { pages, sendBiDiCommand, switchTo } = createTabMocks(
+        [
+          { context: 'tab-3', url: 'https://example.com/c' },
+          { context: 'tab-1', url: 'https://example.com/a' },
+          { context: 'tab-2', url: '' },
+        ],
+        { 'tab-1': 'A', 'tab-2': '', 'tab-3': 'C' }
+      );
+
+      await pages.refreshTabs();
+
+      expect(switchTo).not.toHaveBeenCalled();
+      expect(sendBiDiCommand).toHaveBeenCalledWith('browsingContext.getTree', { maxDepth: 0 });
+      expect(pages.getTabs()).toEqual([
+        { actor: 'tab-1', title: 'A', url: 'https://example.com/a' },
+        { actor: 'tab-2', title: 'Untitled', url: 'about:blank' },
+        { actor: 'tab-3', title: 'C', url: 'https://example.com/c' },
+      ]);
+      expect(pages.getSelectedTabIdx()).toBe(1);
+    });
+
+    it('lists tabs missing from the tree or failing to evaluate as unknown', async () => {
+      const { pages, sendBiDiCommand } = createTabMocks(
+        [
+          { context: 'tab-1', url: 'https://example.com/a' },
+          { context: 'tab-2', url: 'https://example.com/b' },
+        ],
+        { 'tab-1': 'A' }
+      );
+
+      await pages.refreshTabs();
+
+      expect(pages.getTabs()).toEqual([
+        { actor: 'tab-1', title: 'A', url: 'https://example.com/a' },
+        { actor: 'tab-2', title: '(unknown)', url: 'https://example.com/b' },
+        { actor: 'tab-3', title: '(unknown)', url: '(unknown)' },
+      ]);
+      expect(sendBiDiCommand).not.toHaveBeenCalledWith(
+        'script.evaluate',
+        expect.objectContaining({ target: expect.objectContaining({ context: 'tab-3' }) })
+      );
     });
   });
 });

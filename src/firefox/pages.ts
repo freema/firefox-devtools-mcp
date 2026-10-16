@@ -5,9 +5,12 @@
 import { WebDriver } from 'selenium-webdriver';
 import type { BrowsingContext } from 'webdriver-bidi-protocol';
 import { ReadinessState, type BiDiFacade } from './bidi.js';
-import { log, logDebug, logError } from '../utils/logger.js';
+import { log, logDebug } from '../utils/logger.js';
 
 const COMMON_URL_SCHEMES = ['http:', 'https:', 'data:', 'blob:', 'file:'];
+const PAGES_SANDBOX = 'page-management';
+// script.evaluate cannot answer while the content process is busy, so a hung tab must not block the whole tab list
+const TITLE_TIMEOUT_MS = 1000;
 
 /**
  * Check if a URL uses a common scheme that supports load events.
@@ -150,37 +153,19 @@ export class PageManagement {
       const handles = await this.driver.getAllWindowHandles();
       const currentHandle = await this.driver.getWindowHandle();
 
-      this.cachedTabs = [];
-      this.cachedSelectedIdx = 0;
+      const { contexts } = await this.sendBiDiCommand('browsingContext.getTree', { maxDepth: 0 });
+      const urls = new Map(contexts.map((context) => [context.context, context.url]));
 
-      for (let i = 0; i < handles.length; i++) {
-        const handle = handles[i]!;
-        let title = '(unknown)';
-        let url = '(unknown)';
-
-        try {
-          // Switch to window to get its URL and title
-          await this.driver.switchTo().window(handle);
-          url = (await this.driver.getCurrentUrl()) || 'about:blank';
-          title = (await this.driver.getTitle()) || 'Untitled';
-        } catch (error) {
-          logError('Failed to fetch tab url or title', error);
-        }
-
-        this.cachedTabs.push({
-          actor: handle,
-          title,
-          url,
-        });
-
-        // Track which tab is selected
-        if (handle === currentHandle) {
-          this.cachedSelectedIdx = i;
-        }
-      }
-
-      // Switch back to the original window
-      await this.driver.switchTo().window(currentHandle);
+      this.cachedTabs = await Promise.all(
+        handles.map(async (handle) => {
+          const url = urls.get(handle);
+          if (url === undefined) {
+            return { actor: handle, title: '(unknown)', url: '(unknown)' };
+          }
+          return { actor: handle, title: await this.getTitle(handle), url: url || 'about:blank' };
+        })
+      );
+      this.cachedSelectedIdx = Math.max(0, handles.indexOf(currentHandle));
     } catch (error) {
       log(`Error refreshing tabs: ${error instanceof Error ? error.message : String(error)}`);
       // Fallback to single tab
@@ -193,6 +178,33 @@ export class PageManagement {
         },
       ];
       this.cachedSelectedIdx = 0;
+    }
+  }
+
+  private async getTitle(context: string): Promise<string> {
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    try {
+      const result = await Promise.race([
+        this.sendBiDiCommand('script.evaluate', {
+          expression: 'document.title',
+          awaitPromise: false,
+          target: { context, sandbox: PAGES_SANDBOX },
+        }),
+        new Promise<never>((_, reject) => {
+          timer = setTimeout(() => reject(new Error('Timed out')), TITLE_TIMEOUT_MS);
+        }),
+      ]);
+      if (result.type === 'success' && result.result.type === 'string') {
+        return result.result.value || 'Untitled';
+      }
+      return 'Untitled';
+    } catch (error) {
+      logDebug(
+        `Failed to fetch title of tab ${context}: ${error instanceof Error ? error.message : String(error)}`
+      );
+      return '(unknown)';
+    } finally {
+      clearTimeout(timer);
     }
   }
 

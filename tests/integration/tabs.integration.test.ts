@@ -36,6 +36,10 @@ describe('Tab Management Integration Tests', () => {
     expect(tabs).toBeDefined();
     expect(Array.isArray(tabs)).toBe(true);
     expect(tabs.length).toBeGreaterThan(0);
+    expect(tabs[firefox.getSelectedTabIdx()]).toMatchObject({
+      title: 'Simple Test Page',
+      url: fixturePath,
+    });
   }, 15000);
 
   it('should create new tab', async () => {
