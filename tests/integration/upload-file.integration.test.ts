@@ -69,6 +69,16 @@ describe('upload_file_by_uid Integration Tests', () => {
     expect(await recordedChanges()).toEqual([{ target: 'multi', files: ['a.txt', 'b.txt'] }]);
   }, 20000);
 
+  it('should set the file on an input hidden after the snapshot', async () => {
+    await openPage();
+    const uid = await uidOf('single');
+    await firefox.evaluate(`document.getElementById('single').style.display = 'none'`);
+
+    await firefox.uploadFileByUid(uid, fileA);
+
+    expect(await recordedChanges()).toEqual([{ target: 'single', files: ['a.txt'] }]);
+  }, 20000);
+
   it('should reject an element that is not a file input', async () => {
     await openPage();
 
