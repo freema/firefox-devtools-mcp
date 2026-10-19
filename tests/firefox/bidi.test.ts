@@ -70,6 +70,31 @@ describe('BidiFacade sendCommand WebSocket readiness', () => {
     expect(result).toEqual({ success: true });
   });
 
+  it('should include the error message in the rejection', async () => {
+    let onMessage: (data: string) => void = () => {};
+    const mockWs = {
+      readyState: 1,
+      send: vi.fn(),
+      on: vi.fn((event: string, handler: (data: string) => void) => {
+        if (event === 'message') {
+          onMessage = handler;
+        }
+      }),
+      off: vi.fn(),
+    };
+    const driver = { getBidi: vi.fn().mockResolvedValue({ socket: mockWs }) };
+    const bidi = new BiDiFacade(driver as any);
+
+    const commandPromise = bidi.sendCommand('session.status');
+    await vi.waitFor(() => expect(mockWs.send).toHaveBeenCalled());
+    const { id } = JSON.parse(mockWs.send.mock.calls[0][0]);
+    onMessage(JSON.stringify({ id, error: 'unknown error', message: 'Something went wrong' }));
+
+    await expect(commandPromise).rejects.toThrow(
+      'BiDi error: "unknown error": Something went wrong'
+    );
+  });
+
   it('should timeout if WebSocket never opens', async () => {
     const driver = {} as any;
     const bidi = new BiDiFacade(driver);

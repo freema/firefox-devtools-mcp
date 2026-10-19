@@ -355,16 +355,6 @@ export class DomInteractions {
     filePath: string
   ): Promise<void> {
     const el = await this.resolveUid(context, uid);
-    await this.bidi.callFunction(
-      context,
-      `
-      (element) => {
-        if (element.tagName !== 'INPUT' || element.type !== 'file')
-          throw new Error('uploadFile: element must be <input type=file>');
-      }
-      `,
-      [el]
-    );
     const files = filePath.split('\n').filter((path) => path !== '');
     await this.bidi.sendCommand('input.setFiles', { context, element: el, files });
   }

@@ -73,7 +73,7 @@ describe('upload_file_by_uid Integration Tests', () => {
     await openPage();
 
     await expect(firefox.uploadFileByUid(await uidOf('text'), fileA)).rejects.toThrow(
-      'element must be <input type=file>'
+      'unable to set file input'
     );
   }, 20000);
 });

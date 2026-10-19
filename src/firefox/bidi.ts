@@ -129,7 +129,8 @@ export class BiDiFacade extends EventEmitter<FirefoxEventMap> {
           if (payload.id === id) {
             ws.off('message', messageHandler);
             if (payload.error) {
-              reject(new Error(`BiDi error: ${JSON.stringify(payload.error)}`));
+              const details = payload.message ? `: ${payload.message}` : '';
+              reject(new Error(`BiDi error: ${JSON.stringify(payload.error)}${details}`));
             } else {
               resolve(payload.result);
             }
