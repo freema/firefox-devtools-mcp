@@ -126,7 +126,12 @@ describe('getFirefox() reconnect behavior', () => {
 describe('FirefoxCore connect() BiDi endpoint check', () => {
   // Mocks for the connect-existing path
   const mockServiceAddArguments = vi.fn();
-  const mockServiceBuild = vi.fn().mockReturnValue({});
+  const mockGeckodriverKill = vi.fn();
+  const mockServiceKill = vi.fn().mockResolvedValue(undefined);
+  const mockServiceBuild = vi.fn().mockReturnValue({
+    command_: Promise.resolve({ kill: mockGeckodriverKill }),
+    kill: mockServiceKill,
+  });
   const mockCreateSession = vi.fn();
   const mockCapabilitiesSet = vi.fn();
   const mockExistsSync = vi.fn();
@@ -170,6 +175,7 @@ describe('FirefoxCore connect() BiDi endpoint check', () => {
     getCapabilities: vi.fn().mockResolvedValue({
       get: vi.fn((name: string) => capabilityValues[name]),
     }),
+    getSession: vi.fn().mockResolvedValue({}),
     getWindowHandle: vi.fn().mockResolvedValue('mock-context-id'),
     get: vi.fn().mockResolvedValue(undefined),
   });
@@ -394,6 +400,108 @@ describe('FirefoxCore connect() BiDi endpoint check', () => {
     // The greeting gets more time than the connection itself.
     expect(socket.setTimeout).toHaveBeenLastCalledWith(5000);
     expect(mockCreateSession).not.toHaveBeenCalled();
+  });
+
+  it('should give up and kill geckodriver when Firefox never grants the session', async () => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+    try {
+      let sessionRequested!: () => void;
+      const requested = new Promise<void>((resolve) => (sessionRequested = resolve));
+      const driver = {
+        ...makeDriver({ browserVersion: '142.0' }),
+        getSession: vi.fn(() => {
+          sessionRequested();
+          return new Promise(() => {});
+        }),
+      };
+      mockCreateSession.mockReturnValue(driver);
+
+      const { FirefoxCore, EXISTING_SESSION_TIMEOUT_MS } = await import('@/firefox/core.js');
+      const core = new FirefoxCore({ connectExisting: true, marionettePort: 2828 });
+
+      const connectPromise = core.connect();
+      const rejection = expect(connectPromise).rejects.toThrow(
+        /did not accept the WebDriver session within 45 seconds/
+      );
+      await requested;
+      await vi.advanceTimersByTimeAsync(EXISTING_SESSION_TIMEOUT_MS);
+      await rejection;
+
+      expect(mockGeckodriverKill).toHaveBeenCalledWith('SIGKILL');
+      expect(mockServiceKill).toHaveBeenCalled();
+      expect(driver.getCapabilities).not.toHaveBeenCalled();
+      expect(() => core.getDriver()).toThrow('Driver not connected');
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('should not start geckodriver when closed while connecting', async () => {
+    const { FirefoxCore } = await import('@/firefox/core.js');
+    const core = new FirefoxCore({ connectExisting: true, marionettePort: 2828 });
+
+    const connectPromise = core.connect();
+    await core.close();
+
+    await expect(connectPromise).rejects.toThrow('closed while connecting');
+    expect(mockServiceBuild).not.toHaveBeenCalled();
+    expect(mockCreateSession).not.toHaveBeenCalled();
+  });
+
+  it('should kill geckodriver when closed while the session is still pending', async () => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+    try {
+      let sessionRequested!: () => void;
+      const requested = new Promise<void>((resolve) => (sessionRequested = resolve));
+      const service: { command_: unknown; kill: () => Promise<void> } = {
+        command_: Promise.resolve({ kill: mockGeckodriverKill }),
+        kill: mockServiceKill,
+      };
+      mockServiceBuild.mockReturnValueOnce(service);
+      const driver = {
+        ...makeDriver({ browserVersion: '142.0' }),
+        getSession: vi.fn(() => {
+          sessionRequested();
+          return new Promise(() => {});
+        }),
+        quit: vi.fn(() => new Promise(() => {})),
+        // Like selenium's DriverService.kill(): it forgets the process, then sends SIGTERM.
+        onQuit_: vi.fn(() => {
+          service.command_ = null;
+          return Promise.resolve();
+        }),
+      };
+      mockCreateSession.mockReturnValue(driver);
+
+      const { FirefoxCore, EXISTING_SESSION_TIMEOUT_MS } = await import('@/firefox/core.js');
+      const core = new FirefoxCore({ connectExisting: true, marionettePort: 2828 });
+      const connectPromise = core.connect().catch(() => {});
+      await requested;
+
+      await core.close();
+
+      expect(mockGeckodriverKill).toHaveBeenCalledWith('SIGKILL');
+      expect(driver.quit).not.toHaveBeenCalled();
+      await vi.advanceTimersByTimeAsync(EXISTING_SESSION_TIMEOUT_MS);
+      await connectPromise;
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('should kill geckodriver when the session cannot be created', async () => {
+    const driver = {
+      ...makeDriver({ browserVersion: '142.0' }),
+      getSession: vi.fn().mockRejectedValue(new Error('unknown error')),
+    };
+    mockCreateSession.mockReturnValue(driver);
+
+    const { FirefoxCore } = await import('@/firefox/core.js');
+    const core = new FirefoxCore({ connectExisting: true, marionettePort: 2828 });
+
+    await expect(core.connect()).rejects.toThrow('unknown error');
+    expect(mockGeckodriverKill).toHaveBeenCalledWith('SIGKILL');
+    expect(() => core.getDriver()).toThrow('Driver not connected');
   });
 
   it('should not probe the Marionette port in launch mode', async () => {

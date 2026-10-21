@@ -106,6 +106,10 @@ function lookupMarionettePort(): number | void {
   }
 }
 
+type GeckodriverService = ReturnType<firefox.ServiceBuilder['build']>;
+
+export const EXISTING_SESSION_TIMEOUT_MS = 45_000;
+
 function checkProcess(pid: number): boolean {
   try {
     // this will only check for the process' existance but not kill it
@@ -189,6 +193,23 @@ async function findGeckodriver(): Promise<string> {
   return found;
 }
 
+type GeckodriverProcess = Promise<{ kill(signal: string): void }> | null;
+
+/** The process of a started service, which DriverService.kill() forgets. */
+function geckodriverProcessOf(service: GeckodriverService): GeckodriverProcess {
+  return (service as unknown as { command_: GeckodriverProcess }).command_;
+}
+
+/**
+ * DriverService.kill() sends SIGTERM, which geckodriver ignores while it waits
+ * for Marionette to create a session. A geckodriver left running would take the
+ * session once Firefox grants it, and hold Firefox without any client.
+ */
+async function killGeckodriver(geckodriver: GeckodriverProcess): Promise<void> {
+  const command = await Promise.resolve(geckodriver).catch(() => null);
+  command?.kill('SIGKILL');
+}
+
 /** geckodriver's "unable to find binary" error never mentions the fix. */
 const BINARY_NOT_FOUND_HINT =
   'Unable to detect Firefox binary automatically, please provide the full path via ' +
@@ -198,6 +219,9 @@ export class FirefoxCore {
   private currentContextId: string | null = null;
   private detectedBinaryPath: string | undefined;
   private driver: WebDriver | null = null;
+  private geckodriverProcess: GeckodriverProcess = null;
+  private closed = false;
+  private sessionPending = false;
   private firefoxVersion: string | null = null;
   private logFileFd: number | undefined;
   private logFilePath: string | undefined;
@@ -314,6 +338,12 @@ export class FirefoxCore {
       const geckodriverPath = await findGeckodriver();
       logDebug(`Using geckodriver: ${geckodriverPath}`);
 
+      // The server may have shut down while the port was probed and geckodriver
+      // looked up. Starting geckodriver now would leave it running on its own.
+      if (this.closed) {
+        throw new Error('The connection to Firefox was closed while connecting');
+      }
+
       // Build a geckodriver service that connects to the running Firefox.
       // ServiceBuilder already knows about --connect-existing and skips --websocket-port.
       const serviceBuilder = new firefox.ServiceBuilder(geckodriverPath);
@@ -331,7 +361,10 @@ export class FirefoxCore {
       // createSession() returns synchronously; the session is established async under the hood.
       // Passing geckodriverPath to ServiceBuilder prevents getBinaryPaths() from running,
       // which would otherwise invoke selenium-manager with --browser firefox.
-      this.driver = firefox.Driver.createSession(caps, serviceBuilder.build());
+      const service = serviceBuilder.build();
+      this.driver = firefox.Driver.createSession(caps, service);
+      this.geckodriverProcess = geckodriverProcessOf(service);
+      await this.waitForExistingSession(service);
     } else {
       // Set up output file for capturing Firefox stdout/stderr
       if (this.options.logFile) {
@@ -510,6 +543,43 @@ export class FirefoxCore {
   }
 
   /**
+   * Wait for geckodriver to create the session on the running Firefox. When
+   * remote control was enabled from the browser, Firefox asks the user to allow
+   * each new session, and geckodriver waits for the answer without a timeout.
+   */
+  private async waitForExistingSession(service: GeckodriverService): Promise<void> {
+    let timer: NodeJS.Timeout | undefined;
+    this.sessionPending = true;
+    try {
+      await Promise.race([
+        this.driver!.getSession(),
+        new Promise<never>((_, reject) => {
+          timer = setTimeout(
+            () =>
+              reject(
+                new Error(
+                  `Firefox did not accept the WebDriver session within ${EXISTING_SESSION_TIMEOUT_MS / 1000} seconds. ` +
+                    'If Firefox is asking whether to allow remote control, allow it and try again.'
+                )
+              ),
+            EXISTING_SESSION_TIMEOUT_MS
+          );
+        }),
+      ]);
+    } catch (error) {
+      const geckodriver = this.geckodriverProcess;
+      this.driver = null;
+      this.geckodriverProcess = null;
+      await killGeckodriver(geckodriver);
+      await service.kill().catch(() => {});
+      throw error;
+    } finally {
+      this.sessionPending = false;
+      clearTimeout(timer);
+    }
+  }
+
+  /**
    * Get driver instance (throw if not connected)
    */
   getDriver(): WebDriver {
@@ -619,15 +689,18 @@ export class FirefoxCore {
    * - Never throws — callers can rely on cleanup completing.
    */
   async close(): Promise<void> {
+    this.closed = true;
     if (!this.driver) {
       return;
     }
 
     const webdriver = this.driver as any; // Selenium WebDriver
     const webdriverQuitTimeout = 5000;
+    const geckodriver = this.geckodriverProcess;
 
     // Null to prevent re-entrancy
     this.driver = null;
+    this.geckodriverProcess = null;
     this.currentContextId = null;
     this.logFilePath = undefined;
     this.profileWarning = null;
@@ -645,9 +718,14 @@ export class FirefoxCore {
       }
     }
 
-    // In connect-existing mode, geckodriver's DELETE /session releases Marionette
-    // without terminating Firefox (since geckodriver was started with --connect-existing).
-    if ('quit' in webdriver) {
+    // There is nothing to quit while the session is still pending, and waiting
+    // for quit() to time out can outlast the client's patience at shutdown.
+    if (this.sessionPending) {
+      logDebug('Closing while the session is pending - killing geckodriver');
+      await killGeckodriver(geckodriver);
+    } else if ('quit' in webdriver) {
+      // In connect-existing mode, geckodriver's DELETE /session releases Marionette
+      // without terminating Firefox (since geckodriver was started with --connect-existing).
       let timer: NodeJS.Timeout;
       try {
         // Give webdriver.quit() a certain timeout
