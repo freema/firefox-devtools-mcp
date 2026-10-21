@@ -116,17 +116,54 @@ function checkProcess(pid: number): boolean {
   }
 }
 
-function checkPort(port: number, timeoutMs = 1000): Promise<string | null> {
-  return new Promise<string | null>((resolve) => {
+type MarionetteProbe =
+  | { status: 'ready' }
+  | { status: 'busy' }
+  | { status: 'silent' }
+  | { status: 'unreachable'; reason: string };
+
+// Firefox greets from its main thread, which can be slow while it is busy.
+const MARIONETTE_GREETING_TIMEOUT_MS = 5000;
+
+/**
+ * Connects to Marionette and waits for its greeting. Marionette accepts one
+ * session at a time: while a session is active, it closes new connections
+ * without a greeting, and geckodriver would retry them for a minute.
+ */
+function probeMarionette(port: number, timeoutMs = 1000): Promise<MarionetteProbe> {
+  return new Promise<MarionetteProbe>((resolve) => {
     const socket = netConnect({ host: '127.0.0.1', port });
-    const done = (reason: string | null) => {
+    let connected = false;
+    let settled = false;
+    const done = (result: MarionetteProbe) => {
+      if (settled) {
+        return;
+      }
+      settled = true;
       socket.destroy();
-      resolve(reason);
+      resolve(result);
     };
     socket.setTimeout(timeoutMs);
-    socket.once('connect', () => done(null));
-    socket.once('timeout', () => done(`connection to 127.0.0.1:${port} timed out`));
-    socket.once('error', (error: Error) => done(error.message));
+    socket.once('connect', () => {
+      connected = true;
+      socket.setTimeout(MARIONETTE_GREETING_TIMEOUT_MS);
+    });
+    socket.once('data', () => done({ status: 'ready' }));
+    socket.once('close', () =>
+      done(
+        connected
+          ? { status: 'busy' }
+          : { status: 'unreachable', reason: `connection to 127.0.0.1:${port} closed` }
+      )
+    );
+    socket.once('timeout', () =>
+      done(
+        connected
+          ? { status: 'silent' }
+          : { status: 'unreachable', reason: `connection to 127.0.0.1:${port} timed out` }
+      )
+    );
+    socket.once('error', (error: Error) => done({ status: 'unreachable', reason: error.message }));
   });
 }
 
@@ -243,16 +280,31 @@ export class FirefoxCore {
 
       // Fail fast with an actionable message instead of letting geckodriver
       // retry the connection for a minute and report a bare socket error.
-      const failure = await checkPort(port);
-      if (failure) {
+      const probe = await probeMarionette(port);
+      if (probe.status === 'busy') {
+        throw new Error(
+          `Another WebDriver session is already active in Firefox on 127.0.0.1:${port}, ` +
+            'and Marionette allows only one at a time. If it belongs to another ' +
+            'firefox-devtools-mcp server started with --connect-existing, that server releases ' +
+            'Firefox when it calls close_firefox_session or after it has been idle; try again then.'
+        );
+      }
+      if (probe.status === 'silent') {
+        throw new Error(
+          `Firefox accepted a connection on 127.0.0.1:${port} but Marionette did not answer ` +
+            `within ${MARIONETTE_GREETING_TIMEOUT_MS / 1000} seconds. Firefox may be busy; try ` +
+            'again, and check that this is the Marionette port.'
+        );
+      }
+      if (probe.status === 'unreachable') {
         if (this.options.lookupMarionettePort) {
           throw new Error(
-            `No Marionette listener on 127.0.0.1:${port} (${failure}). ` +
+            `No Marionette listener on 127.0.0.1:${port} (${probe.reason}). ` +
               'Please enable Firefox remote control for AI tooling using the AI assistant companion button.'
           );
         } else {
           throw new Error(
-            `No Marionette listener on 127.0.0.1:${port} (${failure}). Start Firefox with ` +
+            `No Marionette listener on 127.0.0.1:${port} (${probe.reason}). Start Firefox with ` +
               'both flags: firefox --marionette --remote-debugging-port, or pass the port it ' +
               'is actually using via --marionette-port.'
           );
