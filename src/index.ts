@@ -247,7 +247,11 @@ export async function run(
     };
   });
 
-  const idleTimeoutDuration = 30 * 60 * 1000; // 30 minutes
+  // setTimeout fires at once for delays above 2^31 - 1 ms.
+  const idleTimeoutDuration = Math.min(
+    (args.idleTimeout > 0 ? args.idleTimeout : 30 * 60) * 1000,
+    2 ** 31 - 1
+  );
   let idleTimer: NodeJS.Timeout | undefined;
   let disconnecting: Promise<void> | undefined;
   let activeCalls = 0;

@@ -136,6 +136,7 @@ You can pass flags or environment variables (names on the right):
 - `--accept-insecure-certs` — ignore TLS errors (`ACCEPT_INSECURE_CERTS=true`)
 - `--connect-existing` — attach to an already-running Firefox instead of launching a new one (`CONNECT_EXISTING=true`)
 - `--marionette-port` — Marionette port for connect-existing mode, default 2828 (`MARIONETTE_PORT`)
+- `--idle-timeout` — seconds without tool calls after which a connect-existing session releases Firefox, default 1800. Firefox accepts one client at a time, so other clients can only connect once it is released. The next tool call reconnects and selects the tab that is active in Firefox at that moment (`IDLE_TIMEOUT`)
 - `--pref name=value` — set Firefox preference at startup via `moz:firefoxOptions` (repeatable)
 - `--tool-preset` — select which tool modules to enable: `slim`, `basic` (default), `developer`, `mozilla`, or `all`. See [Tool modules and presets](#tool-modules-and-presets). (`TOOL_PRESET`)
 - `--tools` — explicit list of tool modules to enable, overriding `--tool-preset` entirely (e.g. `--tools pages network script`). See [Tool modules and presets](#tool-modules-and-presets).

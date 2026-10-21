@@ -127,6 +127,13 @@ export const cliOptions = {
       'companion, instead of using --marionette-port. Only applies when --connect-existing is set.',
     default: (process.env.LOOKUP_MARIONETTE_PORT ?? 'false') === 'true',
   },
+  idleTimeout: {
+    type: 'number',
+    description:
+      'Seconds without tool calls after which a --connect-existing session is released, so that ' +
+      'other clients can connect to Firefox (default: 1800)',
+    default: Number(process.env.IDLE_TIMEOUT ?? '1800'),
+  },
   env: {
     type: 'array',
     description:
