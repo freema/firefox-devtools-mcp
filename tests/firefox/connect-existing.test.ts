@@ -436,6 +436,27 @@ describe('FirefoxCore connect() BiDi endpoint check', () => {
     }
   });
 
+  it('should log when the geckodriver process cannot be read from selenium', async () => {
+    const mockLog = vi.fn();
+    vi.doMock('@/utils/logger.js', () => ({ log: mockLog, logDebug: vi.fn() }));
+    mockServiceBuild.mockReturnValueOnce({ kill: mockServiceKill });
+    mockCreateSession.mockReturnValue(
+      makeDriver({ browserVersion: '142.0', webSocketUrl: 'ws://127.0.0.1:9222/session/abc' })
+    );
+
+    try {
+      const { FirefoxCore } = await import('@/firefox/core.js');
+      const core = new FirefoxCore({ connectExisting: true, marionettePort: 2828 });
+      await core.connect();
+
+      expect(mockLog).toHaveBeenCalledWith(
+        expect.stringContaining('Cannot read the geckodriver process')
+      );
+    } finally {
+      vi.doUnmock('@/utils/logger.js');
+    }
+  });
+
   it('should not start geckodriver when closed while connecting', async () => {
     const { FirefoxCore } = await import('@/firefox/core.js');
     const core = new FirefoxCore({ connectExisting: true, marionettePort: 2828 });

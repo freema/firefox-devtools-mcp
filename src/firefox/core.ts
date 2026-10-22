@@ -197,7 +197,12 @@ type GeckodriverProcess = Promise<{ kill(signal: string): void }> | null;
 
 /** The process of a started service, which DriverService.kill() forgets. */
 function geckodriverProcessOf(service: GeckodriverService): GeckodriverProcess {
-  return (service as unknown as { command_: GeckodriverProcess }).command_;
+  const geckodriver = (service as unknown as { command_?: GeckodriverProcess }).command_;
+  if (!geckodriver) {
+    // command_ is private to selenium-webdriver and may change between versions.
+    log('Cannot read the geckodriver process from selenium-webdriver, it cannot be force-killed');
+  }
+  return geckodriver ?? null;
 }
 
 /**
