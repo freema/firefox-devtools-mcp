@@ -1,5 +1,5 @@
 {
-  "name": "firefox-devtools-mcp",
+  "name": "firefox-devtools-mcp-freema",
   "version": "0.10.6",
   "description": "Community packaging of Mozilla Firefox DevTools MCP for browsing, web testing, and debugging. Control Firefox, fill forms, take screenshots, and inspect network and console activity.",
   "author": {
