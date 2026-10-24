@@ -1,11 +1,12 @@
 {
   "name": "firefox-devtools-mcp",
-  "description": "Control Firefox for browsing, web testing, and debugging. Fill forms, capture network and console activity, take screenshots, run scripts, and profile performance. Supports Android devices.",
+  "version": "0.10.6",
+  "description": "Community packaging of Mozilla Firefox DevTools MCP for browsing, web testing, and debugging. Control Firefox, fill forms, take screenshots, and inspect network and console activity.",
   "author": {
-    "name": "Mozilla",
-    "url": "https://github.com/mozilla/firefox-devtools-mcp"
+    "name": "Tomas Grasl",
+    "url": "https://github.com/freema"
   },
-  "repository": "https://github.com/mozilla/firefox-devtools-mcp",
+  "repository": "https://github.com/freema/firefox-devtools-mcp",
   "homepage": "https://github.com/mozilla/firefox-devtools-mcp",
   "license": "MIT OR Apache-2.0",
   "mcpServers": {
@@ -13,7 +14,7 @@
       "command": "npx",
       "args": [
         "-y",
-        "@mozilla/firefox-devtools-mcp@latest",
+        "@mozilla/firefox-devtools-mcp@0.10.6",
         "--auto-profile",
         "--tool-preset",
         "developer",
